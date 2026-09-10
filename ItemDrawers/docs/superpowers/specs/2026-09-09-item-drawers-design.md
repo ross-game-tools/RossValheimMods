@@ -38,7 +38,7 @@ Decided during brainstorming. These are settled, not open.
   - Alt + Interact at zero → clear the drawer's item type
   - Shift + Interact → deposit every matching item in your inventory
 - Auto-pickup: a drawer vacuums matching dropped items within a configurable radius.
-- Three tiers — wood, stone, marble — holding **1,000 / 2,000 / 10,000**.
+- Three tiers — wood, stone, black marble — holding **1,000 / 2,000 / 10,000**.
 - **OttoFuel can withdraw from drawers** to feed smelters, kilns, fireplaces.
 - **NoVikingLeftBehind can craft from drawers**, consuming their contents.
 - Correct on a **dedicated server with multiple players**. No duplication, no loss.
@@ -181,7 +181,7 @@ Four thousand coal is one stack of 4,000, not eighty stacks of fifty.
 
 This works because `Inventory.CountItems` and `Inventory.RemoveItem` walk stacks
 arithmetically, and nothing ever displays this inventory in a UI where an oversized
-stack would look wrong. The alternative — materialising 200 real stacks per marble
+stack would look wrong. The alternative — materialising 200 real stacks per black marble
 drawer — is 20,000 `ItemData` objects across a wall of 100, rebuilt on every scan.
 That is the naive implementation and it is the one that would reintroduce the lag.
 
@@ -255,11 +255,19 @@ be picked up twice by two clients.
 | Tier | Capacity | Recipe | Station |
 |---|---|---|---|
 | Wood | 1,000 | 10 Fine Wood | Workbench |
-| Stone | 2,000 | 10 Fine Wood, 6 Stone | Workbench |
-| Marble | 10,000 | 10 Fine Wood, 6 Black Marble | Artisan table |
+| Stone | 2,000 | 5 Fine Wood, 10 Stone | Workbench |
+| Black Marble | 10,000 | 5 Fine Wood, 10 Black Marble | Workbench |
 
-Recipes are a first proposal, not a decided requirement; wood matches makail's
-original exactly. Built from the Hammer, Furniture tab.
+Costs are decided. Wood matches makail's original exactly; the two upper tiers
+share a shape — half the fine wood, ten of the tier material — so the wood is
+framing and the tier material is the visible face.
+
+Built from the Hammer, Furniture tab. **All three use the Workbench**, which is a
+call rather than a requirement: vanilla ties raw stone and black marble *building*
+pieces to the Stonecutter, so following that convention would mean gating the two
+upper tiers behind one. Treating a drawer as wood-framed furniture regardless of its
+facing keeps a stone drawer buildable wherever a wood one is, which matters when the
+normal use is a hundred of them in a wall. Say the word and it becomes Stonecutter.
 
 Config through BepInEx, synced from server to clients so a dedicated server's
 capacities and pickup radius govern everyone. Jotunn provides the sync. Every number
