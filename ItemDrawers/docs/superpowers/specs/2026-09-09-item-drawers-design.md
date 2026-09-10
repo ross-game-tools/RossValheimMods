@@ -99,7 +99,7 @@ raising a tier's capacity in config applies to drawers already built.
 ## 5. Geometry
 
 Generated procedurally in C# from chamfered boxes. No asset bundle ships. The
-proportions were settled interactively (see `docs/drawer-spec.md`) and are:
+proportions were settled interactively (see `ItemDrawers/docs/drawer-spec.md`) and are:
 
 ```csharp
 Width = 1.000f;  Height = 1.000f;  Depth = 1.000f;
