@@ -9,4 +9,4 @@ Directory.Build.local.props
 
 # Thunderstore packaging output (regenerate with ItemDrawers/package.sh)
 ItemDrawers/thunderstore/build/
-ItemDrawers/ItemDrawers-*.zip
+ItemDrawers/*ItemDrawers-*.zip

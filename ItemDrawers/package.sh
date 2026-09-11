@@ -86,7 +86,7 @@ if [ "$missing" -ne 0 ]; then
     exit 1
 fi
 
-ZIP="$HERE/ItemDrawers-$VERSION.zip"
+ZIP="$HERE/RossItemDrawers-$VERSION.zip"
 rm -f "$ZIP"
 
 # Thunderstore requires manifest.json, icon.png and README.md at the ARCHIVE
