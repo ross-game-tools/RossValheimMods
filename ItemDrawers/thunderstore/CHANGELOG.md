@@ -3,6 +3,15 @@
 Beta: single-player and single-client dedicated-server play are
 tested; simultaneous multi-client use is not yet verified.
 
+## 0.9.1 — beta
+
+- Renamed the Thunderstore package to RossItemDrawers. The plugin GUID
+  and every prefab name are unchanged, so existing drawers and configs
+  carry over untouched.
+- Corrected the compatibility notes: OttoFuel and NoVikingLeftBehind
+  integration shipped in 0.9.0, but the README still described it as
+  planned.
+
 ## 0.9.0 — beta
 
 First public build, released for testing. A clean-room rewrite for
