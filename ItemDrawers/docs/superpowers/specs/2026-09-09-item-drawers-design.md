@@ -13,12 +13,15 @@ Valheim 1.0 broke every item drawer mod, and none of them are coming back:
 | `KGvalheim/ItemDrawers` | 1.2.0 | Deprecated. Source public at `WernerCD/Valheim_ItemDrawers_KG`, no licence file. |
 | `OdinPlus/ItemDrawers_Remake` | 0.0.6 | Deprecated. Source at `sbtoonz/item_drawers`. |
 
-The likely cause of the breakage is that Valheim 1.0 moved its assets behind
-`SoftReferenceableAssets` — 796 bundles, 4.1 GB, resolved through a soft-reference
-manifest rather than sitting resident in `ZNetScene` at startup. Mods that grab
-vanilla prefabs out of `ZNetScene` during `Awake` no longer find them. Anything we
-build must load assets the 1.0 way. **This assumption is load-bearing and must be
-verified first** — see §14.
+The cause of the breakage is that Valheim 1.0 rebuilt the build menu around
+`Piece.m_usage`, a flags enum that did not previously exist. Pieces without usage
+tags are invisible in every tab. Mods that create `Piece` components in code leave
+`m_usage` at `0` and their pieces vanish from the menu even though registration
+succeeds. See §14 for the full finding and the three other editor-set fields that
+must be assigned in code.
+
+An earlier draft of this spec blamed `SoftReferenceableAssets`. That was inference
+from the file layout and it was wrong; a spike disproved it on 2026-09-10.
 
 We are writing a replacement rather than patching a corpse because two of the three
 have no licence, and because the interesting requirements (below) are not what any
@@ -312,12 +315,32 @@ than assumed.
 
 ## 14. Risks
 
-**The soft-reference assumption (§1) is unverified.** The claim that 1.0's asset
-system is what killed the old mods is inference from the file layout, not from a
-reproduction. If it is wrong, the diagnosis is wrong, though most of this design is
-unaffected — we would simply have less to work around. *Verify before writing
-anything else: build a do-nothing plugin that registers one piece and confirm it
-appears in the Hammer.*
+**The soft-reference assumption (§1) was WRONG. Disproved 2026-09-10.** A spike
+plugin registered a custom piece on Valheim 1.0 / Unity 6 without difficulty:
+Jotunn 2.30.0 loads, initialises and registers pieces normally, and vanilla
+prefabs resolve fine. The asset system is not what broke the old drawer mods.
+
+**What actually breaks them is `Piece.m_usage`.** Valheim 1.0 rebuilt the build
+menu around `ByUsagePieceList`, which filters every tab with
+`m_usage.HasFlag(tag)` and reserves `tagId == -1` for "show all". The tab strip is
+the union of usage flags across available pieces, which is why the tabs read
+"Furniture and Lighting" rather than the old `PieceCategory` names —
+`m_category` no longer drives the menu at all. A `Piece` created in code gets
+`m_usage = 0`, matches no tag, and is reachable only under "show all". The mods
+are not failing to register; their pieces are invisible.
+
+**Four fields the Unity editor sets on vanilla prefabs that code must set itself.**
+All four were found the hard way on a bare cube, each one masking the next:
+
+| Field | Default in code | Consequence if left |
+|---|---|---|
+| `Piece` component | absent | Jotunn's `IsValid()` rejects the prefab |
+| `Piece.m_icon` | null | `IsValid()` rejects it — an icon is mandatory, not decoration |
+| `Piece.m_enabled` | `false` | Never enters `m_availablePieces`; no tab, and never becomes a known recipe |
+| `Piece.m_usage` | `0` | Invisible in every 1.0 tab; findable only under "show all" |
+
+A vanilla wooden chest uses `Furniture | Storage`. Drawers copy it, so they appear
+where players already look for storage.
 
 **Deriving from `Container` inherits `Container.Awake`.** Unity's `Awake` is not
 virtual, and the interaction between a base and derived private `Awake` is subtle. We

@@ -1,0 +1,20 @@
+# Developed on Windows with core.autocrlf=true. Without this file the tree
+# drifted: deploy.sh was LF, package.sh CRLF, and every `git add` of a
+# newly written file printed a line-ending warning.
+
+# Normalise to LF in the repository; Windows working copies still get CRLF
+# for ordinary text, which is what the C# tooling here expects.
+* text=auto
+
+# Shell scripts are the exception that made this file necessary: Git Bash
+# runs them as-is, and a CRLF script fails on the stray carriage return.
+# These stay LF in the working tree on every platform.
+*.sh text eol=lf
+
+# Never touch binaries. icon.png in particular -- a line-ending conversion
+# applied to a PNG corrupts it silently, and Thunderstore rejects the
+# package rather than explaining why.
+*.png binary
+*.dll binary
+*.zip binary
+*.unity3d binary

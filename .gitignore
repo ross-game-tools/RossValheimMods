@@ -3,3 +3,10 @@ obj/
 *.user
 *.suo
 .vs/
+.superpowers/
+Directory.Build.local.props
+.claude/worktrees/
+
+# Thunderstore packaging output (regenerate with ItemDrawers/package.sh)
+ItemDrawers/thunderstore/build/
+ItemDrawers/ItemDrawers-*.zip

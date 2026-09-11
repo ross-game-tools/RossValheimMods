@@ -5,7 +5,7 @@ buildable and independently packaged for Thunderstore.
 
 | Mod | What it does | State |
 |---|---|---|
-| [ItemDrawers](ItemDrawers/) | Wall-mountable drawers that each hold a large quantity of one item and show it on the front. Readable and withdrawable by container-aware mods such as OttoFuel and NoVikingLeftBehind. | Design approved, not yet implemented |
+| [ItemDrawers](ItemDrawers/) | Wood, stone and black marble drawers that each hold a large quantity of one item and show it on the front. Clean-room rewrite; ships no art. | Implemented; Thunderstore packaging in place, icon.png outstanding |
 
 ## Layout
 
@@ -26,3 +26,12 @@ it from the others.
 Requires a .NET SDK (targets `netstandard2.1`) and a Valheim install.
 Valheim assemblies are referenced through
 `BepInEx.AssemblyPublicizer.MSBuild` and are never committed.
+
+## License
+
+[MIT](LICENSE), copyright Ross West. This repository exists in part
+because three earlier Valheim drawer mods were abandoned and two of them
+shipped with no license at all, so nobody could legally pick them up and
+continue them. Every mod here ships under MIT precisely so that fate does
+not repeat: if a mod here is ever abandoned, anyone can fork and continue
+it without asking permission that may no longer be reachable.

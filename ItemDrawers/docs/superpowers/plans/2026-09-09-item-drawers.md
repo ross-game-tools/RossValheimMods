@@ -12,6 +12,13 @@
 
 **Proportions:** `ItemDrawers/docs/drawer-spec.md`
 
+**Execution order** (amended after a pre-flight conflict scan; task numbering
+below is unchanged): 1-7, then 13 (DrawerConfig only), then 9's atlas and
+renderer classes, then **8 and 10 together as one unit**, then 11, 12, the
+rest of 13, and 14-16. DrawerComponent and DrawerManager are mutually
+referential by design, so neither compiles alone; the config and renderer
+moves are plain forward references that reordering resolves.
+
 ## Global Constraints
 
 Every task's requirements implicitly include this section. Values are copied verbatim from the spec — do not adjust them while implementing.
@@ -36,6 +43,18 @@ Every task's requirements implicitly include this section. Values are copied ver
 - **Mutation rule:** claim ZDO ownership, *then* write. Never write to a ZDO you do not own. Never RPC a mutation and assume it landed.
 - **Performance target:** a 10×10 wall renders in a single-digit number of draw calls, and its frame cost is within noise of the same scene without it — including while OttoFuel and NoVikingLeftBehind are actively scanning. Measured in Task 13, not assumed.
 - **Rendering prohibition:** no `Canvas`, no `TextMeshProUGUI`, no per-drawer `Update()`, no per-drawer `InvokeRepeating`. These are what made the old mods lag. `DrawerManager` owns the only tick.
+- **Every drawer prefab MUST set these four fields.** The Unity editor sets them on
+  vanilla prefabs; a component created in code does not, and each one silently
+  masks the next. Verified in game on 2026-09-10:
+  | Field | Required value | If omitted |
+  |---|---|---|
+  | `Piece` component | present | Jotunn `IsValid()` rejects the prefab |
+  | `Piece.m_icon` | a real Sprite | `IsValid()` rejects it; an icon is mandatory |
+  | `Piece.m_enabled` | `true` | Never enters `m_availablePieces`; no tab, never a known recipe |
+  | `Piece.m_usage` | `Furniture \| Storage` | Invisible in every 1.0 tab except "show all" |
+  `m_category` no longer drives the build menu on 1.0 — `m_usage` does. Set
+  `m_category` anyway for compatibility, but never rely on it for visibility.
+  `Furniture \| Storage` is what `piece_chest_wood` uses, confirmed at runtime.
 
 ---
 
@@ -263,7 +282,7 @@ Copy the built DLL into the r2modman profile and launch:
 
 ```bash
 cp src/ItemDrawers.Game/bin/Release/netstandard2.1/ItemDrawers.dll \
-  "/c/Users/ross/AppData/Roaming/r2modmanPlus-local/Valheim/profiles/Default/BepInEx/plugins/"
+  "/c/Users/ross/AppData/Roaming/r2modmanPlus-local/Valheim/profiles/dev/BepInEx/plugins/"
 ```
 
 Launch Valheim through r2modman, load a world, equip the Hammer, open the Furniture tab.
@@ -377,10 +396,13 @@ namespace ItemDrawers.Core
         public float HandleProud = 0.035f;
         public HandleStyle Handle = HandleStyle.Bar;
 
+        /// <summary>How much of the frame opening the icon fills. Approved at 0.98.</summary>
+        public float LabelScale = 0.98f;
+
         /// <summary>
         /// Label size is derived, not free: the frame opening minus handle
-        /// clearance. docs/drawer-spec.md records 0.691 for the approved
-        /// proportions; this recomputes it so the two cannot drift.
+        /// clearance, times LabelScale. docs/drawer-spec.md records 0.691 for
+        /// the approved proportions; this recomputes it so the two cannot drift.
         /// </summary>
         public float LabelSize
         {
@@ -390,7 +412,7 @@ namespace ItemDrawers.Core
                 float openH = Height - 2f * FrameThickness;
                 if (Handle == HandleStyle.Bar) openH -= HandleSection * 3.0f;
                 float min = openW < openH ? openW : openH;
-                float size = min * 0.62f;
+                float size = min * LabelScale;
                 return size < 0.05f ? 0.05f : size;
             }
         }
@@ -1861,14 +1883,17 @@ namespace ItemDrawers.Core
             if (results == null) throw new ArgumentNullException(nameof(results));
             if (radius <= 0f) return;
 
-            int min = (int)Math.Floor(-radius / _cellSize);
-            int max = (int)Math.Floor(radius / _cellSize);
+            // Symmetric and rounded up. A floor-based range is asymmetric and
+            // silently skips the far cell: at radius 5 with cellSize 8 it
+            // yields -1..0, missing an item one cell over and well inside
+            // the radius.
+            int range = (int)Math.Ceiling(radius / _cellSize);
             var origin = CellOf(x, y, z);
             float r2 = radius * radius;
 
-            for (int dx = min; dx <= max; dx++)
-            for (int dy = min; dy <= max; dy++)
-            for (int dz = min; dz <= max; dz++)
+            for (int dx = -range; dx <= range; dx++)
+            for (int dy = -range; dy <= range; dy++)
+            for (int dz = -range; dz <= range; dz++)
             {
                 var cell = new Cell(origin.X + dx, origin.Y + dy, origin.Z + dz);
                 if (!_cells.TryGetValue(cell, out var bucket)) continue;
@@ -1929,7 +1954,7 @@ Replaces the spike cube with the generated mesh wearing vanilla materials. First
 - Produces:
   - `enum DrawerTier { Wood, Stone, BlackMarble }`
   - `static class DrawerTiers { static string PrefabName(DrawerTier t); static int DefaultCapacity(DrawerTier t); static string DisplayName(DrawerTier t); static IEnumerable<DrawerTier> All; }`
-  - `static class DrawerPieces { static void RegisterAll(); static GameObject BuildPrefab(DrawerTier tier); }`
+  - `static class DrawerPieces { static void RegisterAll(); static GameObject BuildPrefab(DrawerTier tier, Mesh sharedMesh); }`
   - `static UnityEngine.Mesh MeshDataExtensions.ToUnityMesh(this MeshData data, string name)`
 
 - [ ] **Step 1: Add the project reference**
@@ -2175,7 +2200,7 @@ Delete the spike method entirely — it has served its purpose.
 ```bash
 cd ItemDrawers && dotnet build -c Release
 cp src/ItemDrawers.Game/bin/Release/netstandard2.1/ItemDrawers.dll \
-  "/c/Users/ross/AppData/Roaming/r2modmanPlus-local/Valheim/profiles/Default/BepInEx/plugins/"
+  "/c/Users/ross/AppData/Roaming/r2modmanPlus-local/Valheim/profiles/dev/BepInEx/plugins/"
 ```
 
 Launch, load a world, open the Hammer's Furniture tab.
@@ -2551,7 +2576,7 @@ In `DrawerPieces.BuildPrefab`, replace the `go.AddComponent<ZNetView>();` line a
 - [ ] **Step 4: Build and verify in game**
 
 ```bash
-cd ItemDrawers && dotnet build -c Release && cp src/ItemDrawers.Game/bin/Release/netstandard2.1/ItemDrawers.dll "/c/Users/ross/AppData/Roaming/r2modmanPlus-local/Valheim/profiles/Default/BepInEx/plugins/"
+cd ItemDrawers && dotnet build -c Release && cp src/ItemDrawers.Game/bin/Release/netstandard2.1/ItemDrawers.dll "/c/Users/ross/AppData/Roaming/r2modmanPlus-local/Valheim/profiles/dev/BepInEx/plugins/"
 ```
 
 Walk the full control scheme against a placed wood drawer. Each line is a separate check:
