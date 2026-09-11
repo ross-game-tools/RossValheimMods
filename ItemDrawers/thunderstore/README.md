@@ -81,6 +81,33 @@ works the same in single-player and on a dedicated server.
 - BepInEx 5.4.2350
 - Jotunn 2.30.0
 
+## Dedicated servers
+
+Install it on the server as well as on every client. Drawers are custom
+prefabs, and a peer that does not know a prefab discards the objects
+using it: a server without this mod will strip every drawer from the
+world the first time it loads those zones, and the items they held go
+with them. Client and server should run the same version.
+
+On the server:
+
+1. Install **BepInExPack Valheim**. It contains the server start
+   scripts as well as the loader.
+2. Copy `Jotunn.dll`, `ItemDrawers.dll` and `ItemDrawers.Core.dll` into
+   the server's `BepInEx/plugins/`.
+3. Start the server with `start_server_bepinex.sh` (Linux) or
+   `start_server_bepinex.bat` (Windows). The stock `start_server`
+   script does not load BepInEx, so the server comes up vanilla and
+   strips the drawers exactly as if the mod were not installed.
+
+Check `BepInEx/LogOutput.log` for `ItemDrawers <version> loaded` before
+letting anyone connect.
+
+Capacity and pickup settings are marked admin-only, so Jotunn pushes the
+**server's** values to every client and a client editing its own config
+file changes nothing. Edit them in the server's
+`BepInEx/config/com.rossdwest.itemdrawers.cfg`.
+
 ## Installing both DLLs
 
 This mod ships as **two** assemblies: `ItemDrawers.dll` (the plugin) and
