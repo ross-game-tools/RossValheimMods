@@ -4,6 +4,8 @@ A drawer that holds a large quantity of a single item and shows that item
 and its count on its front face. Built from the Hammer, Furniture tab, at
 a Workbench.
 
+![A 3x3 wall of drawers, one of each tier, each showing its item and count](https://raw.githubusercontent.com/ross-game-tools/RossValheimMods/main/ItemDrawers/docs/images/drawers-wall.png)
+
 ## Tiers
 
 | Tier | Capacity | Recipe (at Workbench) |

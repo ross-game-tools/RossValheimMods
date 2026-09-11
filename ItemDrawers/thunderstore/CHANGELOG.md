@@ -2,6 +2,10 @@
 
 Beta: functional and in use, but not yet widely tested.
 
+## 0.9.3 — beta
+
+- Added a screenshot to the description.
+
 ## 0.9.2 — beta
 
 - Rewrote the README and changelog for players rather than developers.
