@@ -1,7 +1,6 @@
 # Changelog
 
-Beta: single-player and single-client dedicated-server play are
-tested; simultaneous multi-client use is not yet verified.
+Beta: functional and in use, but not yet widely tested.
 
 ## 0.9.1 — beta
 
