@@ -16,4 +16,24 @@
     -->
     <JOTUNN_INSTALL Condition="'$(JOTUNN_INSTALL)' == ''">C:\Users\ross\AppData\Roaming\r2modmanPlus-local\Valheim\profiles\dev\BepInEx\plugins\ValheimModding-Jotunn</JOTUNN_INSTALL>
   </PropertyGroup>
+
+  <PropertyGroup>
+    <!--
+      MSB3277 fires on every build of ItemDrawers.Game, roughly forty lines of
+      it, and none of it is actionable. Valheim ships its own copies of
+      System.Net.Http and System.IO.Compression inside assembly_valheim and
+      assembly_utils, at versions differing from the netstandard2.1 reference
+      assemblies we compile against. MSBuild reports the conflict and then
+      resolves it correctly: the primary (netstandard) reference wins, which is
+      what we want, because at RUNTIME neither copy is ours. BepInEx loads this
+      plugin into the game process and Unity supplies those assemblies. We ship
+      no System.* DLLs, so there is nothing to bind-redirect and nothing to fix.
+
+      Downgraded to a message rather than suppressed outright, so it still shows
+      in a detailed build log if it ever matters. Note that MSBuild warnings do
+      not respond to NoWarn, which is C#-compiler only; MSBuildWarningsAsMessages
+      is the equivalent for them.
+    -->
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB3277</MSBuildWarningsAsMessages>
+  </PropertyGroup>
 </Project>

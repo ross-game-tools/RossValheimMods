@@ -29,6 +29,21 @@ if [ -z "$VERSION" ]; then
         || VERSION="dev"
 fi
 
+# The manifest's version and the plugin's own PluginVersion must agree.
+# They had already drifted once -- manifest 1.0.0 against a plugin
+# reporting 0.1.0 -- which is invisible until a player reports a bug
+# against a version string that does not match what Thunderstore served
+# them, and BepInEx logs the plugin's number, not the manifest's.
+PLUGIN_VERSION=$(grep -E 'PluginVersion = "' "$HERE/src/ItemDrawers.Game/DrawerPlugin.cs" | head -1 | cut -d'"' -f2)
+if [ "$PLUGIN_VERSION" != "$VERSION" ]; then
+    echo "REFUSING to package: version mismatch." >&2
+    echo "  manifest.json version_number = $VERSION" >&2
+    echo "  DrawerPlugin.PluginVersion   = $PLUGIN_VERSION" >&2
+    echo "Set both to the same value and re-run." >&2
+    exit 1
+fi
+echo "==> Version $VERSION (manifest and plugin agree)"
+
 echo "==> Building Release"
 "$DOTNET" build "$HERE/ItemDrawers.sln" -c Release --nologo -v q
 
