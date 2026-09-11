@@ -2,6 +2,10 @@
 
 Beta: functional and in use, but not yet widely tested.
 
+## 0.9.2 — beta
+
+- Rewrote the README and changelog for players rather than developers.
+
 ## 0.9.1 — beta
 
 - Renamed the Thunderstore package to RossItemDrawers. The plugin ID and
