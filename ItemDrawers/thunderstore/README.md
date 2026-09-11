@@ -7,10 +7,10 @@ a Workbench.
 Valheim 1.0 broke every existing drawer mod and none of them are
 maintained. This is a **clean-room rewrite**, not a fork or a port of
 makail's original ItemDrawers or of KG's `kg_itemdrawers`: the code is new
-and the mod ships no art of its own (see "No shipped assets" below). It
-keeps the spirit of the original — one drawer, one item type, a big
-number on the front — but the interaction scheme differs from makail's in
-a way you should know about before you report it as a bug (see Controls).
+and the mod ships no art of its own. It keeps the spirit of the original
+— one drawer, one item type, a big number on the front — but the
+interaction scheme differs from makail's in a way you should know about
+before you report it as a bug (see Controls).
 
 **Drawers from makail's or KG's mods are not converted by this mod.** If
 you remove one of those mods from a world that used it, its drawers
@@ -51,17 +51,6 @@ bound to `Ctrl` instead (Valheim's "Crouch" action), a key that is
 actually distinct from Run/Shift. If you rebind Crouch or Run in
 Valheim's own settings, this mod follows the rebind.
 
-## No shipped assets
-
-This mod ships no meshes, textures, or icons of its own. Every drawer's
-geometry is generated at runtime from chamfered boxes, and its textures
-are generated procedurally and tile seamlessly — nothing is pulled from
-another mod's asset bundle. Materials use Valheim's own `Custom/Piece`
-shader (borrowed from vanilla building pieces, not modelled), so drawers
-pick up the game's wear, wetness and snow shading like any other piece in
-your build. There is nothing encumbered here to publish, and nothing
-converted from an earlier mod's art.
-
 ## Compatibility
 
 Drawers derive from Valheim's `Container`, so a `GetComponent<Container>()`
@@ -78,17 +67,6 @@ Verified working in game:
 
 Both *withdraw*, not merely read, which is the harder half.
 
-Two honest caveats for other mods:
-
-- **Depositing** into a drawer from another mod is the untested
-  direction. On a drawer you do not own on a multiplayer server, an
-  empty drawer's single slot looks free, so an auto-store-style mod
-  could hand it items that are then discarded. Nothing above exercises
-  this path and it cannot happen in single-player, but it is the place
-  to look first if items go missing.
-- Simultaneous **multi-client** use is not yet verified. Single-player
-  and one client against a dedicated server are.
-
 Everything else about a drawer — placing it, assigning it, taking from it,
 depositing into it by hand, breaking it (its contents spill rather than
 vanish) — works the same in single-player and on a dedicated server.
@@ -97,42 +75,3 @@ vanish) — works the same in single-player and on a dedicated server.
 
 - BepInEx 5.4.2350
 - Jotunn 2.30.0
-
-## Dedicated servers
-
-Install it on the server as well as on every client. Drawers are custom
-prefabs, and a peer that does not know a prefab discards the objects
-using it: a server without this mod will strip every drawer from the
-world the first time it loads those zones, and the items they held go
-with them. Client and server should run the same version.
-
-On the server:
-
-1. Install **BepInExPack Valheim**. It contains the server start
-   scripts as well as the loader.
-2. Copy `Jotunn.dll`, `ItemDrawers.dll` and `ItemDrawers.Core.dll` into
-   the server's `BepInEx/plugins/`.
-3. Start the server with `start_server_bepinex.sh` (Linux) or
-   `start_server_bepinex.bat` (Windows). The stock `start_server`
-   script does not load BepInEx, so the server comes up vanilla and
-   strips the drawers exactly as if the mod were not installed.
-
-Check `BepInEx/LogOutput.log` for `ItemDrawers <version> loaded` before
-letting anyone connect.
-
-Capacity and pickup settings are marked admin-only, so Jotunn pushes the
-**server's** values to every client and a client editing its own config
-file changes nothing. Edit them in the server's
-`BepInEx/config/com.rossdwest.itemdrawers.cfg`.
-
-## Installing both DLLs
-
-This mod ships as **two** assemblies: `ItemDrawers.dll` (the plugin) and
-`ItemDrawers.Core.dll` (pure logic the plugin depends on). If you are
-copying files by hand rather than using a mod manager, copy **both** —
-`ItemDrawers.dll` alone loads with no error in the log but registers zero
-drawers, because it throws `FileNotFoundException` looking for
-`ItemDrawers.Core.dll` the first time it needs it. A Thunderstore-managed
-install (r2modman, Thunderstore Mod Manager, or the mod manager's own
-download) always installs the whole package, so this only matters for a
-manual copy.
