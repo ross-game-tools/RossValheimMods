@@ -64,17 +64,34 @@ converted from an earlier mod's art.
 
 ## Compatibility
 
-Drawers derive from Valheim's `Container` so that a `GetComponent<Container>()`
-from another mod finds this type. As of 1.0.0 that is as far as the bridge
-goes: this drawer does not run `Container`'s own setup, so a mod that calls
-`GetInventory()` on it directly will not see its contents today. Treat
-container-aware automation (fuel-feeders, auto-crafters, and similar) as
-**not yet supported** rather than assumed compatible — a proper bridge for
-that is planned but not shipped in this release.
+Drawers derive from Valheim's `Container`, so a `GetComponent<Container>()`
+from another mod finds one, and `GetInventory()` returns a live view of the
+drawer's contents: a single-slot inventory holding one oversized stack of
+whatever the drawer is assigned. Container-aware mods can read from and
+withdraw from drawers through the ordinary `Inventory` API, with no
+knowledge of this mod.
+
+Verified working in game:
+
+- **OttoFuel** pulls fuel from drawers to feed fires, kilns and smelters.
+- **NoVikingLeftBehind** crafts using items stored in drawers.
+
+Both *withdraw*, not merely read, which is the harder half.
+
+Two honest caveats for other mods:
+
+- **Depositing** into a drawer from another mod is the untested
+  direction. On a drawer you do not own on a multiplayer server, an
+  empty drawer's single slot looks free, so an auto-store-style mod
+  could hand it items that are then discarded. Nothing above exercises
+  this path and it cannot happen in single-player, but it is the place
+  to look first if items go missing.
+- Simultaneous **multi-client** use is not yet verified. Single-player
+  and one client against a dedicated server are.
 
 Everything else about a drawer — placing it, assigning it, taking from it,
-depositing into it, breaking it (its contents spill rather than vanish) —
-works the same in single-player and on a dedicated server.
+depositing into it by hand, breaking it (its contents spill rather than
+vanish) — works the same in single-player and on a dedicated server.
 
 ## Dependencies
 

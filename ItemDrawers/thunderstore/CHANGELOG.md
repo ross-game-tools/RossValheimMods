@@ -10,6 +10,12 @@ Valheim 1.0 — not a fork of
 makail's or KG's drawer mods, and drawers from those mods are not
 converted.
 
+- Works with container-aware mods: drawers are `Container`s whose
+  `GetInventory()` returns their live contents, so other mods read and
+  withdraw through the ordinary API. Verified in game with **OttoFuel**
+  (pulls fuel from drawers) and **NoVikingLeftBehind** (crafts from
+  them). Depositing from another mod is the untested direction — see
+  the README.
 - Each tier is coloured to match the material it is built from,
   with a brightened metal handle and a dark label plate behind the
   icon and count so the front face reads at a glance and the count
