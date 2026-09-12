@@ -2,7 +2,7 @@
 
 Beta: functional and in use, but not yet widely tested.
 
-## 0.9.3 — beta
+## 0.9.4 — beta
 
 - Fixed area pickup being unreliable in multiplayer. Drawers now absorb
   nearby items regardless of which player dropped them or who last
@@ -13,6 +13,9 @@ Beta: functional and in use, but not yet widely tested.
   OttoFuel would refuse to pull fuel, and would keep feeding a kiln past
   its coal cutoff because the coal it counts was in drawers it could not
   see.
+
+## 0.9.3 — beta
+
 - Added a screenshot to the description.
 
 ## 0.9.2 — beta
