@@ -1251,6 +1251,132 @@ namespace ItemDrawers.Game
         /// OnMirrorChanged's own comment on why that path stays inert
         /// until a real, testable depositing caller exists.
         /// </summary>
+        /// <summary>
+        /// How an automated deposit into THIS drawer has to be routed right
+        /// now, which depends entirely on who owns its ZDO.
+        /// </summary>
+        internal enum DepositRoute
+        {
+            /// <summary>We own it: write directly.</summary>
+            Owned,
+
+            /// <summary>
+            /// Nobody owns it, and we have just asked to. Ownership transfer
+            /// is a network round trip, so the caller should do nothing this
+            /// tick and try again on the next one.
+            /// </summary>
+            Claiming,
+
+            /// <summary>Another client owns it: go through the RPC protocol.</summary>
+            Foreign,
+
+            /// <summary>No usable view or no reachable owner; skip entirely.</summary>
+            Unavailable,
+        }
+
+        /// <summary>
+        /// Decides how an automated deposit must reach this drawer, and
+        /// starts an ownership claim if that is what is needed.
+        ///
+        /// This exists because auto-pickup was silently doing nothing for
+        /// most drawers in multiplayer. The only deposit path automation had
+        /// was TryDepositExternally, which refuses unless this client already
+        /// owns the drawer -- so absorbing a dropped item required one client
+        /// to happen to own BOTH the item and the drawer, and any drawer
+        /// owned by another player, or by nobody because nobody had touched
+        /// it since the zone loaded, was skipped with no indication.
+        ///
+        /// The three outcomes are deliberately different, because the two
+        /// non-owned cases are not the same situation:
+        ///
+        /// - No owner at all is not somebody else's drawer, so claiming it
+        ///   takes nothing from anyone. This is the common case for a drawer
+        ///   in a freshly loaded zone and was the bulk of the reported
+        ///   inconsistency.
+        /// - A live foreign owner must NOT be claimed away. Stealing a ZDO
+        ///   that someone legitimately holds is what the RPC protocol exists
+        ///   to avoid (see the class-level comment), so that case routes a
+        ///   request to the owner instead.
+        ///
+        /// Claiming returns rather than proceeding, on purpose. ClaimOwnership
+        /// is a local field write that then replicates; acting immediately on
+        /// an ownership we asked for microseconds ago is exactly how two
+        /// clients both believe they own a drawer and both credit it. Waiting
+        /// a tick costs half a second and lets the claim settle.
+        /// </summary>
+        internal DepositRoute ResolveDepositRoute()
+        {
+            if (_view == null || !_view.IsValid()) return DepositRoute.Unavailable;
+            if (_view.IsOwner()) return DepositRoute.Owned;
+
+            var zdo = _view.GetZDO();
+            if (zdo == null) return DepositRoute.Unavailable;
+
+            if (zdo.GetOwner() == 0L)
+            {
+                _view.ClaimOwnership();
+                return DepositRoute.Claiming;
+            }
+
+            return DepositRoute.Foreign;
+        }
+
+        /// <summary>
+        /// Submits a deposit to a drawer owned by ANOTHER client, through the
+        /// same request/grant protocol the player's own deposit uses.
+        ///
+        /// Returns the count the caller must now remove from whatever it is
+        /// depositing from. Those items become this mod's responsibility at
+        /// that moment: the owner either credits them to the drawer or the
+        /// pending record refunds them by spilling at
+        /// <paramref name="refundPosition"/>, exactly as the player path
+        /// spills at the player's feet. The caller must not remove more than
+        /// the returned count, and must not skip removing it.
+        ///
+        /// The amount is computed against this client's REPLICATED view of
+        /// the drawer, so it is a best guess at how much will fit. The owner
+        /// re-validates and reports what it actually took; any shortfall
+        /// comes back through RPC_GrantDeposit and is spilled. Being
+        /// optimistic here is safe for that reason, and being pessimistic
+        /// would mean absorbing nothing whenever a drawer's replicated count
+        /// was slightly stale.
+        /// </summary>
+        internal bool TrySubmitForeignDeposit(
+            string itemName, int amount, Vector3 refundPosition, out int submitted)
+        {
+            submitted = 0;
+
+            if (!ItemFacts.IsStorable(itemName)) return false;
+            if (_view == null || !_view.IsValid()) return false;
+
+            var zdo = _view.GetZDO();
+            if (zdo == null) return false;
+
+            // See the class-level RPC comment: ZRoutedRpc routes target 0 as
+            // Everybody, which broadcasts the request -- and every retry --
+            // to every peer, the multi-owner double-apply that pinning exists
+            // to prevent. ResolveDepositRoute claims unowned drawers rather
+            // than sending to 0, so reaching here with 0 means ownership was
+            // lost between the two calls; skip and pick it up next tick.
+            long targetOwner = zdo.GetOwner();
+            if (targetOwner == 0L) return false;
+
+            var outcome = DrawerState.Deposit(Snapshot, Capacity, itemName, amount);
+            if (!outcome.Accepted || outcome.MovedToDrawer <= 0) return false;
+
+            var manager = DrawerManager.Instance;
+            if (manager == null) return false;
+
+            long id = manager.NextRequestId();
+            manager.AddPendingDeposit(id, new PendingDeposit(
+                drawerId: _zdoId, targetOwner: targetOwner, player: null, itemName: itemName,
+                removed: outcome.MovedToDrawer, playerPosition: refundPosition, announce: false));
+            SendDepositRequestRpc(id, targetOwner, itemName, outcome.MovedToDrawer);
+
+            submitted = outcome.MovedToDrawer;
+            return true;
+        }
+
         public bool TryDepositExternally(string itemName, int amount, out int accepted)
         {
             accepted = 0;

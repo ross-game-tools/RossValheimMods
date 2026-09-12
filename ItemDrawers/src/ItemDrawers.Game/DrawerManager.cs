@@ -291,10 +291,6 @@ namespace ItemDrawers.Game
                 if ((drop.transform.position - playerPos).sqrMagnitude > scanRangeSq) continue;
 
                 if (drop.m_nview == null || !drop.m_nview.IsValid()) continue;
-
-                // Only the owning client absorbs an item, so two clients
-                // cannot pick up the same drop twice.
-                if (!drop.m_nview.IsOwner()) continue;
                 if (drop.m_itemData == null || drop.m_itemData.m_shared.m_maxStackSize <= 1) continue;
 
                 string itemName = drop.m_itemData.m_dropPrefab != null
@@ -304,31 +300,89 @@ namespace ItemDrawers.Game
                 _pickupScratch.Clear();
                 QueryNear(drop.transform.position, radius, _pickupScratch);
 
+                // Find the drawer that wants this drop BEFORE worrying about
+                // who owns it. Ownership is only needed to actually take the
+                // item, and asking for it has a cost (see below), so it is
+                // not worth paying for a drop no drawer wants.
+                DrawerComponent target = null;
                 for (int d = 0; d < _pickupScratch.Count; d++)
                 {
-                    var drawer = _pickupScratch[d];
-                    if (drawer == null) continue;
+                    var candidate = _pickupScratch[d];
+                    if (candidate == null) continue;
 
-                    var snapshot = drawer.Snapshot;
+                    var snapshot = candidate.Snapshot;
                     if (!snapshot.IsAssigned || snapshot.ItemName != itemName) continue;
 
-                    // TryDepositExternally trusts the caller: it credits the
-                    // drawer's ZDO but never touches the ItemDrop. Removing
-                    // exactly what it reports accepting -- no more, no less
-                    // -- from the drop's own stack is what keeps this
-                    // conservative; anything else creates or destroys items.
-                    if (!drawer.TryDepositExternally(itemName, drop.m_itemData.m_stack, out int accepted))
-                        continue;
-                    if (accepted <= 0) continue;
-
-                    drop.m_itemData.m_stack -= accepted;
-                    if (drop.m_itemData.m_stack <= 0)
-                        ZNetScene.instance.Destroy(drop.gameObject);
-                    else
-                        drop.Save();
-
-                    break;                       // this drop is handled
+                    target = candidate;
+                    break;
                 }
+                if (target == null) continue;
+
+                // A drop must be OWNED by this client before its stack can be
+                // changed, and this is where multiplayer pickup was failing.
+                // The previous code skipped any drop it did not already own
+                // and never asked to own one, so whether a drop was ever
+                // absorbed came down to who happened to hold its ZDO: items
+                // you dropped yourself worked, because dropping makes you the
+                // owner, while anything from a mob kill, another player, or a
+                // zone that had just loaded could sit next to a matching
+                // drawer forever. That is the inconsistency.
+                //
+                // RequestOwn is what vanilla does in the same spot --
+                // Player's own auto-pickup calls it when CanPickup fails and
+                // retries on a later frame -- because ownership transfer is a
+                // network round trip and cannot complete inside this call.
+                // So: ask, skip this drop for now, and absorb it on a
+                // subsequent tick once the transfer lands.
+                //
+                // CanPickup rather than a bare IsOwner check, so this also
+                // inherits vanilla's settle delay on freshly dropped items
+                // instead of snatching one out of the air the instant it
+                // leaves a player's hands.
+                if (!drop.CanPickup())
+                {
+                    drop.RequestOwn();
+                    continue;
+                }
+
+                // Both deposit paths below report how many items the drawer
+                // took responsibility for, and removing exactly that -- no
+                // more, no less -- from the drop's stack is what keeps this
+                // conservative. Anything else creates or destroys items.
+                //
+                // The foreign path's count is not "accepted" so much as
+                // "handed over": the owning client credits what fits and the
+                // pending record spills any remainder back on the ground at
+                // the drop's position. Either way the items exist exactly
+                // once, which is the only property that matters here.
+                int accepted;
+                switch (target.ResolveDepositRoute())
+                {
+                    case DrawerComponent.DepositRoute.Owned:
+                        if (!target.TryDepositExternally(itemName, drop.m_itemData.m_stack, out accepted))
+                            continue;
+                        break;
+
+                    case DrawerComponent.DepositRoute.Foreign:
+                        if (!target.TrySubmitForeignDeposit(
+                                itemName, drop.m_itemData.m_stack, drop.transform.position, out accepted))
+                            continue;
+                        break;
+
+                    // Claiming: ownership was just requested and has not
+                    // settled. Unavailable: no usable view. Either way, leave
+                    // the drop alone and look at it again next tick.
+                    default:
+                        continue;
+                }
+
+                if (accepted <= 0) continue;
+
+                drop.m_itemData.m_stack -= accepted;
+                if (drop.m_itemData.m_stack <= 0)
+                    ZNetScene.instance.Destroy(drop.gameObject);
+                else
+                    drop.Save();
             }
         }
 
