@@ -9,6 +9,10 @@ Beta: functional and in use, but not yet widely tested.
   touched the drawer; previously it only worked when one player happened
   to have a claim on both, so mob drops and drawers in a just-loaded area
   were often ignored.
+- Fixed container-aware mods seeing drawers as empty in multiplayer.
+  OttoFuel would refuse to pull fuel, and would keep feeding a kiln past
+  its coal cutoff because the coal it counts was in drawers it could not
+  see.
 - Added a screenshot to the description.
 
 ## 0.9.2 — beta

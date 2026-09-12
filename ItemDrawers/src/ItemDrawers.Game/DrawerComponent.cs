@@ -1500,7 +1500,10 @@ namespace ItemDrawers.Game
         /// automation reads only drawers this client currently owns.
         /// Ownership tracks proximity and both target mods operate near
         /// the player, so a drawer a player is standing next to is, in the
-        /// overwhelming common case, one they own.
+        /// overwhelming common case, one they own. That assumption held
+        /// only in single-player; see ClaimForAutomationIfUnowned, which
+        /// RefreshMirror now calls first so ownership actually follows the
+        /// client doing the automating instead of being assumed to.
         ///
         /// Also rebuilds unconditionally when <see cref="_mirrorNeedsRebuild"/>
         /// is set -- see OnMirrorChanged's belt-and-braces handling of a
@@ -1510,10 +1513,50 @@ namespace ItemDrawers.Game
         /// </summary>
         internal void RefreshMirror()
         {
+            ClaimForAutomationIfUnowned();
+
             var current = EffectiveMirrorSnapshot();
             if (!_mirrorNeedsRebuild && current.Equals(_mirrored)) return;
             RebuildMirror(current);
             _mirrorNeedsRebuild = false;
+        }
+
+        /// <summary>
+        /// Takes ownership of an UNOWNED drawer when a foreign mod reads it.
+        ///
+        /// RefreshMirror's tradeoff -- automation only sees drawers this
+        /// client owns -- rests on an assumption stated in its docstring:
+        /// that ownership tracks proximity, so a drawer a player stands next
+        /// to is one they own. That is true in single-player, where the one
+        /// client owns everything, and false on a server, where a drawer is
+        /// unowned until somebody touches it and stays owned by whoever
+        /// touched it last. The visible result was OttoFuel and
+        /// NoVikingLeftBehind seeing empty drawers for no apparent reason,
+        /// and OttoFuel feeding a kiln forever because the coal it counts
+        /// against its own cutoff was sitting in drawers it could not see.
+        ///
+        /// Claiming only when the owner is 0 is what keeps this honest.
+        /// Nobody holds an unowned ZDO, so there is nothing to steal, and
+        /// after the first claim the condition is false -- two clients
+        /// reading the same drawer do not trade it back and forth. A drawer
+        /// another client genuinely owns is left alone and continues to read
+        /// as empty, which is the safe answer: we could not commit a
+        /// withdrawal from it, and showing stock we cannot commit is the
+        /// duplication RefreshMirror's gate exists to prevent.
+        ///
+        /// This tick still reads empty. Ownership is a replicated write, not
+        /// an immediate one, so the mirror only fills once the claim has
+        /// landed -- the same reason DepositRoute.Claiming makes auto-pickup
+        /// wait a tick.
+        /// </summary>
+        private void ClaimForAutomationIfUnowned()
+        {
+            if (_view == null || !_view.IsValid() || _view.IsOwner()) return;
+
+            var zdo = _view.GetZDO();
+            if (zdo == null || zdo.GetOwner() != 0L) return;
+
+            _view.ClaimOwnership();
         }
 
         /// <summary>
