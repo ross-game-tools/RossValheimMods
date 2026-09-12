@@ -4,6 +4,11 @@ Beta: functional and in use, but not yet widely tested.
 
 ## 0.9.3 — beta
 
+- Fixed area pickup being unreliable in multiplayer. Drawers now absorb
+  nearby items regardless of which player dropped them or who last
+  touched the drawer; previously it only worked when one player happened
+  to have a claim on both, so mob drops and drawers in a just-loaded area
+  were often ignored.
 - Added a screenshot to the description.
 
 ## 0.9.2 — beta
