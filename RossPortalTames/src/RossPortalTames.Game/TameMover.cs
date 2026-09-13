@@ -58,11 +58,39 @@ namespace RossPortalTames.Game
             // otherwise. When it is non-null we move its transform too --
             // a position write, same as the ZDO write above, not a destroy,
             // a recreate, or a state copy.
+            // Moving the transform ALONE is not enough, and this is the
+            // part that is easy to get wrong. ZSyncTransform.GetPosition --
+            // the method deciding what gets pushed back into the ZDO on the
+            // next sync -- is:
+            //
+            //     if (!m_body) return transform.position;
+            //     return m_body.position;
+            //
+            // Every creature has a Rigidbody (Character.Awake always assigns
+            // m_body), so for a creature that stayed loaded the sync ignores
+            // transform.position entirely and reads the Rigidbody's. Setting
+            // only the transform therefore either gets reverted on the next
+            // frame, or leaves the ZDO claiming one position while the
+            // physically simulated animal stands somewhere else.
+            //
+            // Valheim sets both together wherever it relocates a Character
+            // itself -- see Character.UnderWorldCheck, which does exactly
+            // `transform.position = pos; m_body.position = pos;`. We follow
+            // that, then SyncTransforms so the physics engine's own copy
+            // agrees before anything else reads it this frame.
             var scene = ZNetScene.instance;
             if (scene != null)
             {
                 var go = scene.FindInstance(id);
-                if (go != null) go.transform.position = destination;
+                if (go != null)
+                {
+                    go.transform.position = destination;
+
+                    var body = go.GetComponent<Rigidbody>();
+                    if (body != null) body.position = destination;
+
+                    Physics.SyncTransforms();
+                }
             }
 
             return true;
