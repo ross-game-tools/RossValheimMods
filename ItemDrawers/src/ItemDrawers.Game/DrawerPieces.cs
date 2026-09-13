@@ -209,7 +209,13 @@ namespace ItemDrawers.Game
                 Description = "Holds a great many of a single item.",
                 PieceTable = PieceTables.Hammer,
                 CraftingStation = CraftingStations.Workbench,
-                Requirements = DrawerTiers.Recipe(tier)
+                // DrawerConfig.RecipeFor, not DrawerTiers.Recipe: the
+                // latter is only the default now, and reaching past the
+                // config here would silently ignore a server admin's
+                // edit. RecipeFor falls back to that same default, and
+                // says so in the log, when a configured recipe cannot be
+                // parsed.
+                Requirements = DrawerConfig.RecipeFor(tier)
                     .Select(r => new RequirementConfig(r.Item, r.Amount, 0, true))
                     .ToArray()
 

@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using BepInEx.Configuration;
+using ItemDrawers.Core;
 
 namespace ItemDrawers.Game
 {
@@ -20,6 +22,9 @@ namespace ItemDrawers.Game
         public static ConfigEntry<float> PickupInterval;
         public static ConfigEntry<float> LabelDistance;
 
+        private static readonly Dictionary<DrawerTier, ConfigEntry<string>> Recipes =
+            new Dictionary<DrawerTier, ConfigEntry<string>>();
+
         public static void Bind(ConfigFile config)
         {
             WoodCapacity = config.Bind("Capacity", "Wood", 1000,
@@ -31,6 +36,27 @@ namespace ItemDrawers.Game
             BlackMarbleCapacity = config.Bind("Capacity", "BlackMarble", 10000,
                 new ConfigDescription("How many items a black marble drawer holds.",
                     null, new ConfigurationManagerAttributes { IsAdminOnly = true }));
+
+            // Admin-only like the capacities, and for the same reason: a
+            // client that could set its own build cost would be building
+            // pieces the server never charged it for.
+            //
+            // Defaults are rendered through the same formatter the parser
+            // reads, so the text a fresh install writes into the config file
+            // is text that round-trips -- a hand-written default string
+            // could disagree with DrawerTiers.Recipe and nothing would catch
+            // it.
+            foreach (var tier in DrawerTiers.All)
+            {
+                Recipes[tier] = config.Bind("Recipe", tier.ToString(),
+                    RecipeSpec.Format(DrawerTiers.Recipe(tier)),
+                    new ConfigDescription(
+                        "Build cost, as Item:Count separated by commas -- e.g. FineWood:5,Stone:10. "
+                        + "Names are PREFAB names (FineWood, BlackMarble, RoundLog), not the names "
+                        + "shown in game. An unparseable or unknown-item recipe is logged and the "
+                        + "default is used instead. Takes effect on restart.",
+                        null, new ConfigurationManagerAttributes { IsAdminOnly = true }));
+            }
 
             AutoPickupEnabled = config.Bind("Pickup", "Enabled", true,
                 new ConfigDescription("Drawers absorb matching items dropped nearby.",
@@ -82,6 +108,64 @@ namespace ItemDrawers.Game
             LabelDistance = config.Bind("Display", "LabelDistance", 30f,
                 "Beyond this distance drawer icons and counts switch off. " +
                 "A wall of text nobody can read is wasted work.");
+        }
+
+        /// <summary>
+        /// The configured build cost, or the shipped default when the
+        /// configured one cannot be used.
+        ///
+        /// Falls back loudly rather than silently: a server admin who typos
+        /// a recipe gets a log line naming the tier and what is wrong with
+        /// their line, and a working piece in the meantime. Returning an
+        /// empty recipe instead would register a drawer that costs nothing,
+        /// which is a worse failure than ignoring the edit.
+        /// </summary>
+        public static IReadOnlyList<(string Item, int Amount)> RecipeFor(DrawerTier tier)
+        {
+            var fallback = DrawerTiers.Recipe(tier);
+            if (!Recipes.TryGetValue(tier, out var entry) || entry == null) return fallback;
+
+            var spec = RecipeSpec.Parse(entry.Value);
+            string problem = spec.Ok ? UnknownItem(spec.Requirements) : spec.Error;
+            if (problem == null) return spec.Requirements;
+
+            DrawerPlugin.Log.LogWarning(
+                $"Recipe.{tier} is not usable ({problem}); using the default "
+                + $"{RecipeSpec.Format(fallback)} instead.");
+            return fallback;
+        }
+
+        /// <summary>
+        /// The first ingredient Valheim has never heard of, or null if every
+        /// name resolves.
+        ///
+        /// RecipeSpec deliberately does not do this -- Core has no object
+        /// database -- but somebody has to, because a requirement naming a
+        /// prefab that does not exist does not fail loudly. Jotunn drops it,
+        /// and the drawer registers with a recipe quietly missing an
+        /// ingredient, or costing nothing at all. Somebody who wrote
+        /// "Fine Wood" or "Wood:10,Cooper:5" would get a cheaper drawer and
+        /// no indication of why.
+        ///
+        /// Checked against ObjectDB, the same source Jotunn resolves
+        /// requirements from, so this agrees with what registration will
+        /// actually do rather than approximating it.
+        /// </summary>
+        private static string UnknownItem(IReadOnlyList<(string Item, int Amount)> requirements)
+        {
+            var db = ObjectDB.instance;
+
+            // No database yet means this was called earlier than expected
+            // (registration runs after vanilla prefabs are available). Do
+            // not invent a failure: let the recipe through and let Jotunn
+            // report anything it cannot resolve.
+            if (db == null) return null;
+
+            foreach (var r in requirements)
+                if (db.GetItemPrefab(r.Item) == null)
+                    return $"no item named '{r.Item}'";
+
+            return null;
         }
 
         public static int CapacityFor(DrawerTier tier)

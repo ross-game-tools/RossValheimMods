@@ -2,6 +2,13 @@
 
 Beta: functional and in use, but not yet widely tested.
 
+## 0.9.8 — beta
+
+- Build costs are configurable per tier, under `[Recipe]`, as
+  `Item:Count` separated by commas. Server-synced like the capacities.
+  A recipe that will not parse, or that names an item the game does not
+  have, is logged and the default used instead.
+
 ## 0.9.7 — beta
 
 - Drawers now show their contents to every player, the same way a chest

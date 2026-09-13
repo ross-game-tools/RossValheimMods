@@ -14,8 +14,8 @@ a Workbench.
 | Stone Item Drawer | 2,000 | 5 Fine Wood + 10 Stone |
 | Black Marble Item Drawer | 10,000 | 5 Fine Wood + 10 Black Marble |
 
-Capacities are the defaults; a server admin can change them per tier in
-the config file.
+Capacities and build costs are the defaults; a server admin can change
+both per tier in the config file.
 
 Drawers are 0.66m cubes and snap to each other, so they tile into a wall.
 
