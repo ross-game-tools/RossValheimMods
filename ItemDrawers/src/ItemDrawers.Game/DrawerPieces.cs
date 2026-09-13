@@ -567,7 +567,35 @@ namespace ItemDrawers.Game
             // actually needed to change from its default.
             var nview = go.AddComponent<ZNetView>();
             nview.m_persistent = true;
-            go.AddComponent<DrawerComponent>();
+            var drawer = go.AddComponent<DrawerComponent>();
+
+            // PrivacySetting.Private is 0, so a Container built in code and
+            // never told otherwise is PRIVATE -- the fifth editor-set field
+            // in this prefab to default wrong (see m_usage, m_icon,
+            // m_enabled, and the Piece component itself). Vanilla's chest
+            // prefabs set this in the Unity editor; nothing sets it here.
+            //
+            // The symptom was not "drawers are locked", which would have
+            // been obvious. Container.CheckAccess passes when the ZDO
+            // records no creator, so every drawer placed before
+            // DrawerComponent.EnsureCreator existed kept working, and only
+            // newly placed ones failed -- and they failed silently, for
+            // everyone except the player who placed them. OttoFuel calls
+            // CheckAccess before reading a container and simply skipped
+            // them; NoVikingLeftBehind could not craft from a drawer another
+            // player had placed.
+            //
+            // Public is the honest setting for this piece. A drawer wears
+            // its contents on its face and is built to be shared -- there is
+            // nothing private about it, and Private was never a decision,
+            // just a default nobody set.
+            drawer.m_privacy = Container.PrivacySetting.Public;
+
+            // Also explicitly off rather than left at its default: a drawer
+            // inside someone's ward should be no more restricted than the
+            // wall it is part of, and leaving this to another unexamined
+            // default is what this whole comment is about.
+            drawer.m_checkGuardStone = false;
             // The handle, as its own child with its own material. Built
             // from the tier material so it keeps the shader, normal map and
             // keywords that make it light like everything else, then given

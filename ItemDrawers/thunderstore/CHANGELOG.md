@@ -2,6 +2,13 @@
 
 Beta: functional and in use, but not yet widely tested.
 
+## 0.9.5 — beta
+
+- Fixed drawers being private to whoever placed them. Other players
+  could not craft from them, and OttoFuel skipped them entirely. Drawers
+  are shared storage and are now public, which also applies to drawers
+  you have already built.
+
 ## 0.9.4 — beta
 
 - Fixed area pickup being unreliable in multiplayer. Drawers now absorb
