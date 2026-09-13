@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <!--
+      Path to your local Valheim install (the folder containing valheim.exe and
+      valheim_Data\Managed\...dll). Used to reference game and Unity assemblies
+      via HintPath — they are never committed to the repo.
+    -->
+    <VALHEIM_INSTALL>C:\Path\To\Steam\steamapps\common\Valheim</VALHEIM_INSTALL>
+  </PropertyGroup>
+</Project>
