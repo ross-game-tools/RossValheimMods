@@ -99,6 +99,70 @@ namespace ItemDrawers.Game
                     args.Context.AddString($"items held     : {total}");
                     args.Context.AddString($"atlas built    : {DrawerIconAtlas.IsBuilt}");
                 }, isCheat: true);
+
+            // Answers the one question that keeps coming up when a
+            // container-aware mod "cannot see" a drawer, and answers it with
+            // the actual numbers rather than another hypothesis: who owns
+            // this drawer's ZDO, and what does GetInventory hand back?
+            //
+            // Those two are the whole story for automation. A drawer whose
+            // mirror is empty while its ZDO is not is a drawer this client
+            // is not allowed to expose (see DrawerComponent.RefreshMirror),
+            // and the owner column says why.
+            new Terminal.ConsoleCommand("rid_owners",
+                "rid_owners [radius] - who owns nearby drawers, and what automation sees",
+                args =>
+                {
+                    var player = Player.m_localPlayer;
+                    if (player == null) { args.Context.AddString("no local player"); return; }
+
+                    float radius = 20f;
+                    if (args.Length > 1 && float.TryParse(args[1], out float parsed)) radius = parsed;
+
+                    long me = ZDOMan.GetSessionID();
+                    args.Context.AddString($"my session id : {me}");
+                    args.Context.AddString("name  zdoAmount  owner  isOwner  mirrorCount");
+
+                    int shown = 0, hidden = 0;
+                    foreach (var d in DrawerComponent.All)
+                    {
+                        if (d == null) continue;
+                        if ((d.transform.position - player.transform.position).sqrMagnitude > radius * radius) continue;
+
+                        var snap = d.Snapshot;
+
+                        // Ownership is read BEFORE GetInventory, and the
+                        // order matters. GetInventory runs RefreshMirror,
+                        // which claims an unowned drawer as a side effect
+                        // (see ClaimForAutomationIfUnowned) -- so reading
+                        // afterwards would report the ownership this command
+                        // just caused, and every drawer would look owned on
+                        // the first run no matter what the real state was.
+                        var view = d.GetComponent<ZNetView>();
+                        var zdo = view != null ? view.GetZDO() : null;
+                        long owner = zdo != null ? zdo.GetOwner() : -1L;
+                        bool isOwner = view != null && view.IsValid() && view.IsOwner();
+
+                        // Through GetInventory, deliberately: that is the
+                        // exact call OttoFuel and NVLB make, so this reports
+                        // what they see rather than what we believe they see.
+                        var inv = d.GetInventory();
+                        int mirrorCount = 0;
+                        if (inv != null)
+                            foreach (var item in inv.GetAllItems())
+                                mirrorCount += item.m_stack;
+
+                        string ownerDesc = owner == 0L ? "0 (nobody)" : owner == me ? $"{owner} (me)" : owner.ToString();
+                        args.Context.AddString(
+                            $"{(snap.IsAssigned ? snap.ItemName : "<empty>")}  {snap.Amount}  {ownerDesc}  {isOwner}  {mirrorCount}");
+
+                        if (snap.Amount > 0 && mirrorCount == 0) hidden++;
+                        shown++;
+                    }
+
+                    args.Context.AddString($"-- {shown} drawer(s) within {radius}m, {hidden} holding items but invisible to automation");
+                    args.Context.AddString("note: this claims unowned drawers as a side effect, so a second run can differ from the first");
+                }, isCheat: true);
         }
     }
 }
