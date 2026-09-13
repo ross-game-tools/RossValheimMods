@@ -49,7 +49,14 @@ namespace RossPortalTames.Core
             Vec3 arrival, float fx, float fz, float searchDistance,
             Func<Vec3, bool> isFree, List<Vec3> taken)
         {
-            for (float radius = RingStep; radius <= searchDistance + 0.001f; radius += RingStep)
+            // A searchDistance smaller than RingStep must still try one ring
+            // -- at searchDistance itself -- rather than skip the loop
+            // entirely and silently disable the search. Tight portal huts
+            // are documented advice for lowering this value below RingStep.
+            if (searchDistance <= 0f) return arrival;
+
+            float firstRadius = Math.Min(RingStep, searchDistance);
+            for (float radius = firstRadius; radius <= searchDistance + 0.001f; radius += RingStep)
             {
                 foreach (float degrees in AngleOffsetsDegrees)
                 {
@@ -91,13 +98,16 @@ namespace RossPortalTames.Core
 
         /// <summary>
         /// Horizontal facing as a unit vector. A degenerate facing (straight
-        /// up, or an uninitialised zero) would divide by zero and write NaN
-        /// into a ZDO position, so it falls back to a fixed direction.
+        /// up, an uninitialised zero, or a NaN/infinite component) would
+        /// divide by zero or propagate NaN and write it into a ZDO position,
+        /// so it falls back to a fixed direction. A comparison against NaN
+        /// is always false, so the length check alone would not catch it --
+        /// float.IsFinite is checked explicitly.
         /// </summary>
         private static (float X, float Z) Normalise(Vec3 facing)
         {
             float length = (float)Math.Sqrt(facing.X * facing.X + facing.Z * facing.Z);
-            if (length < 0.0001f) return (0f, 1f);
+            if (!float.IsFinite(length) || length < 0.0001f) return (0f, 1f);
             return (facing.X / length, facing.Z / length);
         }
     }

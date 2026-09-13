@@ -111,5 +111,35 @@ namespace RossPortalTames.Core.Tests
             var placed = ArrivalPlacement.Compute(Arrival, North, 2, Search, null);
             Assert.Equal(2, placed.Length);
         }
+
+        [Fact]
+        public void A_search_distance_smaller_than_the_ring_step_still_searches()
+        {
+            // Tight portal huts are documented advice for lowering
+            // SearchDistance below the ring step; that must still try at
+            // least one ring instead of silently disabling the search.
+            const float TinySearch = 0.5f;
+            var placed = ArrivalPlacement.Compute(Arrival, North, 1, TinySearch, OpenWorld);
+
+            Assert.NotEqual(Arrival, placed[0]);
+            Assert.True(Vec3.DistanceSquared(placed[0], Arrival) <= TinySearch * TinySearch + 0.01f,
+                $"{placed[0]} is beyond the {TinySearch}m search distance");
+        }
+
+        [Fact]
+        public void A_NaN_facing_does_not_produce_invalid_positions()
+        {
+            // Positions are written directly into creature ZDOs, so a NaN
+            // facing must not propagate into a NaN position.
+            var nanFacing = new Vec3(float.NaN, 0f, float.NaN);
+            var placed = ArrivalPlacement.Compute(Arrival, nanFacing, 4, Search, OpenWorld);
+
+            Assert.Equal(4, placed.Length);
+            foreach (var p in placed)
+            {
+                Assert.False(float.IsNaN(p.X) || float.IsNaN(p.Y) || float.IsNaN(p.Z), $"{p} contains NaN");
+                Assert.False(float.IsInfinity(p.X) || float.IsInfinity(p.Y) || float.IsInfinity(p.Z), $"{p} is infinite");
+            }
+        }
     }
 }
