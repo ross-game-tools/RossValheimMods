@@ -2,6 +2,12 @@
 
 Beta: functional and in use, but not yet widely tested.
 
+## 0.9.9 — beta
+
+- Fixed configured recipes being ignored. 0.9.8 checked ingredient names
+  against a database that is not filled in yet when drawers register, so
+  every recipe looked like a typo and fell back to the default.
+
 ## 0.9.8 — beta
 
 - Build costs are configurable per tier, under `[Recipe]`, as

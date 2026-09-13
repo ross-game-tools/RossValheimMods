@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using BepInEx.Configuration;
 using ItemDrawers.Core;
+using Jotunn.Managers;
 
 namespace ItemDrawers.Game
 {
@@ -139,30 +140,43 @@ namespace ItemDrawers.Game
         /// The first ingredient Valheim has never heard of, or null if every
         /// name resolves.
         ///
-        /// RecipeSpec deliberately does not do this -- Core has no object
+        /// RecipeSpec deliberately does not do this -- Core has no prefab
         /// database -- but somebody has to, because a requirement naming a
         /// prefab that does not exist does not fail loudly. Jotunn drops it,
         /// and the drawer registers with a recipe quietly missing an
         /// ingredient, or costing nothing at all. Somebody who wrote
-        /// "Fine Wood" or "Wood:10,Cooper:5" would get a cheaper drawer and
-        /// no indication of why.
+        /// "Fine Wood" would get a cheaper drawer and no indication of why.
         ///
-        /// Checked against ObjectDB, the same source Jotunn resolves
-        /// requirements from, so this agrees with what registration will
-        /// actually do rather than approximating it.
+        /// Asks PrefabManager, NOT ObjectDB. The first version of this used
+        /// ObjectDB.instance.GetItemPrefab and rejected every recipe it was
+        /// given, including the shipped defaults -- "no item named
+        /// 'FineWood'" -- because pieces register on
+        /// OnVanillaPrefabsAvailable and ObjectDB's items are not populated
+        /// until later in the same startup. The check was querying an empty
+        /// database and reading the emptiness as a typo, so configured
+        /// recipes silently never applied.
+        ///
+        /// PrefabManager is the right source at this moment by
+        /// construction: it is what OnVanillaPrefabsAvailable exists to
+        /// announce, and it is what this class's own material-donor lookup
+        /// already resolves against successfully at the same point in
+        /// startup. It matches any prefab rather than only items, so it is a
+        /// weaker check than "is this craftable" -- but it catches the
+        /// misspellings this exists for, and a check that runs is worth more
+        /// than a stricter one that cannot.
         /// </summary>
         private static string UnknownItem(IReadOnlyList<(string Item, int Amount)> requirements)
         {
-            var db = ObjectDB.instance;
+            var prefabs = PrefabManager.Instance;
 
-            // No database yet means this was called earlier than expected
-            // (registration runs after vanilla prefabs are available). Do
-            // not invent a failure: let the recipe through and let Jotunn
-            // report anything it cannot resolve.
-            if (db == null) return null;
+            // Called before Jotunn is ready. Do not invent a failure: let
+            // the recipe through and let registration report what it cannot
+            // resolve. Guessing wrong in this direction is exactly the bug
+            // described above.
+            if (prefabs == null) return null;
 
             foreach (var r in requirements)
-                if (db.GetItemPrefab(r.Item) == null)
+                if (prefabs.GetPrefab(r.Item) == null)
                     return $"no item named '{r.Item}'";
 
             return null;
