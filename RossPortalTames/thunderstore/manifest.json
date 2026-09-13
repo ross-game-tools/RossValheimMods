@@ -1,0 +1,9 @@
+{
+  "name": "RossPortalTames",
+  "version_number": "0.1.0",
+  "website_url": "https://github.com/ross-game-tools/RossValheimMods",
+  "description": "Tames that are following you come through the portal with you",
+  "dependencies": [
+    "denikson-BepInExPack_Valheim-5.4.2350"
+  ]
+}
