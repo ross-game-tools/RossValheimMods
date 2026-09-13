@@ -1549,7 +1549,18 @@ namespace ItemDrawers.Game
         /// landed -- the same reason DepositRoute.Claiming makes auto-pickup
         /// wait a tick.
         /// </summary>
-        private void ClaimForAutomationIfUnowned()
+        private void ClaimForAutomationIfUnowned() => ClaimIfUnowned();
+
+        /// <summary>
+        /// Takes ownership if, and only if, nobody owns this drawer.
+        ///
+        /// Called both lazily (on a foreign read, via RefreshMirror) and
+        /// proactively (DrawerManager.ClaimNearbyUnownedDrawers). The
+        /// proactive sweep is the one that matters for mods that check
+        /// ownership before reading -- see that method for why the lazy
+        /// path alone deadlocks with them.
+        /// </summary>
+        internal void ClaimIfUnowned()
         {
             if (_view == null || !_view.IsValid() || _view.IsOwner()) return;
 

@@ -2,6 +2,13 @@
 
 Beta: functional and in use, but not yet widely tested.
 
+## 0.9.6 — beta
+
+- Fixed crafting from drawers in multiplayer. Drawers near you are now
+  claimed shortly after you arrive, which is what mods that check
+  ownership before reading a container need. A drawer another player is
+  standing next to stays theirs until they move away.
+
 ## 0.9.5 — beta
 
 - Fixed drawers being private to whoever placed them. Other players

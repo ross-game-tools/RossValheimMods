@@ -258,6 +258,81 @@ namespace ItemDrawers.Game
                 _pickupTimer = DrawerConfig.PickupInterval.Value;
                 if (DrawerConfig.AutoPickupEnabled.Value) RunAutoPickup();
             }
+
+            _claimTimer -= Time.deltaTime;
+            if (_claimTimer <= 0f)
+            {
+                _claimTimer = ClaimInterval;
+                ClaimNearbyUnownedDrawers();
+            }
+        }
+
+        private float _claimTimer;
+
+        /// <summary>
+        /// Seconds between ownership sweeps. Slow on purpose: this exists so
+        /// ownership settles shortly after you walk up to a wall, not so it
+        /// reacts within a frame, and each sweep writes to ZDOs.
+        /// </summary>
+        private const float ClaimInterval = 2f;
+
+        /// <summary>
+        /// Distance within which this client takes ownership of unowned
+        /// drawers. Comfortably beyond any crafting station's own reach, so
+        /// a drawer that a station could draw from is already owned by the
+        /// time the station asks.
+        /// </summary>
+        private const float ClaimRadius = 30f;
+
+        /// <summary>
+        /// Takes ownership of nearby drawers that nobody owns.
+        ///
+        /// This is what makes container-aware mods work at all in
+        /// multiplayer, and the reason is in THEIR code, not ours:
+        /// NoVikingLeftBehind calls Container.IsOwner before it will read a
+        /// container. So does our own mirror, which refuses to expose stock
+        /// this client could not commit a withdrawal against.
+        ///
+        /// Claiming only on read -- which is what
+        /// DrawerComponent.ClaimForAutomationIfUnowned does -- cannot break
+        /// that deadlock: we claim a drawer when somebody reads it, and NVLB
+        /// only reads a drawer it already owns, so neither side ever moves
+        /// first. Nothing about the mirror could fix that, because the check
+        /// that fails happens before the mirror is ever consulted. Ownership
+        /// has to arrive on its own, ahead of the read, which is what this
+        /// sweep does.
+        ///
+        /// Only ever claims a drawer with NO owner. A drawer another
+        /// connected client owns is left alone: taking it would break that
+        /// client's own automation and, worse, the RPC protocol's assumption
+        /// that a request routed to an owner reaches the peer that actually
+        /// holds the ZDO. Valheim releases ownership of ZDOs as a player
+        /// moves away (ZDOMan.ReleaseNearbyZDOS, on a ~2 second cadence), so
+        /// a drawer someone else placed becomes claimable once they are not
+        /// standing next to it -- which is why "I cannot craft from drawers
+        /// another player built" resolves on its own shortly after they walk
+        /// off, rather than needing them to hand anything over.
+        ///
+        /// Cost is one owner write per newly claimed drawer, not per sweep:
+        /// once claimed, the drawer fails the owner == 0 test and is skipped.
+        /// A hundred-drawer wall pays a hundred writes once, then nothing.
+        /// </summary>
+        private void ClaimNearbyUnownedDrawers()
+        {
+            var player = Player.m_localPlayer;
+            if (player == null) return;
+
+            var playerPos = player.transform.position;
+            float radiusSq = ClaimRadius * ClaimRadius;
+
+            var all = DrawerComponent.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                var drawer = all[i];
+                if (drawer == null) continue;
+                if ((drawer.transform.position - playerPos).sqrMagnitude > radiusSq) continue;
+                drawer.ClaimIfUnowned();
+            }
         }
 
         /// <summary>
