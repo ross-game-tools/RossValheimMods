@@ -40,6 +40,31 @@ namespace RossPortalTames.Game
             if (!zdo.IsOwner()) return false;
 
             zdo.SetPosition(destination);
+
+            // The design assumes the creature's zone unloads during the
+            // teleport, destroying its GameObject and leaving only the ZDO
+            // to write into. That holds for a long-distance hop but not for
+            // a portal-hub jump or any destination inside the area already
+            // loaded on this client: the GameObject survives, and
+            // ZSyncTransform.OwnerSync writes transform.position back into
+            // the ZDO every frame for as long as this client owns it --
+            // which, thanks to the SetOwner call just above, is now. Left
+            // alone, that overwrites the position we just set on the very
+            // next frame, so the move silently fails whenever the creature
+            // stayed loaded.
+            //
+            // ZNetScene.FindInstance(ZDOID) returns the live GameObject for
+            // a ZDOID if this client still has one instantiated, or null
+            // otherwise. When it is non-null we move its transform too --
+            // a position write, same as the ZDO write above, not a destroy,
+            // a recreate, or a state copy.
+            var scene = ZNetScene.instance;
+            if (scene != null)
+            {
+                var go = scene.FindInstance(id);
+                if (go != null) go.transform.position = destination;
+            }
+
             return true;
         }
     }

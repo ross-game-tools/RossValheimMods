@@ -28,7 +28,20 @@ namespace RossPortalTames.Core.Tests
         [Fact]
         public void Placements_are_within_the_search_distance()
         {
-            var placed = ArrivalPlacement.Compute(Arrival, North, 8, Search, OpenWorld);
+            // 8 tames all land in the first 1.5m ring (14 angle offsets and a
+            // 1m minimum separation leave room for most of them there), so a
+            // small count never approaches the 6m bound and a ring-termination
+            // bug (e.g. an off-by-one in the `radius <= searchDistance + 0.001f`
+            // loop condition) would pass unnoticed. 36 is the smallest count
+            // that empirically forces a placement out to the full 6m ring
+            // given RingStep=1.5 and the 14 angle offsets per ring.
+            const int TameCount = 36;
+            const float RingStep = 1.5f; // must match ArrivalPlacement's private RingStep
+            var placed = ArrivalPlacement.Compute(Arrival, North, TameCount, Search, OpenWorld);
+
+            Assert.True(Vec3.DistanceSquared(placed[placed.Length - 1], Arrival) >= (Search - RingStep) * (Search - RingStep),
+                "test no longer reaches the outer ring -- increase TameCount");
+
             foreach (var p in placed)
                 Assert.True(Vec3.DistanceSquared(p, Arrival) <= Search * Search + 0.01f,
                     $"{p} is beyond the {Search}m search distance");
@@ -78,6 +91,19 @@ namespace RossPortalTames.Core.Tests
             // with room.
             var placed = ArrivalPlacement.Compute(Arrival, North, 1, Search, OpenWorld);
             Assert.True(placed[0].Z > 0f, $"expected a placement north of the player, got {placed[0]}");
+        }
+
+        [Fact]
+        public void Prefers_the_direction_the_player_faces_when_facing_east()
+        {
+            // The North-only case above cannot distinguish real rotation from
+            // a hardcoded (0,0,1) offset -- both would satisfy "Z > 0". Facing
+            // a different direction and asserting on X instead of Z catches
+            // that: a hardcoded offset would fail this, a correctly rotated
+            // one would not.
+            var east = new Vec3(1f, 0f, 0f);
+            var placed = ArrivalPlacement.Compute(Arrival, east, 1, Search, OpenWorld);
+            Assert.True(placed[0].X > 0f, $"expected a placement east of the player, got {placed[0]}");
         }
 
         [Fact]

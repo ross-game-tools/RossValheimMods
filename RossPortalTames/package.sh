@@ -33,7 +33,7 @@ fi
 # Drift here is invisible until a player reports a bug against a version
 # string that does not match what Thunderstore served them, and BepInEx
 # logs the plugin's number, not the manifest's.
-PLUGIN_VERSION=$(grep -E 'PluginVersion = "' "$HERE/src/RossPortalTames.Game/PortalTamesPlugin.cs" | head -1 | cut -d'"' -f2)
+PLUGIN_VERSION=$(grep -E '^\s*public const string PluginVersion' "$HERE/src/RossPortalTames.Game/PortalTamesPlugin.cs" | head -1 | cut -d'"' -f2)
 if [ "$PLUGIN_VERSION" != "$VERSION" ]; then
     echo "REFUSING to package: version mismatch." >&2
     echo "  manifest.json version_number   = $VERSION" >&2
