@@ -22,6 +22,14 @@ namespace RossPortalTames.Game
 
         private PendingArrival _pending;
 
+        /// <summary>
+        /// Tracks the teleporting-&gt;not-teleporting transition in Update.
+        /// It is the transition that matters, not the state: acting while
+        /// still teleporting would place tames at a position the player is
+        /// about to leave.
+        /// </summary>
+        private bool _wasTeleporting;
+
         private void Awake() => Instance = this;
 
         private void OnDestroy()
@@ -87,8 +95,93 @@ namespace RossPortalTames.Game
             }
 
             _pending = new PendingArrival(ids, Time.time);
+            _wasTeleporting = true;
 
             PortalTamesPlugin.Log.LogInfo($"Portal: bringing {ids.Count} tame(s).");
+        }
+
+        private void Update()
+        {
+            if (_pending == null) return;
+
+            var player = Player.m_localPlayer;
+            if (player == null)
+            {
+                // Logged out, or died into a loading screen. Drop the capture:
+                // nothing has been moved, and the tames are untouched.
+                _pending = null;
+                _wasTeleporting = false;
+                return;
+            }
+
+            if (Time.time - _pending.CapturedAt > PendingExpirySeconds)
+            {
+                PortalTamesPlugin.Log.LogWarning(
+                    $"Portal: arrival never registered within {PendingExpirySeconds:F0}s; "
+                    + $"leaving {_pending.Tames.Count} tame(s) where they are.");
+                _pending = null;
+                _wasTeleporting = false;
+                return;
+            }
+
+            bool teleporting = player.IsTeleporting();
+
+            // The transition matters, not the state: acting while still
+            // teleporting would place tames at a position the player is about
+            // to leave.
+            if (_wasTeleporting && !teleporting)
+            {
+                PlaceArrivals(player);
+                _pending = null;
+            }
+
+            _wasTeleporting = teleporting;
+        }
+
+        private void PlaceArrivals(Player player)
+        {
+            var arrival = player.transform.position;
+            var facing = player.transform.forward;
+
+            var spots = ArrivalPlacement.Compute(
+                ToVec3(arrival),
+                ToVec3(facing),
+                _pending.Tames.Count,
+                PortalTamesConfig.SearchDistance.Value,
+                IsFree);
+
+            int moved = 0;
+            for (int i = 0; i < _pending.Tames.Count; i++)
+            {
+                var target = ToVector3(spots[i]);
+                target.y = GroundHeight(target);
+
+                if (TameMover.TryMove(_pending.Tames[i], target)) moved++;
+            }
+
+            PortalTamesPlugin.Log.LogInfo($"Portal: {moved} of {_pending.Tames.Count} tame(s) arrived.");
+        }
+
+        /// <summary>
+        /// Whether a creature could stand at this point. Backed by the real
+        /// world here; the tests supply their own predicate, which is what
+        /// makes the wall case assertable without a running game.
+        /// </summary>
+        private static bool IsFree(Vec3 point)
+        {
+            var zones = ZoneSystem.instance;
+            if (zones == null) return true;
+
+            var world = ToVector3(point);
+            return !zones.IsBlocked(world);
+        }
+
+        private static float GroundHeight(Vector3 point)
+        {
+            var zones = ZoneSystem.instance;
+            if (zones == null) return point.y;
+
+            return zones.GetSolidHeight(point, out float height) ? height : point.y;
         }
 
         internal static Vec3 ToVec3(Vector3 v) => new Vec3(v.x, v.y, v.z);
