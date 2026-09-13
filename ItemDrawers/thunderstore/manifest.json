@@ -2,7 +2,7 @@
   "name": "RossItemDrawers",
   "version_number": "0.9.5",
   "website_url": "https://github.com/ross-game-tools/RossValheimMods",
-  "description": "BETA. Wood, stone and black marble drawers that each hold a large quantity of one item and show it on the front. Procedural mesh, no shipped assets.",
+  "description": "A set of tiered item drawers that hold a large amount of a single item and display its quantity on the front",
   "dependencies": [
     "denikson-BepInExPack_Valheim-5.4.2350",
     "ValheimModding-Jotunn-2.30.0"
