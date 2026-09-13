@@ -1205,7 +1205,25 @@ namespace ItemDrawers.Game
         public bool TryWithdrawExternally(int requested, out int taken)
         {
             taken = 0;
-            if (_view == null || !_view.IsValid() || !_view.IsOwner()) return false;
+            if (_view == null || !_view.IsValid()) return false;
+
+            // Claim before debiting, which is what vanilla does when a
+            // player opens a chest they do not own (Container.Interact).
+            // This used to refuse instead, on the reasoning that claiming
+            // steals a ZDO somebody else holds -- true, but the alternative
+            // turned out to be worse: the foreign mod has ALREADY taken the
+            // items out of the mirror by the time this runs, so refusing
+            // does not prevent the withdrawal, it just fails to record it,
+            // and the items exist twice.
+            //
+            // Correctness of the value does not depend on the claim winning.
+            // WriteOwned re-reads the ZDO and compares against `current`
+            // before writing, so a claim that loses a race, or an amount
+            // that changed underneath us, is refused there and
+            // OnMirrorChanged rebuilds the mirror -- undoing the foreign
+            // mod's removal rather than double-counting it.
+            if (!_view.IsOwner()) _view.ClaimOwnership();
+            if (!_view.IsOwner()) return false;
 
             var current = Snapshot;
             var outcome = DrawerState.WithdrawExact(current, requested);
@@ -1484,26 +1502,9 @@ namespace ItemDrawers.Game
         /// drawers in a wall should cost a hundred of these comparisons,
         /// not a hundred rebuilds.
         ///
-        /// Deliberately NOT simply <c>Snapshot</c>: when this client does
-        /// not own the ZDO, the mirror is built EMPTY (see
-        /// EffectiveMirrorSnapshot) regardless of what the ZDO actually
-        /// holds. This is the fix for a duplication bug review found: this
-        /// class's Container-bridge write-back
-        /// (TryWithdrawExternally/OnMirrorChanged) correctly refuses to
-        /// debit a ZDO this client does not own, but a foreign mod
-        /// (OttoFuel, NoVikingLeftBehind) that ALREADY saw real stock in
-        /// the mirror has already removed it from ITS OWN accounting by
-        /// the time that refusal happens -- the mod keeps the items and
-        /// the drawer keeps them too. A mod that sees no stock in the
-        /// first place never tries to remove any, so there is nothing left
-        /// to reconcile and nothing to duplicate. The accepted tradeoff:
-        /// automation reads only drawers this client currently owns.
-        /// Ownership tracks proximity and both target mods operate near
-        /// the player, so a drawer a player is standing next to is, in the
-        /// overwhelming common case, one they own. That assumption held
-        /// only in single-player; see ClaimForAutomationIfUnowned, which
-        /// RefreshMirror now calls first so ownership actually follows the
-        /// client doing the automating instead of being assumed to.
+        /// Shows the drawer's real contents to every client -- see
+        /// EffectiveMirrorSnapshot, which used to hide them from anyone
+        /// who did not own the ZDO and no longer does.
         ///
         /// Also rebuilds unconditionally when <see cref="_mirrorNeedsRebuild"/>
         /// is set -- see OnMirrorChanged's belt-and-braces handling of a
@@ -1513,8 +1514,6 @@ namespace ItemDrawers.Game
         /// </summary>
         internal void RefreshMirror()
         {
-            ClaimForAutomationIfUnowned();
-
             var current = EffectiveMirrorSnapshot();
             if (!_mirrorNeedsRebuild && current.Equals(_mirrored)) return;
             RebuildMirror(current);
@@ -1522,62 +1521,35 @@ namespace ItemDrawers.Game
         }
 
         /// <summary>
-        /// Takes ownership of an UNOWNED drawer when a foreign mod reads it.
+        /// What the mirror shows: the drawer's real contents, to every
+        /// client, owner or not.
         ///
-        /// RefreshMirror's tradeoff -- automation only sees drawers this
-        /// client owns -- rests on an assumption stated in its docstring:
-        /// that ownership tracks proximity, so a drawer a player stands next
-        /// to is one they own. That is true in single-player, where the one
-        /// client owns everything, and false on a server, where a drawer is
-        /// unowned until somebody touches it and stays owned by whoever
-        /// touched it last. The visible result was OttoFuel and
-        /// NoVikingLeftBehind seeing empty drawers for no apparent reason,
-        /// and OttoFuel feeding a kiln forever because the coal it counts
-        /// against its own cutoff was sitting in drawers it could not see.
+        /// This used to report an EMPTY drawer unless this client owned the
+        /// ZDO, to avoid a duplication bug -- a foreign mod that saw stock
+        /// and removed it would keep the items while the drawer, whose debit
+        /// we could not commit without ownership, kept them too. Hiding the
+        /// stock did prevent that, and also broke the mod for its actual
+        /// users: on a server, a drawer is owned by at most one player, so
+        /// everyone else saw an empty box. Two players at the same wall
+        /// meant one of them could not craft.
         ///
-        /// Claiming only when the owner is 0 is what keeps this honest.
-        /// Nobody holds an unowned ZDO, so there is nothing to steal, and
-        /// after the first claim the condition is false -- two clients
-        /// reading the same drawer do not trade it back and forth. A drawer
-        /// another client genuinely owns is left alone and continues to read
-        /// as empty, which is the safe answer: we could not commit a
-        /// withdrawal from it, and showing stock we cannot commit is the
-        /// duplication RefreshMirror's gate exists to prevent.
+        /// Vanilla is the model, and it does not do this. Container.Awake
+        /// loads a chest's items from its ZDO on EVERY client, so anyone can
+        /// read any chest, and ownership is taken at the moment someone
+        /// actually changes something (Container.Interact claims before
+        /// opening). Reading replicated state is safe; only writing needs an
+        /// owner. We had it backwards -- gating the read and leaving the
+        /// write to fail -- which is why vanilla containers worked in
+        /// exactly the situation ours did not.
         ///
-        /// This tick still reads empty. Ownership is a replicated write, not
-        /// an immediate one, so the mirror only fills once the claim has
-        /// landed -- the same reason DepositRoute.Claiming makes auto-pickup
-        /// wait a tick.
+        /// The duplication that gating prevented is now prevented where it
+        /// belongs: TryWithdrawExternally claims ownership before committing
+        /// a debit, so the commit succeeds rather than being refused, and
+        /// WriteOwned's compare-and-swap still refuses if the ZDO moved
+        /// underneath us -- in which case OnMirrorChanged rebuilds the mirror
+        /// and the foreign mod's removal is undone.
         /// </summary>
-        private void ClaimForAutomationIfUnowned() => ClaimIfUnowned();
-
-        /// <summary>
-        /// Takes ownership if, and only if, nobody owns this drawer.
-        ///
-        /// Called both lazily (on a foreign read, via RefreshMirror) and
-        /// proactively (DrawerManager.ClaimNearbyUnownedDrawers). The
-        /// proactive sweep is the one that matters for mods that check
-        /// ownership before reading -- see that method for why the lazy
-        /// path alone deadlocks with them.
-        /// </summary>
-        internal void ClaimIfUnowned()
-        {
-            if (_view == null || !_view.IsValid() || _view.IsOwner()) return;
-
-            var zdo = _view.GetZDO();
-            if (zdo == null || zdo.GetOwner() != 0L) return;
-
-            _view.ClaimOwnership();
-        }
-
-        /// <summary>
-        /// What the mirror is allowed to show: the true Snapshot when this
-        /// client owns the ZDO, otherwise an unassigned/empty snapshot --
-        /// see RefreshMirror's docstring for why. Never mutates anything;
-        /// purely a read.
-        /// </summary>
-        private DrawerSnapshot EffectiveMirrorSnapshot() =>
-            (_view != null && _view.IsValid() && _view.IsOwner()) ? Snapshot : new DrawerSnapshot("", 0);
+        private DrawerSnapshot EffectiveMirrorSnapshot() => Snapshot;
 
         /// <summary>
         /// Unconditional rebuild of the mirror from a given snapshot.

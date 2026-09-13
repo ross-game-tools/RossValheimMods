@@ -2,6 +2,14 @@
 
 Beta: functional and in use, but not yet widely tested.
 
+## 0.9.7 — beta
+
+- Drawers now show their contents to every player, the same way a chest
+  does, instead of only to whoever the game currently considers their
+  owner. This is the real fix for crafting and fuel-pulling in
+  multiplayer; 0.9.4 through 0.9.6 worked around the symptom and still
+  left two players at the same wall fighting over it.
+
 ## 0.9.6 — beta
 
 - Fixed crafting from drawers in multiplayer. Drawers near you are now
