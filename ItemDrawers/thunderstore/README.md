@@ -32,6 +32,16 @@ Drawers are 0.66m cubes and snap to each other, so they tile into a wall.
 `Ctrl` and `Shift` here are Valheim's Crouch and Run actions, so rebinding
 those in Valheim's settings rebinds these too.
 
+## Nearby items
+
+A drawer pulls in matching items dropped near it, so emptying a full
+inventory onto the floor of a storage room files everything away by
+itself. Only items a drawer is already assigned to are taken — a drawer
+never claims something it was not holding, and a full one takes nothing.
+
+On by default, within 40 metres. Both the range and the switch are in
+the config under `[Pickup]`, and are server-synced.
+
 ## Compatibility
 
 Drawers are `Container`s, so container-aware mods can read from and

@@ -46,14 +46,84 @@ namespace ItemDrawers.Core.Tests
 
         // ---------- over-removal / partial removal ----------
 
+        // THE EMPTY-SLOT CASE. Inventory.RemoveItem removes the ItemData
+        // from the slot when the removal takes the whole stack, rather than
+        // leaving it at m_stack 0 -- so DrawerComponent.OnMirrorChanged
+        // reports an emptied mirror as ("", 0), never as (item, 0). See its
+        // `slot != null ? ... : ""`.
+        //
+        // Every test below feeds "" the way the real caller does. The
+        // pre-existing drain test passes the item name with a zero count,
+        // which is a shape the caller cannot produce -- it asserted the
+        // drain path worked while never exercising it, which is exactly why
+        // this bug shipped: crafting an amount equal to the drawer's entire
+        // contents took nothing from the drawer and still produced the item.
+        [Fact]
+        public void An_emptied_slot_is_a_full_withdrawal_not_a_different_item()
+        {
+            var r = MirrorReconciliation.Compute("", 0, Coal, 100, Coal, 100);
+            Assert.Equal(MirrorDelta.WithdrawOf(100), r);
+        }
+
+        [Fact]
+        public void An_emptied_slot_still_clamps_to_what_the_ZDO_holds()
+        {
+            var r = MirrorReconciliation.Compute("", 0, Coal, 100, Coal, 65);
+            Assert.Equal(MirrorDelta.WithdrawOf(65), r);
+        }
+
+        [Fact]
+        public void A_null_item_name_is_treated_the_same_as_an_empty_one()
+        {
+            // PrefabNameOf can return null, which the caller coalesces to ""
+            // -- but a future caller might not, and the two mean the same
+            // thing here.
+            var r = MirrorReconciliation.Compute(null, 0, Coal, 100, Coal, 100);
+            Assert.Equal(MirrorDelta.WithdrawOf(100), r);
+        }
+
+        [Fact]
+        public void An_emptied_slot_against_an_already_empty_baseline_is_no_delta()
+        {
+            // Nothing was in the mirror to begin with, so nothing was taken.
+            // Guards against the empty-slot handling inventing a withdrawal
+            // out of a drawer that was already drained.
+            var r = MirrorReconciliation.Compute("", 0, "", 0, Coal, 100);
+            Assert.Equal(MirrorDelta.None, r);
+        }
+
+        [Fact]
+        public void An_emptied_slot_does_not_withdraw_when_the_ZDO_holds_a_different_item()
+        {
+            // The drawer was reassigned since the baseline was taken. The
+            // baseline is not comparable to ZDO truth, so debiting it would
+            // remove the wrong item.
+            var r = MirrorReconciliation.Compute("", 0, Coal, 100, "Iron", 100);
+            Assert.Equal(MirrorDelta.None, r);
+        }
+
+        [Fact]
+        public void A_populated_slot_holding_a_different_item_is_still_no_delta()
+        {
+            // The empty-slot allowance must not soften the genuine
+            // item-mismatch guard: a slot holding Iron where the baseline
+            // says Coal is a mismatch, not a withdrawal of Coal.
+            var r = MirrorReconciliation.Compute("Iron", 40, Coal, 100, Coal, 100);
+            Assert.Equal(MirrorDelta.None, r);
+        }
+
         [Fact]
         public void Over_removal_relative_to_the_ZDO_clamps_to_what_the_ZDO_holds()
         {
-            // Baseline says 100 was mirrored, mirror now reports 0 removed
-            // (all of it), but the ZDO -- ground truth -- only has 65 left
-            // (something else already reduced it). Cannot withdraw more
+            // Baseline says 100 was mirrored, the mirror now reports a
+            // partial amount left, but the ZDO -- ground truth -- only has
+            // 65 (something else already reduced it). Cannot withdraw more
             // than the ZDO actually holds.
-            var r = MirrorReconciliation.Compute(Coal, 0, Coal, 100, Coal, 65);
+            //
+            // Previously this passed (Coal, 0): an item name with a zero
+            // count, which the caller cannot produce, since an emptied slot
+            // reports ("", 0). The emptied case now has its own tests above.
+            var r = MirrorReconciliation.Compute(Coal, 10, Coal, 100, Coal, 65);
             Assert.Equal(MirrorDelta.WithdrawOf(65), r);
         }
 

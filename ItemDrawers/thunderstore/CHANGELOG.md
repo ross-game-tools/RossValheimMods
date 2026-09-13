@@ -2,6 +2,15 @@
 
 Beta: functional and in use, but not yet widely tested.
 
+## 0.9.9 — beta
+
+- Documented the nearby-item pickup that drawers have always had, which
+  the description and README never mentioned.
+- Fixed crafting taking nothing from a drawer when the recipe needed
+  exactly what was left in it. The item was still crafted, so the
+  materials were duplicated. Taking less than the full amount always
+  worked; only the exact-drain case was affected.
+
 ## 0.9.8 — beta
 
 - Build costs are configurable per tier, under `[Recipe]`, as

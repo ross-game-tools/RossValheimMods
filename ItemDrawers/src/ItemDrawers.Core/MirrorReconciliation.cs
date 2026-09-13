@@ -80,7 +80,30 @@ namespace ItemDrawers.Core
             string mirroredBaselineItemName, int mirroredBaselineAmount,
             string zdoItemName, int zdoAmount)
         {
-            if (mirrorItemName != mirroredBaselineItemName) return MirrorDelta.None;
+            // An emptied slot is the baseline item with none left, NOT a
+            // different item.
+            //
+            // Inventory.RemoveItem removes the ItemData from the slot
+            // outright when the removal takes the whole stack, rather than
+            // leaving it behind at m_stack 0. DrawerComponent.
+            // OnMirrorChanged therefore reports an emptied mirror as
+            // ("", 0) -- see its `slot != null ? ... : ""`.
+            //
+            // Read naively, that "" is an item-name mismatch, and the
+            // mismatch guard below returns None: no withdrawal is
+            // committed, the foreign mod keeps the items it took, and the
+            // drawer keeps its count. That is a duplication bug, and it
+            // fires on the exact boundary where a craft consumes precisely
+            // what the drawer had left -- the case a player hits routinely
+            // when emptying a drawer into a recipe.
+            //
+            // Only a slot that is BOTH nameless and empty gets this
+            // treatment. A slot holding a different item with a real count
+            // is still a genuine mismatch and still returns None.
+            bool mirrorSlotEmpty = string.IsNullOrEmpty(mirrorItemName) && mirrorTotal == 0;
+            string effectiveMirrorItemName = mirrorSlotEmpty ? mirroredBaselineItemName : mirrorItemName;
+
+            if (effectiveMirrorItemName != mirroredBaselineItemName) return MirrorDelta.None;
             if (mirroredBaselineItemName != zdoItemName) return MirrorDelta.None;
 
             int delta = mirrorTotal - mirroredBaselineAmount;
