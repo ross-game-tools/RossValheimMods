@@ -13,7 +13,6 @@ restart. Turning a feature **off** takes effect straight away. Turning on
 a feature that was off when the game launched takes effect after a restart.
 Server-controlled settings changed on a server are pushed to every
 connected player; while connected, your own edits to them are ignored.
-(Every current feature is a personal setting.)
 
 Every player on a server needs RossQoL, at the same minor version.
 
@@ -22,6 +21,18 @@ Every player on a server needs RossQoL, at the same minor version.
 | Setting | Default | What it does |
 |---|---|---|
 | `HotReload` | `true` | Apply edits to the config file without a restart. |
+
+## Combat
+
+Server-controlled when connected.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `Enabled` | `true` | All combat and creature tweaks. |
+| `InstantLoot` | `true` | A killed creature's loot drops the moment it dies, at its body, instead of when the corpse fades a few seconds later. The corpse still falls and fades as normal. |
+
+Running InstantMonsterLootDrop as well does not double any loot, but that
+mod still removes corpses straight away.
 
 ## Crafting
 

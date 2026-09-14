@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using RossQoL.Game.Combat;
 using RossQoL.Game.Crafting;
 using RossQoL.Game.Portals;
 using RossQoL.Game.Startup;
@@ -13,6 +14,8 @@ namespace RossQoL.Game.Framework
     {
         public static IReadOnlyList<Category> Create() => new[]
         {
+            new Category("Combat", "All combat and creature tweaks.",
+                new InstantLootFeature()),
             new Category("Crafting", "All crafting station tweaks.",
                 new CraftingSearchFeature()),
             new Category("Portals", "All portal tweaks.",

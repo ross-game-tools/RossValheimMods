@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0
+
+- **Combat / InstantLoot:** a killed creature's loot drops the moment it
+  dies instead of when its corpse fades. The corpse stays. Server-controlled.
+
 ## 0.2.0
 
 - **Crafting / RecipeSearch:** a search box above the crafting recipe
