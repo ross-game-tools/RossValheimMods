@@ -4,6 +4,8 @@ obj/
 *.suo
 .vs/
 .superpowers/
+# Design specs, plans and test plans: kept locally, not in the repo
+**/docs/superpowers/
 Directory.Build.local.props
 .claude/worktrees/
 
