@@ -127,6 +127,15 @@ fi
 
 [ -f "$ZIP" ] || { echo "packaging failed: $ZIP was not created" >&2; exit 1; }
 
+# Only after the new zip exists, so a failed run keeps the last good one.
+# The prefix leaves other mods' zips in builds/ alone.
+for old in "$BUILDS"/RossItemDrawers-*.zip; do
+    if [ "$old" != "$ZIP" ]; then
+        rm -f "$old"
+        echo "==> Removed previous build $(basename "$old")"
+    fi
+done
+
 echo "==> Packaged $ZIP"
 if command -v unzip >/dev/null 2>&1; then
     unzip -l "$ZIP"
