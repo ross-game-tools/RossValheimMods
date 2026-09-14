@@ -42,9 +42,13 @@ namespace RossQoL.Core.Startup
         public static string Label(string characterName, LastSession session)
         {
             string label = $"Continue: {characterName} on {session.DisplayName}";
-            return label.Length <= MaxLabelLength
-                ? label
-                : label.Substring(0, MaxLabelLength - 1) + "…";
+            if (label.Length <= MaxLabelLength)
+                return label;
+
+            int cut = MaxLabelLength - 1;
+            if (cut > 0 && char.IsHighSurrogate(label[cut - 1]))
+                cut--;
+            return label.Substring(0, cut) + "…";
         }
     }
 }

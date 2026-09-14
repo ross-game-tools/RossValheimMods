@@ -77,5 +77,37 @@ namespace RossQoL.Core.Tests.Startup
             Assert.Equal(ContinuePolicy.MaxLabelLength, label.Length);
             Assert.EndsWith("…", label);
         }
+
+        [Fact]
+        public void Truncation_never_splits_a_surrogate_pair()
+        {
+            // "Continue: Ross on " is 18 chars. Adding 20 'W's makes 38 chars.
+            // Adding emoji "😀" (a 2-char UTF-16 pair) puts the high surrogate at index 38.
+            // The truncation should detect this and back up.
+            var worldName = new string('W', 20) + "😀XYZ";
+            var session = LastSession.LocalWorld("ross", "Local", worldName, "Local");
+            string label = ContinuePolicy.Label("Ross", session);
+
+            // Verify no unpaired surrogates
+            for (int i = 0; i < label.Length; i++)
+            {
+                if (char.IsHighSurrogate(label[i]))
+                {
+                    // High surrogate must be followed by low surrogate
+                    Assert.True(i + 1 < label.Length && char.IsLowSurrogate(label[i + 1]),
+                        "High surrogate at index " + i + " not followed by low surrogate");
+                    i++; // Skip the low surrogate in next iteration
+                }
+                else if (char.IsLowSurrogate(label[i]))
+                {
+                    // Low surrogate must be preceded by high surrogate
+                    Assert.True(i > 0 && char.IsHighSurrogate(label[i - 1]),
+                        "Low surrogate at index " + i + " not preceded by high surrogate");
+                }
+            }
+
+            Assert.EndsWith("…", label);
+            Assert.True(label.Length <= ContinuePolicy.MaxLabelLength);
+        }
     }
 }
