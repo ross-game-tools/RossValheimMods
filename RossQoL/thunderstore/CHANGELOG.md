@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+
+- **Interface / Clock:** the in-game day and time under the minimap, in
+  24-hour or 12-hour format.
+
 ## 0.3.0
 
 - **Combat / InstantLoot:** a killed creature's loot drops the moment it

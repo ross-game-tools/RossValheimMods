@@ -46,6 +46,14 @@ While the search box has the cursor, game keys are ignored: E and Tab
 type letters instead of closing the panel. Press Enter or click elsewhere
 to leave the box, or close the panel with Esc.
 
+## Interface
+
+| Setting | Default | What it does |
+|---|---|---|
+| `Enabled` | `true` | All HUD and interface tweaks. |
+| `Clock` | `true` | Shows the in-game day and time under the minimap, e.g. `Day 42  14:30`. Midnight is 00:00, sunrise 06:00, sunset 18:00. Hidden whenever the minimap is, including on worlds without a map. |
+| `Clock24Hour` | `true` | 24-hour time. Off shows 12-hour time, e.g. `2:30 PM`. |
+
 ## Portals
 
 | Setting | Default | What it does |

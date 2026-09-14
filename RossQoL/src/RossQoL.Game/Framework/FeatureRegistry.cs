@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using RossQoL.Game.Combat;
 using RossQoL.Game.Crafting;
+using RossQoL.Game.Interface;
 using RossQoL.Game.Portals;
 using RossQoL.Game.Startup;
 using RossQoL.Game.Terrain;
@@ -19,6 +20,8 @@ namespace RossQoL.Game.Framework
                 new InstantLootFeature()),
             new Category("Crafting", "All crafting station tweaks.",
                 new CraftingSearchFeature()),
+            new Category("Interface", "All HUD and interface tweaks.",
+                new ClockFeature()),
             new Category("Portals", "All portal tweaks.",
                 new TamesFollowFeature()),
             new Category("Startup", "All startup and main menu tweaks.",
