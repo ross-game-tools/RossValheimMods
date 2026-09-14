@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using RossQoL.Game.Portals;
+using RossQoL.Game.Startup;
 
 namespace RossQoL.Game.Framework
 {
@@ -13,6 +14,8 @@ namespace RossQoL.Game.Framework
         {
             new Category("Portals", "All portal tweaks.",
                 new TamesFollowFeature()),
+            new Category("Startup", "All startup and main menu tweaks.",
+                new ContinueButtonFeature()),
         };
     }
 }
