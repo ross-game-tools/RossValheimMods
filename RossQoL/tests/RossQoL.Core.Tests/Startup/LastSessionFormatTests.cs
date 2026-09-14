@@ -59,6 +59,9 @@ namespace RossQoL.Core.Tests.Startup
         [InlineData("1|Server|ross|Local|||None|1.2.3.4:2456||x")]                 // server without kind
         [InlineData("1|Server|ross|Local|||Dedicated|||x")]                        // server without address
         [InlineData("1|LocalWorld|ross|Local|MyWorld|Local|None|||MyWorld\\")]     // dangling escape
+        [InlineData("1|Server|ross|Local|||+1|1.2.3.4:2456||x")]                   // plus sign in enum
+        [InlineData("1|Server|ross|Local||| Dedicated|1.2.3.4:2456||x")]           // space in enum
+        [InlineData("1|localworld|ross|Local|MyWorld|Local|None|||MyWorld")]       // lowercase enum
         public void Invalid_text_reads_as_no_record(string text)
         {
             Assert.Null(LastSessionFormat.Read(text));

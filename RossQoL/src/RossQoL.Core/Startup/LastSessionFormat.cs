@@ -59,12 +59,13 @@ namespace RossQoL.Core.Startup
             return session.IsComplete ? session : null;
         }
 
-        /// <summary>Names only: Enum.TryParse also accepts "7", which is not a value we wrote.</summary>
+        /// <summary>Names only: Enum.TryParse also accepts numbers such as "7" or "+1", which are not values we wrote.</summary>
         private static bool TryParseEnum<T>(string text, out T value) where T : struct
         {
             value = default;
-            if (text.Length == 0 || char.IsDigit(text[0]) || text[0] == '-') return false;
-            return Enum.TryParse(text, ignoreCase: false, out value) && Enum.IsDefined(typeof(T), value);
+            if (text.Length == 0) return false;
+            if (System.Array.IndexOf(Enum.GetNames(typeof(T)), text) < 0) return false;
+            return Enum.TryParse(text, ignoreCase: false, out value);
         }
 
         private static List<string> Split(string text)
