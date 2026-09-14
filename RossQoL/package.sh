@@ -99,7 +99,13 @@ if [ "$missing" -ne 0 ]; then
     exit 1
 fi
 
-ZIP="$HERE/RossQoL-$VERSION.zip"
+# Finished packages go in builds/ at the top of the MAIN checkout, even when
+# this runs from a worktree: worktrees are temporary, so one fixed place is
+# where builds are found. --git-common-dir is the main checkout's .git.
+REPO_ROOT="$(dirname "$(git -C "$HERE" rev-parse --path-format=absolute --git-common-dir)")"
+BUILDS="$REPO_ROOT/builds"
+mkdir -p "$BUILDS"
+ZIP="$BUILDS/RossQoL-$VERSION.zip"
 rm -f "$ZIP"
 
 # Thunderstore requires manifest.json, icon.png and README.md at the ARCHIVE
