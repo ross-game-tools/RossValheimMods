@@ -4,11 +4,12 @@
 
 First public build.
 
-- Tames following you that are within `FollowRadius` come through the
-  portal with you and arrive near your destination.
-- Each arriving tame is placed at a clear spot within `SearchDistance`
-  of your arrival point where possible, falling back to your own
-  position if nothing clear is found nearby.
-- Ridden creatures (e.g. a saddled lox) are excluded — they aren't left
-  behind in the first place.
-- Client-side only; no server install required.
+- **Portals / TamesFollow:** tames following you within `TameFollowRadius`
+  come through portals with you and are placed at a clear spot near your
+  arrival. (Previously planned as the separate RossPortalTames mod, which
+  was never released.)
+- **Startup / ContinueButton:** main menu button resuming your last local
+  world or server with the character you used.
+- **Startup / SkipSplash:** no launch logos, no menu intro video.
+- **Startup / SkipValkyrie:** no Valkyrie intro for new characters.
+- Every feature and category can be switched off in one config file.

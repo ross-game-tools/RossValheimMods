@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Build RossPortalTames Release and assemble the Thunderstore zip.
+# Build RossQoL Release and assemble the Thunderstore zip.
 #
-# The plugin (RossPortalTames.dll) depends on RossPortalTames.Core.dll at
+# The plugin (RossQoL.dll) depends on RossQoL.Core.dll at
 # load time. A package that ships only the plugin installs with no build
 # error, then throws FileNotFoundException the first time it needs
-# RossPortalTames.Core.dll -- the mod does nothing and nothing in the log
+# RossQoL.Core.dll -- the mod does nothing and nothing in the log
 # says why (see deploy.sh's header comment; this is the same bug, at
 # package time instead of deploy time). This script checks the staged
 # output for both DLLs before zipping and refuses to produce a package
@@ -15,9 +15,9 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TS="$HERE/thunderstore"
-OUT="$HERE/src/RossPortalTames.Game/bin/Release/netstandard2.1"
+OUT="$HERE/src/RossQoL.Game/bin/Release/netstandard2.1"
 BUILD="$TS/build"
-REQUIRED_DLLS=(RossPortalTames.dll RossPortalTames.Core.dll)
+REQUIRED_DLLS=(RossQoL.dll RossQoL.Core.dll)
 
 DOTNET="dotnet"
 command -v dotnet >/dev/null 2>&1 || DOTNET="/c/Program Files/dotnet/dotnet.exe"
@@ -33,25 +33,25 @@ fi
 # Drift here is invisible until a player reports a bug against a version
 # string that does not match what Thunderstore served them, and BepInEx
 # logs the plugin's number, not the manifest's.
-PLUGIN_VERSION=$(grep -E '^\s*public const string PluginVersion' "$HERE/src/RossPortalTames.Game/PortalTamesPlugin.cs" | head -1 | cut -d'"' -f2)
+PLUGIN_VERSION=$(grep -E '^\s*public const string PluginVersion' "$HERE/src/RossQoL.Game/RossQoLPlugin.cs" | head -1 | cut -d'"' -f2)
 if [ "$PLUGIN_VERSION" != "$VERSION" ]; then
     echo "REFUSING to package: version mismatch." >&2
     echo "  manifest.json version_number   = $VERSION" >&2
-    echo "  PortalTamesPlugin.PluginVersion = $PLUGIN_VERSION" >&2
+    echo "  RossQoLPlugin.PluginVersion = $PLUGIN_VERSION" >&2
     echo "Set both to the same value and re-run." >&2
     exit 1
 fi
 echo "==> Version $VERSION (manifest and plugin agree)"
 
 echo "==> Building Release"
-"$DOTNET" build "$HERE/RossPortalTames.sln" -c Release --nologo -v q
+"$DOTNET" build "$HERE/RossQoL.sln" -c Release --nologo -v q
 
 echo "==> Staging package contents"
 rm -rf "$BUILD"
 mkdir -p "$BUILD/plugins"
 
 shopt -s nullglob
-for dll in "$OUT"/RossPortalTames*.dll; do
+for dll in "$OUT"/RossQoL*.dll; do
     cp "$dll" "$BUILD/plugins/"
 done
 
@@ -78,15 +78,15 @@ done
 if [ "$missing" -ne 0 ]; then
     echo >&2
     echo "REFUSING to package: at least one required assembly is missing from the" >&2
-    echo "build output above. Shipping RossPortalTames.dll without" >&2
-    echo "RossPortalTames.Core.dll installs with no error and then throws" >&2
+    echo "build output above. Shipping RossQoL.dll without" >&2
+    echo "RossQoL.Core.dll installs with no error and then throws" >&2
     echo "FileNotFoundException at load -- the mod does nothing, nothing obviously" >&2
     echo "wrong. See this script's header comment. Fix the build, do not remove" >&2
     echo "this check." >&2
     exit 1
 fi
 
-ZIP="$HERE/RossPortalTames-$VERSION.zip"
+ZIP="$HERE/RossQoL-$VERSION.zip"
 rm -f "$ZIP"
 
 # Thunderstore requires manifest.json, icon.png and README.md at the ARCHIVE
@@ -96,9 +96,9 @@ rm -f "$ZIP"
 # `zip` is not present on a stock Windows box, and Git Bash does not ship it.
 # PowerShell's Compress-Archive is always available there but is WRONG for
 # this: on Windows it writes entry names with backslash separators
-# ("plugins\RossPortalTames.dll"), but the zip format mandates forward
+# ("plugins\RossQoL.dll"), but the zip format mandates forward
 # slashes. Extractors that take the name literally create a single file
-# called "plugins\RossPortalTames.dll" at the archive root instead of a
+# called "plugins\RossQoL.dll" at the archive root instead of a
 # plugins/ directory -- which installs cleanly and then loads nothing.
 # Python's zipfile lets us write the names ourselves, so we do.
 if command -v zip >/dev/null 2>&1; then

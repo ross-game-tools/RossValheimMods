@@ -6,19 +6,18 @@ source instead of being an opaque committed binary. Run it when the
 wordmark or palette changes -- Thunderstore requires exactly 256x256
 PNG and rejects anything else.
 
-    python RossPortalTames/tools/make-icon.py
+    python RossQoL/tools/make-icon.py
 
 Requires Pillow. Uses Segoe UI Bold, so it wants a Windows font directory.
 """
 from PIL import Image, ImageDraw, ImageFont
 
 SIZE = 256
-WORDS = ["Portal", "Tames"]
+WORDS = ["Ross", "QoL"]
 FONT_PATH = r"C:\Windows\Fonts\segoeuib.ttf"
-OUT = "RossPortalTames/thunderstore/icon.png"
+OUT = "RossQoL/thunderstore/icon.png"
 
-# A portal-ish teal-to-indigo backdrop with cream text, so the store tile
-# reads as "portal" rather than as generic mod art.
+# Teal-to-indigo backdrop with cream text; kept from the PortalTames icon.
 BG_TOP, BG_BOTTOM = (34, 74, 96), (24, 30, 62)
 TEXT, SHADOW = (240, 246, 250), (10, 10, 16)
 RING = (150, 220, 235)
@@ -48,7 +47,7 @@ def main():
         draw.line([(0, y), (SIZE, y)], fill=tuple(
             round(a + (b - a) * t) for a, b in zip(BG_TOP, BG_BOTTOM)))
 
-    # A stylised portal ring behind the wordmark.
+    # A ring behind the wordmark.
     cx, cy, r = SIZE / 2.0, SIZE / 2.0, SIZE / 2.0 - 14
     draw.ellipse([cx - r, cy - r, cx + r, cy + r], outline=RING, width=6)
     draw.ellipse([cx - r + 10, cy - r + 10, cx + r - 10, cy + r - 10],

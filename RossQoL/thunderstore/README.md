@@ -1,33 +1,47 @@
-# RossPortalTames
+# RossQoL
 
-Tames that are following you come through the portal with you.
+Small quality-of-life tweaks for Valheim, in one mod. Every tweak has its
+own switch, and every category has a master switch, so you keep only what
+you want.
 
-Walk your wolves up to a portal, step through, and they step through
-too — instead of being left behind on the other side of the map. Only
-tames that are actually following you and within range make the trip;
-anything ridden (a saddled lox, for example) is excluded, since it isn't
-"left behind" in the same sense.
+All config lives in `BepInEx/config/com.rossdwest.rossqol.cfg`. Each
+setting's description says whether it is a **personal setting** or
+**server-controlled when connected**. Changing a feature's on/off switch
+takes effect after a restart.
 
-## Client-side only
+Every player on a server needs RossQoL, at the same minor version.
 
-This mod is entirely client-side. There is nothing to install on a
-dedicated server — install it only for the players who want their tames
-to follow them through portals, and it works with servers that don't
-have it at all.
-
-## Config
-
-All settings live under `[General]` and are local to your own client —
-they only affect which of your own tames follow you.
+## Portals
 
 | Setting | Default | What it does |
 |---|---|---|
-| `Enabled` | `true` | Whether tames following you come through portals at all. |
-| `FollowRadius` | `20` (metres) | How close a following tame must be to come along. Measured in three dimensions, so a tame on a roof is as far as one across the ground. Set to `0` to bring nothing. |
-| `SearchDistance` | `6` (metres) | How far from your arrival point to look for a clear spot to place each tame. Anything that can't be placed within this distance is put at your own position instead, where creatures separate themselves naturally. Lower it for tight portal huts. |
+| `Enabled` | `true` | All portal tweaks. |
+| `TamesFollow` | `true` | Tames following you come through portals with you. |
+| `TameFollowRadius` | `20` (metres) | How close a following tame must be to come along. Measured in three dimensions. `0` brings nothing. |
+| `TameSearchDistance` | `6` (metres) | How far from your arrival point to look for a clear spot for each tame, before placing it at your own position. Lower it for tight portal huts. |
+
+Ridden creatures (a saddled lox, for example) are not brought along.
+
+## Startup
+
+| Setting | Default | What it does |
+|---|---|---|
+| `Enabled` | `true` | All startup and main menu tweaks. |
+| `ContinueButton` | `true` | A **Continue** button on the main menu resumes your last session: the local world or server you last played, with the character you used. |
+| `SkipSplash` | `true` | Skips the logos at launch and the main menu intro video. |
+| `SkipValkyrie` | `true` | Skips the Valkyrie flight and intro text on a new character's first spawn. You start at the sacrificial stones as normal. |
+
+About Continue:
+
+- Local worlds resume **private**. To host for friends, use Start game as usual.
+- Server passwords are never stored; the normal password prompt appears.
+- Crossplay servers are rejoined by join code when one is known, falling
+  back to the server's id. Codes change when a host restarts.
+- The button is hidden when the recorded character or world is gone, or
+  when the game was launched with `+connect`, `-joincode` or
+  `-joinserverwithcharacter`.
 
 ## Dependencies
 
 - BepInEx 5.4.2350
-
-No Jotunn dependency.
+- Jotunn 2.30.0
