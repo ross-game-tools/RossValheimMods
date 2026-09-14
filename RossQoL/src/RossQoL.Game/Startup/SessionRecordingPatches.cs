@@ -1,3 +1,4 @@
+using System;
 using HarmonyLib;
 using RossQoL.Game.Framework;
 
@@ -17,8 +18,17 @@ namespace RossQoL.Game.Startup
 
         private static void Postfix(FejdStartup __instance)
         {
-            if (ContinueButtonFeature.Instance?.IsActive != true) return;
-            SessionRecorder.ServerJoinRequested(__instance.GetServerToJoin());
+            // An unhandled exception in a Harmony postfix on JoinServer would
+            // abort the join vanilla just started. Log and carry on instead.
+            try
+            {
+                if (ContinueButtonFeature.Instance?.IsActive != true) return;
+                SessionRecorder.ServerJoinRequested(__instance.GetServerToJoin());
+            }
+            catch (Exception ex)
+            {
+                RossQoLPlugin.Log.LogError($"Continue: recording the join request failed: {ex}");
+            }
         }
     }
 

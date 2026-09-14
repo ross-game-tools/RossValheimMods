@@ -1,3 +1,4 @@
+using System;
 using System.Globalization;
 using RossQoL.Core.Startup;
 
@@ -56,30 +57,41 @@ namespace RossQoL.Game.Startup
 
         private static void OnInitialSpawn()
         {
-            if (ContinueButtonFeature.Instance?.IsActive != true) return;
-
-            var znet = ZNet.instance;
-            var profile = global::Game.instance != null ? global::Game.instance.GetPlayerProfile() : null;
-            if (znet == null || profile == null) return;
-
-            bool hosting = znet.IsServer() && !znet.IsDedicated();
-            var world = hosting ? ZNet.World : null;
-
-            var session = Capture.CommitOnInitialSpawn(
-                hosting,
-                profile.GetFilename(),
-                profile.m_fileSource.ToString(),
-                world?.m_name,
-                world?.m_fileSource.ToString());
-
-            if (session == null)
+            // This runs as a subscriber on Game.m_playerInitialSpawn, inside
+            // Game.UpdateRespawn; an exception here (e.g. from
+            // PlatformPrefs.Save) would otherwise skip every other
+            // subscriber and could break vanilla spawn handling.
+            try
             {
-                RossQoLPlugin.Log.LogInfo("Continue: this session cannot be resumed later; keeping the previous record.");
-                return;
-            }
+                if (ContinueButtonFeature.Instance?.IsActive != true) return;
 
-            SessionStore.Save(session);
-            RossQoLPlugin.Log.LogInfo($"Continue: recorded {session}.");
+                var znet = ZNet.instance;
+                var profile = global::Game.instance != null ? global::Game.instance.GetPlayerProfile() : null;
+                if (znet == null || profile == null) return;
+
+                bool hosting = znet.IsServer() && !znet.IsDedicated();
+                var world = hosting ? ZNet.World : null;
+
+                var session = Capture.CommitOnInitialSpawn(
+                    hosting,
+                    profile.GetFilename(),
+                    profile.m_fileSource.ToString(),
+                    world?.m_name,
+                    world?.m_fileSource.ToString());
+
+                if (session == null)
+                {
+                    RossQoLPlugin.Log.LogInfo("Continue: this session cannot be resumed later; keeping the previous record.");
+                    return;
+                }
+
+                SessionStore.Save(session);
+                RossQoLPlugin.Log.LogInfo($"Continue: recorded {session}.");
+            }
+            catch (Exception ex)
+            {
+                RossQoLPlugin.Log.LogError($"Continue: recording the session on spawn failed: {ex}");
+            }
         }
     }
 }

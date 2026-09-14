@@ -43,11 +43,23 @@ namespace RossQoL.Game.Framework
                 }
             }
 
-            feature.OnActivated(host);
+            // One feature's OnActivated must not abort activation of every
+            // feature that comes after it in the loop.
+            bool activationFailed = false;
+            try
+            {
+                feature.OnActivated(host);
+            }
+            catch (Exception ex)
+            {
+                activationFailed = true;
+                log.LogError($"{feature.Name}: OnActivated failed: {ex}");
+            }
 
-            log.LogInfo(failed == 0
+            log.LogInfo(failed == 0 && !activationFailed
                 ? $"{feature.Name} patched."
-                : $"{feature.Name} patched with {failed} failed patch class(es).");
+                : $"{feature.Name} patched with {failed} failed patch class(es)"
+                  + (activationFailed ? " and a failed activation." : "."));
         }
     }
 }
