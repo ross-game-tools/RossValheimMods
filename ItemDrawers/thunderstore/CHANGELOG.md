@@ -2,6 +2,19 @@
 
 Beta: functional and in use, but not yet widely tested.
 
+## 0.9.10 — beta
+
+- An empty drawer now offers "Unassign" on Ctrl+E instead of "Take one",
+  and stops offering the two take actions it cannot perform. Releasing a
+  drawer's item type so it can hold something else was not discoverable
+  anywhere.
+- Stopped warning every boot about items whose icon cannot be read. On
+  Valheim 1.0.12 that is draugr arrows and the two goblin spears, which
+  are mob-only items carrying no icon at all. They are skipped quietly
+  now, and an item that has icons but an out-of-range variant falls back
+  to its first icon rather than being dropped. Thanks to neuralyze for
+  the report (#3).
+
 ## 0.9.9 — beta
 
 - Documented the nearby-item pickup that drawers have always had, which

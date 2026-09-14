@@ -40,7 +40,60 @@ namespace ItemDrawers.Game
         public static Sprite Icon(string itemName)
         {
             var drop = Drop(itemName);
-            return drop == null ? null : drop.m_itemData.GetIcon();
+            return drop == null ? null : SafeIcon(drop.m_itemData);
+        }
+
+        /// <summary>
+        /// An item's icon, without trusting <c>ItemData.GetIcon()</c> not to
+        /// throw.
+        ///
+        /// GetIcon decompiles to a bare <c>return m_shared.m_icons[m_variant];</c>
+        /// with no bounds check at all, and Valheim ships items whose
+        /// m_variant is outside their own m_icons array -- confirmed on
+        /// 1.0.12 for draugr_arrow, GoblinSpear and GoblinSpearDeepNorth
+        /// (github.com/ross-game-tools/RossValheimMods/issues/3). The last
+        /// of those is a new 1.0 item, so this is a live data shape rather
+        /// than a historical quirk, and the set can be expected to change
+        /// again between versions.
+        ///
+        /// Two distinct shapes end up here, and they deserve different
+        /// answers:
+        ///
+        /// An item with icons but an out-of-range variant still has a
+        /// perfectly good icon at index 0, so it gets that rather than
+        /// being dropped -- the only thing wrong with it is the index.
+        ///
+        /// An item with an EMPTY icon array has nothing to show and returns
+        /// null. That is the likely shape of the three items in issue #3:
+        /// a base prefab in ObjectDB has m_variant 0 (variants are assigned
+        /// to instances, not prefabs), and with variant 0 the only way
+        /// GetIcon can throw is an empty array. All three are mob-only
+        /// items that never reach a player inventory, so having no icon is
+        /// correct for them and no drawer can ever hold one. They are
+        /// skipped either way; what changes is that it is no longer an
+        /// exception and a warning.
+        /// </summary>
+        public static Sprite SafeIcon(ItemDrop.ItemData item) => SafeIcon(item, out _);
+
+        /// <summary>
+        /// As <see cref="SafeIcon(ItemDrop.ItemData)"/>, reporting whether the
+        /// fallback was needed. The atlas build uses this to name the affected
+        /// items once per boot, so the condition stays visible instead of
+        /// being silently papered over -- the item set is game-version
+        /// dependent and worth knowing about when it changes.
+        /// </summary>
+        public static Sprite SafeIcon(ItemDrop.ItemData item, out bool variantOutOfRange)
+        {
+            variantOutOfRange = false;
+
+            var icons = item?.m_shared?.m_icons;
+            if (icons == null || icons.Length == 0) return null;
+
+            int variant = item.m_variant;
+            if ((uint)variant < (uint)icons.Length) return icons[variant];
+
+            variantOutOfRange = true;
+            return icons[0];
         }
 
         /// <summary>

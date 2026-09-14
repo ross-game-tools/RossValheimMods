@@ -29,12 +29,11 @@ namespace ItemDrawers.Game
         /// <summary>
         /// Builds the atlas, or leaves it unbuilt on any failure -- see
         /// BuildInternal for the actual work. Wrapped here so a thrown
-        /// exception (confirmed reachable: ItemDrop.ItemData.GetIcon() is a
-        /// bare, unchecked m_shared.m_icons[m_variant] array index, and at
-        /// least one item in this ObjectDB has an m_icons array shorter
-        /// than its own m_variant -- handled per-item below so one bad item
-        /// no longer aborts the whole build, but this outer guard exists in
-        /// case some other, not-yet-seen failure mode shows up) degrades to
+        /// exception (the known case -- ItemDrop.ItemData.GetIcon() being a
+        /// bare, unchecked m_shared.m_icons[m_variant] index against items
+        /// whose m_variant is out of range -- no longer throws at all, since
+        /// the build reads icons through ItemFacts.SafeIcon; this outer guard
+        /// remains for some other, not-yet-seen failure mode) degrades to
         /// "atlas stays unbuilt, logged once" rather than repeating on every
         /// retry from TryGetUv.
         /// </summary>
@@ -69,6 +68,7 @@ namespace ItemDrawers.Game
 
             var sizes = new List<IconSize>();
             var sprites = new Dictionary<string, Sprite>();
+            var variantFallbacks = new List<string>();
 
             foreach (var prefab in ObjectDB.instance.m_items)
             {
@@ -76,24 +76,34 @@ namespace ItemDrawers.Game
                 if (drop == null) continue;
                 if (drop.m_itemData.m_shared.m_maxStackSize <= 1) continue;
 
-                // ItemData.GetIcon() decompiles to a bare
-                // `return m_shared.m_icons[m_variant];` with no bounds
-                // check. Confirmed live: this threw IndexOutOfRangeException
-                // for at least one item in ObjectDB.m_items (vanilla or mod-
-                // added -- an item whose m_icons array is shorter than its
-                // own m_variant value), which aborted the ENTIRE atlas build
-                // before this fix, leaving every other item's icon missing
-                // too. Skipping just the offending item, rather than the
-                // whole build, is the fix.
+                // ItemFacts.SafeIcon rather than ItemData.GetIcon(), which
+                // decompiles to a bare `return m_shared.m_icons[m_variant];`
+                // with no bounds check and throws for any item whose
+                // m_variant points past its own m_icons array. Valheim 1.0.12
+                // ships three such items -- draugr_arrow, GoblinSpear and
+                // GoblinSpearDeepNorth (issue #3) -- and since the last is a
+                // new 1.0 item, the set should be expected to change again.
+                //
+                // This used to catch the exception and skip the item, which
+                // cost those items their icon on every drawer face and logged
+                // a warning per item per boot. SafeIcon falls back to icon 0
+                // instead: an item in that state still has a usable icon, so
+                // there is nothing to warn about and nothing to skip.
+                //
+                // The try/catch stays as a net for a DIFFERENT failure --
+                // SafeIcon dereferences m_shared, and a malformed mod item
+                // could still surprise us -- but it is no longer the expected
+                // path, so anything reaching it is worth a warning.
                 Sprite icon;
                 try
                 {
-                    icon = drop.m_itemData.GetIcon();
+                    icon = ItemFacts.SafeIcon(drop.m_itemData, out bool variantOutOfRange);
+                    if (variantOutOfRange) variantFallbacks.Add(prefab.name);
                 }
                 catch (System.Exception ex)
                 {
                     DrawerPlugin.Log.LogWarning(
-                        $"Skipping '{prefab.name}' in the icon atlas: GetIcon() threw "
+                        $"Skipping '{prefab.name}' in the icon atlas: reading its icon threw "
                         + $"({ex.GetType().Name}: {ex.Message}).");
                     continue;
                 }
@@ -225,6 +235,17 @@ namespace ItemDrawers.Game
             DrawerPlugin.Log.LogInfo(
                 $"Icon atlas built: {_layout.Rects.Count} icons in {_layout.Width}x{_layout.Height}, "
                 + $"material shader = {shaderSource}");
+
+            // One line, only when it applies. These items would previously
+            // have thrown out of GetIcon and been skipped entirely; naming
+            // them keeps a game-version-dependent quirk visible without the
+            // per-item warning spam that prompted issue #3.
+            if (variantFallbacks.Count > 0)
+            {
+                DrawerPlugin.Log.LogInfo(
+                    $"{variantFallbacks.Count} item(s) have an icon variant outside their own icon array "
+                    + $"and use their first icon: {string.Join(", ", variantFallbacks)}.");
+            }
         }
 
         /// <summary>

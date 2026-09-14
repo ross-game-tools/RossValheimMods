@@ -26,7 +26,7 @@ Drawers are 0.66m cubes and snap to each other, so they tile into a wall.
 | Use item from hotbar | Assign that item to an empty drawer, or deposit a stack into a matching one |
 | `E` (Interact) | Take one stack |
 | `Ctrl+E` | Take one item |
-| `Ctrl+E` on an empty (zero-count) drawer | Clear the drawer's assigned item type |
+| `Ctrl+E` on an empty (zero-count) drawer | Unassign it, so it can hold something else |
 | `Shift+E` | Deposit every matching item in your inventory |
 
 `Ctrl` and `Shift` here are Valheim's Crouch and Run actions, so rebinding

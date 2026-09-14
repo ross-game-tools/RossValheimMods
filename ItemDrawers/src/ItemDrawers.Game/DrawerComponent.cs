@@ -1709,11 +1709,27 @@ namespace ItemDrawers.Game
                     "[<color=yellow><b>1-8</b></color>] Store an item");
 
             string label = ItemFacts.LocalizedName(s.ItemName);
+
+            // Ctrl+E does two different things depending on the count: it
+            // takes one item, or -- once the drawer reads zero -- it releases
+            // the item type so the drawer can be assigned something else
+            // (see DrawerState.Clear, which refuses unless the drawer is
+            // empty). Saying "Take one" on a drawer that has none left named
+            // the wrong action AND hid the only way to reassign a drawer,
+            // which is not discoverable anywhere else in the UI.
+            //
+            // The take lines are dropped at zero rather than shown as
+            // no-ops: there is nothing to take, and offering the action is
+            // what made this confusing in the first place.
+            string actions = s.Amount > 0
+                ? "[<color=yellow><b>E</b></color>] Take stack\n" +
+                  "[<color=yellow><b>Ctrl+E</b></color>] Take one\n" +
+                  "[<color=yellow><b>Shift+E</b></color>] Store all"
+                : "[<color=yellow><b>Ctrl+E</b></color>] Unassign\n" +
+                  "[<color=yellow><b>Shift+E</b></color>] Store all";
+
             return Localization.instance.Localize(
-                $"{label}  <color=orange>{s.Amount}</color>/{Capacity}\n" +
-                "[<color=yellow><b>E</b></color>] Take stack\n" +
-                "[<color=yellow><b>Ctrl+E</b></color>] Take one\n" +
-                "[<color=yellow><b>Shift+E</b></color>] Store all");
+                $"{label}  <color=orange>{s.Amount}</color>/{Capacity}\n" + actions);
         }
 
         public new string GetHoverName() => DrawerTiers.DisplayName(Tier);
