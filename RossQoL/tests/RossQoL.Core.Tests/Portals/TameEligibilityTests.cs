@@ -1,7 +1,8 @@
+using RossQoL.Core.Portals;
 using System.Collections.Generic;
 using Xunit;
 
-namespace RossPortalTames.Core.Tests
+namespace RossQoL.Core.Tests.Portals
 {
     public class TameEligibilityTests
     {

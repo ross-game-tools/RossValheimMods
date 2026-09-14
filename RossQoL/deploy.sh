@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Build RossPortalTames and deploy EVERY produced assembly to a r2modman profile.
+# Build RossQoL and deploy EVERY produced assembly to a r2modman profile.
 #
-# The plugin depends on RossPortalTames.Core.dll. Copying only
-# RossPortalTames.dll produces a FileNotFoundException the first time the
+# The plugin depends on RossQoL.Core.dll. Copying only
+# RossQoL.dll produces a FileNotFoundException the first time the
 # plugin needs it -- with no error in the build and nothing obviously wrong
 # in the plugin. Copy the whole output, never a named file.
 #
@@ -22,19 +22,19 @@ if [ "$PROFILE" = "Default" ]; then
 fi
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OUT="$HERE/src/RossPortalTames.Game/bin/Release/netstandard2.1"
-DEST="$HOME/AppData/Roaming/r2modmanPlus-local/Valheim/profiles/$PROFILE/BepInEx/plugins/RossPortalTames"
+OUT="$HERE/src/RossQoL.Game/bin/Release/netstandard2.1"
+DEST="$HOME/AppData/Roaming/r2modmanPlus-local/Valheim/profiles/$PROFILE/BepInEx/plugins/RossQoL"
 
 DOTNET="dotnet"
 command -v dotnet >/dev/null 2>&1 || DOTNET="/c/Program Files/dotnet/dotnet.exe"
 
-"$DOTNET" build "$HERE/RossPortalTames.sln" -c Release --nologo -v q
+"$DOTNET" build "$HERE/RossQoL.sln" -c Release --nologo -v q
 
 [ -d "$DEST" ] || mkdir -p "$DEST"
 
 shopt -s nullglob
 copied=0
-for dll in "$OUT"/RossPortalTames*.dll; do
+for dll in "$OUT"/RossQoL*.dll; do
     if cp "$dll" "$DEST/" 2>/dev/null; then
         echo "  deployed $(basename "$dll")"
         copied=$((copied + 1))

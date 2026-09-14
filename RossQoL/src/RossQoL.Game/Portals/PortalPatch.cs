@@ -1,6 +1,6 @@
 using HarmonyLib;
 
-namespace RossPortalTames.Game
+namespace RossQoL.Game.Portals
 {
     /// <summary>
     /// Notices that the local player has used a portal.

@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace RossPortalTames.Core
+namespace RossQoL.Core.Portals
 {
     /// <summary>
     /// Which following tames come through the portal.

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace RossPortalTames.Game
+namespace RossQoL.Game.Portals
 {
     /// <summary>
     /// The entire write side of this mod: re-assert ownership, set a position.

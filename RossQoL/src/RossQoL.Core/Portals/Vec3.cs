@@ -1,6 +1,6 @@
 using System;
 
-namespace RossPortalTames.Core
+namespace RossQoL.Core.Portals
 {
     /// <summary>
     /// A 3D point, engine-free.

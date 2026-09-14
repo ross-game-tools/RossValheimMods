@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace RossPortalTames.Core
+namespace RossQoL.Core.Portals
 {
     /// <summary>
     /// Where each arriving tame is put down.

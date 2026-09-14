@@ -1,6 +1,6 @@
 using BepInEx.Configuration;
 
-namespace RossPortalTames.Game
+namespace RossQoL.Game.Portals
 {
     /// <summary>
     /// Three knobs, all local to this client.

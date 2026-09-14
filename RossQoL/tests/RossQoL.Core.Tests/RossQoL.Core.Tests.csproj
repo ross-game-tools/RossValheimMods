@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <RootNamespace>RossPortalTames.Core.Tests</RootNamespace>
+    <RootNamespace>RossQoL.Core.Tests</RootNamespace>
     <IsPackable>false</IsPackable>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
@@ -11,6 +11,6 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="2.*" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\RossPortalTames.Core\RossPortalTames.Core.csproj" />
+    <ProjectReference Include="..\..\src\RossQoL.Core\RossQoL.Core.csproj" />
   </ItemGroup>
 </Project>

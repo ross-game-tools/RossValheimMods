@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using HarmonyLib;
 
-namespace RossPortalTames.Game
+namespace RossQoL.Game
 {
     /// <summary>
     /// One startup check over the Valheim members this mod reaches for by NAME
@@ -43,15 +43,15 @@ namespace RossPortalTames.Game
 
             if (missing.Count == 0)
             {
-                PortalTamesPlugin.Log.LogInfo($"Valheim compatibility check passed ({Required.Length} members).");
+                RossQoLPlugin.Log.LogInfo($"Valheim compatibility check passed ({Required.Length} members).");
                 return;
             }
 
-            PortalTamesPlugin.Log.LogError(
+            RossQoLPlugin.Log.LogError(
                 "Valheim compatibility check FAILED -- this game version has changed members this mod "
                 + "depends on, and tames will not follow you through portals. This is almost certainly a "
                 + "Valheim update, not a conflict with another mod. Missing:");
-            foreach (var m in missing) PortalTamesPlugin.Log.LogError($"    {m}");
+            foreach (var m in missing) RossQoLPlugin.Log.LogError($"    {m}");
         }
 
         /// <summary>
@@ -63,7 +63,7 @@ namespace RossPortalTames.Game
         {
             if (AccessTools.Method(type, method) != null) return true;
 
-            PortalTamesPlugin.Log.LogError(
+            RossQoLPlugin.Log.LogError(
                 $"{type.Name}.{method} not found -- skipping that patch. Tames will not follow you "
                 + "through portals. See the compatibility check above.");
             return false;

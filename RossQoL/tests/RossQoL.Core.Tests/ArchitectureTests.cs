@@ -1,9 +1,10 @@
+using RossQoL.Core.Portals;
 using System;
 using System.Linq;
 using System.Reflection;
 using Xunit;
 
-namespace RossPortalTames.Core.Tests
+namespace RossQoL.Core.Tests
 {
     public class ArchitectureTests
     {

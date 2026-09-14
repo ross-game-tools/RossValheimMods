@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace RossPortalTames.Game
+namespace RossQoL.Game.Portals
 {
     /// <summary>
     /// The tames captured for one teleport, and when they were captured.

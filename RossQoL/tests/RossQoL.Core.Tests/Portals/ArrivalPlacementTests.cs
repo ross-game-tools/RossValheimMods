@@ -1,8 +1,9 @@
+using RossQoL.Core.Portals;
 using System;
 using System.Linq;
 using Xunit;
 
-namespace RossPortalTames.Core.Tests
+namespace RossQoL.Core.Tests.Portals
 {
     public class ArrivalPlacementTests
     {

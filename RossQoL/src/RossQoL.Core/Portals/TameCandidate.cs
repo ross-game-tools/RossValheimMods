@@ -1,4 +1,4 @@
-namespace RossPortalTames.Core
+namespace RossQoL.Core.Portals
 {
     /// <summary>
     /// Everything Core needs to decide whether one creature comes along.

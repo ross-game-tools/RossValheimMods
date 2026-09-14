@@ -1,8 +1,8 @@
 using System.Collections.Generic;
-using RossPortalTames.Core;
+using RossQoL.Core.Portals;
 using UnityEngine;
 
-namespace RossPortalTames.Game
+namespace RossQoL.Game.Portals
 {
     /// <summary>
     /// The only ticking object in this mod. Holds the pending capture and
@@ -102,7 +102,7 @@ namespace RossPortalTames.Game
             _pending = new PendingArrival(ids, Time.time);
             _wasTeleporting = true;
 
-            PortalTamesPlugin.Log.LogInfo($"Portal: bringing {ids.Count} tame(s).");
+            RossQoLPlugin.Log.LogInfo($"Portal: bringing {ids.Count} tame(s).");
         }
 
         private void Update()
@@ -121,7 +121,7 @@ namespace RossPortalTames.Game
 
             if (Time.time - _pending.CapturedAt > PendingExpirySeconds)
             {
-                PortalTamesPlugin.Log.LogWarning(
+                RossQoLPlugin.Log.LogWarning(
                     $"Portal: arrival never registered within {PendingExpirySeconds:F0}s; "
                     + $"leaving {_pending.Tames.Count} tame(s) where they are.");
                 _pending = null;
@@ -176,7 +176,7 @@ namespace RossPortalTames.Game
                 if (TameMover.TryMove(_pending.Tames[i], target)) moved++;
             }
 
-            PortalTamesPlugin.Log.LogInfo($"Portal: {moved} of {_pending.Tames.Count} tame(s) arrived.");
+            RossQoLPlugin.Log.LogInfo($"Portal: {moved} of {_pending.Tames.Count} tame(s) arrived.");
         }
 
         /// <summary>
