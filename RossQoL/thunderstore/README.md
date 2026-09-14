@@ -11,6 +11,18 @@ takes effect after a restart.
 
 Every player on a server needs RossQoL, at the same minor version.
 
+## Crafting
+
+| Setting | Default | What it does |
+|---|---|---|
+| `Enabled` | `true` | All crafting station tweaks. |
+| `RecipeSearch` | `true` | A search box above the crafting recipe list. Typing narrows the list to recipes whose name contains the text, ignoring case and spaces. Works on the Craft and Upgrade tabs; clears when the panel closes. |
+| `SearchAutoFocus` | `true` | Puts the cursor in the search box when you open a crafting station, so you can type straight away. Not for the plain inventory, or with a gamepad. |
+
+While the search box has the cursor, game keys are ignored: E and Tab
+type letters instead of closing the panel. Press Enter or click elsewhere
+to leave the box, or close the panel with Esc.
+
 ## Portals
 
 | Setting | Default | What it does |

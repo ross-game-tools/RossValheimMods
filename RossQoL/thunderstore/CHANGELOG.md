@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- **Crafting / RecipeSearch:** a search box above the crafting recipe
+  list filters it by name as you type. `SearchAutoFocus` puts the cursor
+  in it when you open a crafting station.
+
 ## 0.1.0
 
 First public build.
