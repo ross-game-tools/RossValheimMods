@@ -4,6 +4,8 @@
 
 - **Combat / InstantLoot:** a killed creature's loot drops the moment it
   dies instead of when its corpse fades. The corpse stays. Server-controlled.
+- **Terrain / UnlimitedHeight:** raise and dig terrain up to `MaxRaise` and
+  `MaxDig` metres (default 200) instead of vanilla's 8. Server-controlled.
 
 ## 0.2.0
 

@@ -14,8 +14,8 @@ namespace RossQoL.Game.Combat
     /// Here the stored loot is dropped straight away with vanilla's own
     /// SpawnLoot, at the position DestroyNow would use, and the stored count
     /// is then zeroed. When the corpse fades, DestroyNow finds nothing to
-    /// drop. Mods that drop the corpse's loot early themselves, such as
-    /// InstantMonsterLootDrop, read that same count and find nothing either.
+    /// drop. Mods that drop the corpse's loot early themselves read that same
+    /// count and find nothing either.
     /// </summary>
     [HarmonyPatch(typeof(Ragdoll), nameof(Ragdoll.Setup))]
     internal static class InstantLootPatch

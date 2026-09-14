@@ -3,6 +3,7 @@ using RossQoL.Game.Combat;
 using RossQoL.Game.Crafting;
 using RossQoL.Game.Portals;
 using RossQoL.Game.Startup;
+using RossQoL.Game.Terrain;
 
 namespace RossQoL.Game.Framework
 {
@@ -24,6 +25,8 @@ namespace RossQoL.Game.Framework
                 new ContinueButtonFeature(),
                 new SkipSplashFeature(),
                 new SkipValkyrieFeature()),
+            new Category("Terrain", "All terrain tweaks.",
+                new UnlimitedHeightFeature()),
         };
     }
 }

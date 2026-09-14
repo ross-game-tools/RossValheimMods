@@ -10,10 +10,11 @@ namespace RossQoL.Game.Framework
         /// which is what makes Jotunn push the server's value to clients.
         /// </summary>
         public static ConfigDescription Description(
-            string text, FeatureScope scope, bool requiresRestart, bool turningOnRequiresRestart = false) =>
+            string text, FeatureScope scope, bool requiresRestart, bool turningOnRequiresRestart = false,
+            AcceptableValueBase range = null) =>
             new ConfigDescription(
                 FeatureRules.Describe(text, scope, requiresRestart, turningOnRequiresRestart),
-                null,
+                range,
                 new ConfigurationManagerAttributes { IsAdminOnly = scope == FeatureScope.Synced });
     }
 }

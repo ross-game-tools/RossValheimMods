@@ -31,8 +31,8 @@ Server-controlled when connected.
 | `Enabled` | `true` | All combat and creature tweaks. |
 | `InstantLoot` | `true` | A killed creature's loot drops the moment it dies, at its body, instead of when the corpse fades a few seconds later. The corpse still falls and fades as normal. |
 
-Running InstantMonsterLootDrop as well does not double any loot, but that
-mod still removes corpses straight away.
+Other mods that drop a corpse's loot early do not cause any loot to drop
+twice alongside this.
 
 ## Crafting
 
@@ -75,6 +75,24 @@ About Continue:
 - The button is hidden when the recorded character or world is gone, or
   when the game was launched with `+connect`, `-joincode` or
   `-joinserverwithcharacter`.
+
+## Terrain
+
+Server-controlled when connected.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `Enabled` | `true` | All terrain tweaks. |
+| `UnlimitedHeight` | `true` | Raise and dig terrain beyond vanilla's 8 metres from the original ground, up to `MaxRaise` and `MaxDig`. |
+| `MaxRaise` | `200` (metres) | How high ground can be raised above its original height, 1 to 200. Vanilla is 8. |
+| `MaxDig` | `200` (metres) | How deep ground can be dug below its original height, 1 to 200. Vanilla is 8. |
+
+Edits past 8 metres are saved in the world. With `UnlimitedHeight` off, or
+RossQoL removed, that ground is drawn at 8 metres, and reappears when it is
+turned back on, **as long as nobody edits it in the meantime**. Raising,
+digging or levelling ground while the feature is off, or after lowering
+`MaxRaise` or `MaxDig`, permanently cuts the edited area down to the lower
+limit. Lower the limits only on ground you do not mind losing.
 
 ## Dependencies
 
