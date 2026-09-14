@@ -22,11 +22,24 @@ REQUIRED_DLLS=(RossQoL.dll RossQoL.Core.dll)
 DOTNET="dotnet"
 command -v dotnet >/dev/null 2>&1 || DOTNET="/c/Program Files/dotnet/dotnet.exe"
 
+# Picked once and used everywhere below (version read and zipping): a box
+# with only "python" (no "python3") used to read VERSION="dev" here but then
+# still work when zipping, silently mismatching the plugin's own version and
+# getting refused a few lines down for a confusing reason.
+PYTHON=""
+if command -v python3 >/dev/null 2>&1; then
+    PYTHON="python3"
+elif command -v python >/dev/null 2>&1; then
+    PYTHON="python"
+fi
+
 VERSION="${1:-}"
 if [ -z "$VERSION" ]; then
-    command -v python3 >/dev/null 2>&1 \
-        && VERSION="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['version_number'])" "$TS/manifest.json")" \
-        || VERSION="dev"
+    if [ -n "$PYTHON" ]; then
+        VERSION="$("$PYTHON" -c "import json,sys; print(json.load(open(sys.argv[1]))['version_number'])" "$TS/manifest.json")"
+    else
+        VERSION="dev"
+    fi
 fi
 
 # The manifest's version and the plugin's own PluginVersion must agree.
@@ -104,7 +117,7 @@ rm -f "$ZIP"
 if command -v zip >/dev/null 2>&1; then
     ( cd "$BUILD" && zip -rq "$ZIP" . )
 else
-    python -c "$(cat <<'PY'
+    "$PYTHON" -c "$(cat <<'PY'
 import os, sys, zipfile
 build, out = sys.argv[1], sys.argv[2]
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
@@ -122,5 +135,5 @@ echo "==> Packaged $ZIP"
 if command -v unzip >/dev/null 2>&1; then
     unzip -l "$ZIP"
 else
-    python -c "import sys,zipfile; [print(' ',n) for n in zipfile.ZipFile(sys.argv[1]).namelist()]" "$ZIP"
+    "$PYTHON" -c "import sys,zipfile; [print(' ',n) for n in zipfile.ZipFile(sys.argv[1]).namelist()]" "$ZIP"
 fi

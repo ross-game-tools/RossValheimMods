@@ -45,7 +45,7 @@ namespace RossQoL.Game.Startup
             foreach (var loader in UnityEngine.Object.FindObjectsByType<SceneLoader>(FindObjectsSortMode.None))
             {
                 loader._showLogos = false;
-                RossQoLPlugin.Log.LogInfo("SkipSplash: launch logos skipped (loader already awake).");
+                RossQoLPlugin.Log.LogInfo("SkipSplash: launch logo skip requested (loader already awake).");
             }
         }
     }
