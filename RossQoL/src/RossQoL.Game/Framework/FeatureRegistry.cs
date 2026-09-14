@@ -15,7 +15,9 @@ namespace RossQoL.Game.Framework
             new Category("Portals", "All portal tweaks.",
                 new TamesFollowFeature()),
             new Category("Startup", "All startup and main menu tweaks.",
-                new ContinueButtonFeature()),
+                new ContinueButtonFeature(),
+                new SkipSplashFeature(),
+                new SkipValkyrieFeature()),
         };
     }
 }
