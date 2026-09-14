@@ -2,7 +2,7 @@
   "name": "RossQoL",
   "version_number": "0.1.0",
   "website_url": "https://github.com/ross-game-tools/RossValheimMods",
-  "description": "Quality-of-life tweaks, each switchable: tames follow you through portals, a Continue button, and skipped intros.",
+  "description": "A set of Quality-of-life tweaks, all individually configured. Alpha WIP",
   "dependencies": [
     "denikson-BepInExPack_Valheim-5.4.2350",
     "ValheimModding-Jotunn-2.30.0"

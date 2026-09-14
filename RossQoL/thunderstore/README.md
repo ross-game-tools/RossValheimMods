@@ -1,6 +1,6 @@
 # RossQoL
 
-Small quality-of-life tweaks for Valheim, in one mod. Every tweak has its
+Quality-of-life tweaks for Valheim, in one mod. Every tweak has its
 own switch, and every category has a master switch, so you keep only what
 you want.
 
