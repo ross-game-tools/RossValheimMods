@@ -127,10 +127,23 @@ client features under server control.
 
 - **Client features** are patched at startup only if active. Disabled means
   untouched, which removes any chance of conflicting with another mod.
-  Changing a client toggle requires a restart; each such entry's description
-  says so.
+  Every patch checks `IsActive` on every call, so turning one off applies
+  live; turning on one that was off at startup needs a restart, and each
+  toggle's description says "Turning it on requires a restart."
 - **Synced features** are always patched and check `IsActive` on every call,
   because a server can switch them on after the client has loaded.
+
+*Amended 2026-09-14, live config.* `ConfigHotReload` reloads the config
+file when it changes on disk: a 0.5 s write-time poll (FileSystemWatcher
+does not fire under the headless dedicated server, per NoVikingLeftBehind),
+debounced 0.5 s, retried after 2 s on failure, with no ignore window after
+a reload (it would drop a quick follow-up edit)
+(`Core/Framework/ConfigReloadSchedule`). While connected, Jotunn blocks
+file values for admin-only entries on clients, so such local edits are
+ignored. Jotunn's `ConfigReloaded` handler
+then pushes changed admin-only entries from a server to all clients.
+Switchable with `[General] HotReload`. Unpatching or late patching on a
+toggle was considered and not done, matching NVLB.
 
 Patching keeps PortalTames' per-class `try/catch`: each patch class is
 applied on its own, and a failure logs the class and the **feature** it
@@ -418,7 +431,10 @@ that touch the same areas.
    `Game/<Category>/`.
 4. Subclass `Feature`: bind entries in the category section, list patch
    classes and every Valheim member reached by name.
-5. `Synced` patches check `IsActive` on every call.
+5. Every patch checks `IsActive` on every call, and anything the feature
+   shows or keeps running (UI, components, subscriptions) stops or hides
+   when it is off, so switching it off applies live. Read settings live
+   rather than caching them at startup.
 6. Register it in `FeatureRegistry`, add its config rows to the Thunderstore
    README and its compatibility notes to this spec's Compatibility table.
 

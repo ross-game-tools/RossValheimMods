@@ -62,6 +62,22 @@ namespace RossQoL.Core.Tests.Framework
         }
 
         [Fact]
+        public void Toggles_that_only_restart_to_turn_on_say_so()
+        {
+            Assert.Equal("Does a thing. Personal setting. Turning it on requires a restart.",
+                FeatureRules.Describe("Does a thing.", FeatureScope.Client,
+                    requiresRestart: false, turningOnRequiresRestart: true));
+        }
+
+        [Fact]
+        public void A_full_restart_note_wins_over_the_turning_on_note()
+        {
+            Assert.Equal("Does a thing. Personal setting. Requires restart.",
+                FeatureRules.Describe("Does a thing.", FeatureScope.Client,
+                    requiresRestart: true, turningOnRequiresRestart: true));
+        }
+
+        [Fact]
         public void Synced_descriptions_say_server_controlled()
         {
             Assert.Equal("Does a thing. Server-controlled when connected.",

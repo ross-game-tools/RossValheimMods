@@ -5,6 +5,10 @@
 - **Crafting / RecipeSearch:** a search box above the crafting recipe
   list filters it by name as you type. `SearchAutoFocus` puts the cursor
   in it when you open a crafting station.
+- **Live config:** edits to the config file apply without a restart
+  (`General / HotReload`); server-controlled settings reloaded on a server
+  reach connected players. Turning a feature off is immediate; turning on
+  one that was off at launch still needs a restart.
 
 ## 0.1.0
 

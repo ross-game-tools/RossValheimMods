@@ -29,13 +29,14 @@ namespace RossQoL.Game.Framework
         public void Bind(ConfigFile config)
         {
             Enabled = config.Bind(Section, "Enabled", true,
-                ConfigText.Description(Description, Scope, requiresRestart: Scope == FeatureScope.Client));
+                ConfigText.Description(Description, Scope,
+                    requiresRestart: false, turningOnRequiresRestart: Scope == FeatureScope.Client));
 
             foreach (var feature in Features)
             {
                 feature.Toggle = config.Bind(Section, feature.Key, true,
                     ConfigText.Description(feature.Description, feature.Scope,
-                        requiresRestart: feature.Scope == FeatureScope.Client));
+                        requiresRestart: false, turningOnRequiresRestart: feature.Scope == FeatureScope.Client));
                 feature.BindSettings(config, Section);
             }
         }

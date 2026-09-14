@@ -37,7 +37,12 @@ namespace RossQoL.Game.Crafting
 
         private static void Postfix(InventoryGui __instance)
         {
-            if (CraftingSearchFeature.Instance?.IsActive != true) return;
+            // Switched off since launch: the box already exists but must not show.
+            if (CraftingSearchFeature.Instance?.IsActive != true)
+            {
+                CraftingSearchBox.SetVisible(false);
+                return;
+            }
 
             // An exception escaping here would break opening the inventory.
             try

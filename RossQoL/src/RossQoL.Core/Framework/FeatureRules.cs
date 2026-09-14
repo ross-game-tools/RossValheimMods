@@ -40,7 +40,8 @@ namespace RossQoL.Core.Framework
 
         /// <summary>
         /// Client features are patched only when on at startup, so a disabled
-        /// one touches nothing and cannot conflict with another mod. Synced
+        /// one touches nothing and cannot conflict with another mod; turning
+        /// one off later applies live, since every patch checks IsActive. Synced
         /// features are always patched and check their state on every call,
         /// because a server can switch them on after the client has loaded.
         /// Missing Valheim members override both: patching against a changed
@@ -52,13 +53,22 @@ namespace RossQoL.Core.Framework
             return scope == FeatureScope.Synced || activeAtStartup;
         }
 
-        public static string Describe(string text, FeatureScope scope, bool requiresRestart)
+        /// <param name="turningOnRequiresRestart">
+        /// For client toggles: turning off applies live, because every patch
+        /// checks IsActive, but a feature off at startup was never patched.
+        /// </param>
+        public static string Describe(
+            string text, FeatureScope scope, bool requiresRestart, bool turningOnRequiresRestart = false)
         {
             string owner = scope == FeatureScope.Synced
                 ? " Server-controlled when connected."
                 : " Personal setting.";
 
-            return text + owner + (requiresRestart ? " Requires restart." : "");
+            string restart = requiresRestart ? " Requires restart."
+                : turningOnRequiresRestart ? " Turning it on requires a restart."
+                : "";
+
+            return text + owner + restart;
         }
     }
 }

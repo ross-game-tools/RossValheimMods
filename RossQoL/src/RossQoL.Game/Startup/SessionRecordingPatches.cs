@@ -38,6 +38,10 @@ namespace RossQoL.Game.Startup
         private static bool Prepare() =>
             ValheimCompat.RequireMethod(typeof(FejdStartup), nameof(FejdStartup.OnWorldStart), ContinueButtonFeature.FeatureName);
 
-        private static void Prefix() => SessionRecorder.LocalWorldStartRequested();
+        private static void Prefix()
+        {
+            if (ContinueButtonFeature.Instance?.IsActive != true) return;
+            SessionRecorder.LocalWorldStartRequested();
+        }
     }
 }

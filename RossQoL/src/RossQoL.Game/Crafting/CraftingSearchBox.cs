@@ -41,6 +41,7 @@ namespace RossQoL.Game.Crafting
         public static void OnShow(InventoryGui gui)
         {
             if (!EnsureCreated(gui)) return;
+            SetVisible(true);
 
             var player = Player.m_localPlayer;
             if (CraftingSearchConfig.SearchAutoFocus?.Value == true
@@ -68,6 +69,15 @@ namespace RossQoL.Game.Crafting
             s_focusDeadline = 0f;
             s_field.Select();
             s_field.ActivateInputField();
+        }
+
+        /// <summary>
+        /// Hiding leaves the recipe list shortened; the gap is cosmetic and
+        /// goes away on the next launch.
+        /// </summary>
+        public static void SetVisible(bool visible)
+        {
+            if (s_field && s_field.gameObject.activeSelf != visible) s_field.gameObject.SetActive(visible);
         }
 
         /// <summary>InventoryGui.Hide runs every frame in some states; do nothing when already clear.</summary>

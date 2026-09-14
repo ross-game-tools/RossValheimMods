@@ -6,10 +6,22 @@ you want.
 
 All config lives in `BepInEx/config/com.rossdwest.rossqol.cfg`. Each
 setting's description says whether it is a **personal setting** or
-**server-controlled when connected**. Changing a feature's on/off switch
-takes effect after a restart.
+**server-controlled when connected**.
+
+Edits to the file apply while the game is running; there is no need to
+restart. Turning a feature **off** takes effect straight away. Turning on
+a feature that was off when the game launched takes effect after a restart.
+Server-controlled settings changed on a server are pushed to every
+connected player; while connected, your own edits to them are ignored.
+(Every current feature is a personal setting.)
 
 Every player on a server needs RossQoL, at the same minor version.
+
+## General
+
+| Setting | Default | What it does |
+|---|---|---|
+| `HotReload` | `true` | Apply edits to the config file without a restart. |
 
 ## Crafting
 

@@ -9,9 +9,10 @@ namespace RossQoL.Game.Framework
         /// Every entry says whose value it is. Synced entries are admin-only,
         /// which is what makes Jotunn push the server's value to clients.
         /// </summary>
-        public static ConfigDescription Description(string text, FeatureScope scope, bool requiresRestart) =>
+        public static ConfigDescription Description(
+            string text, FeatureScope scope, bool requiresRestart, bool turningOnRequiresRestart = false) =>
             new ConfigDescription(
-                FeatureRules.Describe(text, scope, requiresRestart),
+                FeatureRules.Describe(text, scope, requiresRestart, turningOnRequiresRestart),
                 null,
                 new ConfigurationManagerAttributes { IsAdminOnly = scope == FeatureScope.Synced });
     }
