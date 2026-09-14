@@ -416,8 +416,20 @@ that touch the same areas.
    Avoid putting it in a category of `Client` features.
 3. Put rules worth testing in `Core/<Category>/`, patches and adapters in
    `Game/<Category>/`.
-4. Implement `IFeature`: bind entries in the category section, list patch
+4. Subclass `Feature`: bind entries in the category section, list patch
    classes and every Valheim member reached by name.
 5. `Synced` patches check `IsActive` on every call.
-6. Register it in `FeatureRegistry`, add its config rows and compat notes to
-   the Thunderstore README.
+6. Register it in `FeatureRegistry`, add its config rows to the Thunderstore
+   README and its compatibility notes to this spec's Compatibility table.
+
+### Synced-scope caveats
+
+- A `Synced` feature's `OnActivated` runs even when it is off at startup
+  (`FeatureRules.ShouldPatch` still patches the category so a later toggle
+  works without a restart) -- anything `OnActivated` adds (subscriptions,
+  UI, background state) must itself check `IsActive` before doing anything
+  visible or persistent.
+- A `Client` feature that was off at startup stays unpatched until restart,
+  even if a `Synced` category toggle in the same category later turns it on:
+  scope, not category membership, decides whether a feature can react to a
+  toggle without restarting.

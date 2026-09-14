@@ -6,7 +6,7 @@ buildable and independently packaged for Thunderstore.
 | Mod | What it does | State |
 |---|---|---|
 | [ItemDrawers](ItemDrawers/) | Wood, stone and black marble drawers that each hold a large quantity of one item and show it on the front. Clean-room rewrite; ships no art. | Implemented; Thunderstore packaging in place, icon.png outstanding |
-| [RossQoL](RossQoL/) | Quality-of-life tweaks, each switchable: tames follow you through portals, a Continue button, skipped intros. Requires Jotunn. | Implemented |
+| [RossQoL](RossQoL/) | Quality-of-life tweaks, each switchable: tames follow you through portals, a Continue button, skipped intros. Requires Jotunn. | Implemented; in-game testing pending |
 
 ## Layout
 
