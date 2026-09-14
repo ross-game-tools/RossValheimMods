@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using RossQoL.Core.Startup;
+using UnityEngine.UI;
 
 namespace RossQoL.Game.Startup
 {
@@ -11,6 +12,12 @@ namespace RossQoL.Game.Startup
     /// </summary>
     internal static class ContinueLauncher
     {
+        // A static reference rather than threading the Button through every
+        // private method below: only one Continue click can ever be in
+        // flight (the button is disabled for the duration), so there is
+        // nothing to disambiguate between calls.
+        private static Button _button;
+
         public static PlayerProfile FindProfile(List<PlayerProfile> profiles, LastSession session)
         {
             if (profiles == null || session == null) return null;
@@ -32,8 +39,15 @@ namespace RossQoL.Game.Startup
                 && w.m_dataError == World.SaveDataError.None);
         }
 
-        public static void Resume(FejdStartup menu, LastSession session)
+        public static void Resume(FejdStartup menu, LastSession session, Button button)
         {
+            // Guards against a second click while a PlayFab join-code lookup
+            // is resolving or JoinServer's scene-transition delay is running;
+            // both leave the menu visible and clickable for a moment. Every
+            // path below that returns to a usable menu re-enables it.
+            _button = button;
+            if (_button != null) _button.interactable = false;
+
             var profiles = SaveSystem.GetAllPlayerProfiles();
             var profile = FindProfile(profiles, session);
             if (profile == null)
@@ -70,11 +84,26 @@ namespace RossQoL.Game.Startup
             // these four controls.
             menu.m_openServerToggle.SetIsOnWithoutNotify(false);
             menu.m_publicServerToggle.SetIsOnWithoutNotify(false);
+
+            // OnWorldStart persists the crossplay toggle to PlatformPrefs
+            // whenever it is interactable (FejdStartup.OnWorldStart), and
+            // RefreshWorldSelection reads that pref back as the toggle's
+            // default (1, i.e. on) next time the menu opens. Forcing the
+            // toggle off here to keep this world private would silently flip
+            // the player's saved crossplay preference for every future world,
+            // so the prior value is restored once OnWorldStart is done.
+            int priorCrossplay = PlatformPrefs.GetInt("crossplay", 1);
             menu.m_crossplayServerToggle.SetIsOnWithoutNotify(false);
             menu.m_serverPassword.text = "";
 
             RossQoLPlugin.Log.LogInfo($"Continue: starting {session}.");
             menu.OnWorldStart();
+
+            if (menu.m_crossplayServerToggle.IsInteractable())
+            {
+                PlatformPrefs.SetInt("crossplay", priorCrossplay);
+                PlatformPrefs.Save();
+            }
         }
 
         private static void JoinServer(FejdStartup menu, LastSession session)
@@ -123,8 +152,17 @@ namespace RossQoL.Game.Startup
 
         private static void Join(FejdStartup menu, ServerJoinData data, LastSession session)
         {
-            // The menu may be gone by the time an async join-code lookup returns.
-            if (menu == null) return;
+            // The menu may be gone, or the player may have already navigated
+            // past it (e.g. into character select), by the time an async
+            // join-code lookup returns. Joining from there would yank them
+            // out of whatever they are doing now, so just log and stop; the
+            // Continue button no longer exists to re-enable either way.
+            if (menu == null || !menu.m_mainMenu.activeInHierarchy)
+            {
+                RossQoLPlugin.Log.LogInfo(
+                    $"Continue: {session} resolved after the main menu was left; not joining.");
+                return;
+            }
 
             if (!data.IsValid)
             {
@@ -145,6 +183,11 @@ namespace RossQoL.Game.Startup
         {
             RossQoLPlugin.Log.LogWarning($"Continue: {reason}; opening character selection instead.");
             menu.OnStartGame();
+
+            // OnStartGame leaves the player on a usable menu (character
+            // select), so a further click on Continue -- if it is even still
+            // visible -- must work again.
+            if (_button != null) _button.interactable = true;
         }
     }
 }

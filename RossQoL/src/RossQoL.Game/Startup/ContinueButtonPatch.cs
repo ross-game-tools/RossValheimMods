@@ -72,28 +72,39 @@ namespace RossQoL.Game.Startup
             }
 
             var clone = Object.Instantiate(start.gameObject, start.transform.parent);
-            clone.name = ButtonName;
-            clone.transform.SetSiblingIndex(start.transform.GetSiblingIndex());
+            try
+            {
+                clone.name = ButtonName;
+                clone.transform.SetSiblingIndex(start.transform.GetSiblingIndex());
 
-            // A cloned Localize component would put "Start game" back on a
-            // language change.
-            foreach (var localize in clone.GetComponentsInChildren<Localize>(true))
-                Object.DestroyImmediate(localize);
+                // A cloned Localize component would put "Start game" back on a
+                // language change.
+                foreach (var localize in clone.GetComponentsInChildren<Localize>(true))
+                    Object.DestroyImmediate(localize);
 
-            var label = clone.GetComponentInChildren<TMP_Text>(true);
-            if (label != null) label.text = ContinuePolicy.Label(profile.GetName(), session);
+                var label = clone.GetComponentInChildren<TMP_Text>(true);
+                if (label != null) label.text = ContinuePolicy.Label(profile.GetName(), session);
 
-            // A fresh event drops Start game's scene-wired OnStartGame listener.
-            var button = clone.GetComponent<Button>();
-            button.onClick = new Button.ButtonClickedEvent();
-            button.onClick.AddListener(() => ContinueLauncher.Resume(menu, session));
+                // A fresh event drops Start game's scene-wired OnStartGame listener.
+                var button = clone.GetComponent<Button>();
+                button.onClick = new Button.ButtonClickedEvent();
+                button.onClick.AddListener(() => ContinueLauncher.Resume(menu, session, button));
 
-            // Awake cached the button list; without refreshing it, keyboard and
-            // gamepad selection skip the new button.
-            menu.m_menuButtons = list.GetComponentsInChildren<Button>();
-            if (menu.m_merchStoreButton != null) GuiUtils.SetNavigationRight(button, menu.m_merchStoreButton);
+                // Awake cached the button list; without refreshing it, keyboard and
+                // gamepad selection skip the new button.
+                menu.m_menuButtons = list.GetComponentsInChildren<Button>();
+                if (menu.m_merchStoreButton != null) GuiUtils.SetNavigationRight(button, menu.m_merchStoreButton);
 
-            log.LogInfo($"Continue: button added for {session}.");
+                log.LogInfo($"Continue: button added for {session}.");
+            }
+            catch
+            {
+                // Otherwise a half-set-up clone -- still labelled "Start
+                // game" and possibly still wired to OnStartGame -- is left
+                // behind for the outer catch to merely log past.
+                Object.Destroy(clone);
+                throw;
+            }
         }
 
         private static Button FindStartGameButton(Button[] buttons)
@@ -103,7 +114,13 @@ namespace RossQoL.Game.Startup
                     if (b.onClick.GetPersistentMethodName(i) == nameof(FejdStartup.OnStartGame))
                         return b;
 
-            return buttons.Length > 0 ? buttons[0] : null;
+            // GetComponentsInChildren(true) includes inactive buttons; an
+            // inactive one is not a usable template to clone from.
+            foreach (var b in buttons)
+                if (b.gameObject.activeInHierarchy)
+                    return b;
+
+            return null;
         }
     }
 }
