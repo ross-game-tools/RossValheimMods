@@ -66,5 +66,10 @@
       <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\com.rlabrecque.steamworks.net.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- GuiInputField, the type of FejdStartup.m_serverPassword. -->
+    <Reference Include="gui_framework">
+      <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\gui_framework.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 </Project>

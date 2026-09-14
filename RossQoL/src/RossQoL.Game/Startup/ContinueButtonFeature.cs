@@ -26,6 +26,7 @@ namespace RossQoL.Game.Startup
         {
             typeof(JoinServerRecordingPatch),
             typeof(WorldStartRecordingPatch),
+            typeof(ContinueButtonPatch),
         };
 
         public override IEnumerable<CompatMember> RequiredMembers => new[]
@@ -34,6 +35,14 @@ namespace RossQoL.Game.Startup
             new CompatMember("FejdStartup", "GetServerToJoin", "recording which server you joined"),
             new CompatMember("FejdStartup", "OnWorldStart", "recording and resuming local worlds"),
             new CompatMember("Game", "m_playerInitialSpawn", "knowing a session actually started"),
+            new CompatMember("FejdStartup", "SetupGui", "adding the button to the main menu"),
+            new CompatMember("FejdStartup", "OnStartGame", "finding Start game, and the fallback when a session cannot resume"),
+            new CompatMember("FejdStartup", "SelectCharacter", "selecting the recorded character"),
+            new CompatMember("FejdStartup", "SetServerToJoin", "joining the recorded server"),
+            new CompatMember("FejdStartup", "m_menuButtons", "keyboard and gamepad navigation of the new button"),
+            new CompatMember("FejdStartup", "m_world", "resuming a local world"),
+            new CompatMember("FejdStartup", "m_profileIndex", "selecting the recorded character"),
+            new CompatMember("ZPlayFabMatchmaking", "ResolveJoinCode", "rejoining crossplay servers by join code"),
         };
 
         public override void OnActivated(GameObject host) => SessionRecorder.Subscribe();
