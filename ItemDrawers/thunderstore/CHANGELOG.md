@@ -1,7 +1,5 @@
 # Changelog
 
-Beta: functional and in use, but not yet widely tested.
-
 ## 1.0.0
 
 - Drawers are designed to work with mods that store items into
