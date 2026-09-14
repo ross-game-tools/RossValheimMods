@@ -23,6 +23,10 @@
     referenced directly. They are never committed.
   -->
   <ItemGroup>
+    <Reference Include="Jotunn">
+      <HintPath>$(JOTUNN_INSTALL)\Jotunn.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="assembly_valheim">
       <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\assembly_valheim.dll</HintPath>
       <Publicize>true</Publicize>

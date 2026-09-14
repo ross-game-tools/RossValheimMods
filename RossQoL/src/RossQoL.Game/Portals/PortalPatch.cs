@@ -1,4 +1,5 @@
 using HarmonyLib;
+using RossQoL.Game.Framework;
 
 namespace RossQoL.Game.Portals
 {
@@ -22,11 +23,11 @@ namespace RossQoL.Game.Portals
     internal static class PortalPatch
     {
         private static bool Prepare() =>
-            ValheimCompat.RequireMethod(typeof(TeleportWorld), nameof(TeleportWorld.Teleport));
+            ValheimCompat.RequireMethod(typeof(TeleportWorld), nameof(TeleportWorld.Teleport), "Portals/TamesFollow");
 
         private static void Postfix()
         {
-            if (!PortalTamesConfig.Enabled.Value) return;
+            if (TamesFollowFeature.Instance?.IsActive != true) return;
 
             var player = Player.m_localPlayer;
             if (player == null) return;

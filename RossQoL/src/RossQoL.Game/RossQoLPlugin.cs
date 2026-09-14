@@ -1,14 +1,16 @@
-using System;
-using System.Reflection;
 using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
-using RossQoL.Game.Portals;
+using Jotunn.Utils;
+using RossQoL.Game.Framework;
 using UnityEngine;
 
 namespace RossQoL.Game
 {
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
+    [BepInDependency(Jotunn.Main.ModGuid)]
+    // Synced features only mean anything if every peer runs the same rules.
+    [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod, VersionStrictness.Minor)]
     public class RossQoLPlugin : BaseUnityPlugin
     {
         // Written into BepInEx's config filename, therefore permanent:
@@ -25,35 +27,17 @@ namespace RossQoL.Game
             Log = Logger;
             _harmony = new Harmony(PluginGuid);
 
-            ValheimCompat.Verify();
+            var categories = FeatureRegistry.Create();
+            foreach (var category in categories) category.Bind(Config);
 
-            try
-            {
-                foreach (var type in AccessTools.GetTypesFromAssembly(Assembly.GetExecutingAssembly()))
-                {
-                    if (type.GetCustomAttributes(typeof(HarmonyPatch), inherit: false).Length == 0) continue;
-
-                    try
-                    {
-                        _harmony.CreateClassProcessor(type).Patch();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.LogError($"Patch class {type.Name} failed and was skipped: {ex}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.LogError($"Patching aborted: {ex}");
-            }
-
-            PortalTamesConfig.Bind(Config);
-
+            // One host object for the whole mod; features add components to it.
             var host = new GameObject(PluginName + "Manager");
-            host.AddComponent<PortalTamesManager>();
             DontDestroyOnLoad(host);
             host.transform.SetParent(gameObject.transform);
+
+            foreach (var category in categories)
+                foreach (var feature in category.Features)
+                    FeatureActivator.Activate(feature, _harmony, host);
 
             Log.LogInfo($"{PluginName} {PluginVersion} loaded");
         }

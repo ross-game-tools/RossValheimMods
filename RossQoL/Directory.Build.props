@@ -8,6 +8,12 @@
 
   <PropertyGroup>
     <VALHEIM_INSTALL Condition="'$(VALHEIM_INSTALL)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Valheim</VALHEIM_INSTALL>
+    <!--
+      JotunnLib on nuget.org ships lib/net462 only, which a netstandard2.1
+      project silently drops. Reference the Jotunn.dll installed in the dev
+      profile instead, as ItemDrawers does.
+    -->
+    <JOTUNN_INSTALL Condition="'$(JOTUNN_INSTALL)' == ''">C:\Users\ross\AppData\Roaming\r2modmanPlus-local\Valheim\profiles\dev\BepInEx\plugins\ValheimModding-Jotunn</JOTUNN_INSTALL>
   </PropertyGroup>
 
   <PropertyGroup>
