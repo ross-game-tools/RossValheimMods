@@ -1,6 +1,8 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using RossQoL.Core.Startup;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace RossQoL.Game.Startup
@@ -104,6 +106,11 @@ namespace RossQoL.Game.Startup
                 PlatformPrefs.SetInt("crossplay", priorCrossplay);
                 PlatformPrefs.Save();
             }
+
+            // OnWorldStart returns early (e.g. the cloud-storage warning
+            // popup) without transitioning, leaving the button disabled on a
+            // menu the player is still looking at.
+            menu.StartCoroutine(ReenableAfterDelay(_button));
         }
 
         private static void JoinServer(FejdStartup menu, LastSession session)
@@ -155,12 +162,18 @@ namespace RossQoL.Game.Startup
             // The menu may be gone, or the player may have already navigated
             // past it (e.g. into character select), by the time an async
             // join-code lookup returns. Joining from there would yank them
-            // out of whatever they are doing now, so just log and stop; the
-            // Continue button no longer exists to re-enable either way.
+            // out of whatever they are doing now, so just log and stop.
             if (menu == null || !menu.m_mainMenu.activeInHierarchy)
             {
                 RossQoLPlugin.Log.LogInfo(
                     $"Continue: {session} resolved after the main menu was left; not joining.");
+
+                // The player may back out to this same menu later with the
+                // button still disabled from the click that led here. menu
+                // being non-null but its main menu inactive still has a
+                // MonoBehaviour to run the coroutine on; menu being null
+                // means the button was destroyed along with everything else.
+                if (menu != null) menu.StartCoroutine(ReenableAfterDelay(_button));
                 return;
             }
 
@@ -173,6 +186,29 @@ namespace RossQoL.Game.Startup
             RossQoLPlugin.Log.LogInfo($"Continue: joining {session}.");
             menu.SetServerToJoin(data);
             menu.JoinServer();
+
+            // JoinServer often returns early to the still-active main menu
+            // without transitioning (version mismatch, crossplay/privilege
+            // popups, a cancelled login prompt, a failed server host) --
+            // none of those are worth enumerating here, so just check back
+            // later and re-enable the button if nothing ended up loading a
+            // new scene.
+            menu.StartCoroutine(ReenableAfterDelay(_button));
+        }
+
+        /// <summary>
+        /// Turns the Continue button back on after vanilla has had time to
+        /// either transition away (destroying this coroutine along with the
+        /// menu and button) or fall back to the still-open menu. The delay
+        /// is longer than TransitionToMainScene's own 1.5s Invoke so a real
+        /// scene change wins the race. A disabled-but-hidden button has no
+        /// value, so this re-enables unconditionally rather than checking
+        /// whether the menu is currently visible.
+        /// </summary>
+        private static IEnumerator ReenableAfterDelay(Button button)
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            if (button != null) button.interactable = true;
         }
 
         /// <summary>
