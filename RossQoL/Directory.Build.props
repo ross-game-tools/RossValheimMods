@@ -1,0 +1,31 @@
+<Project>
+  <!--
+    Local, machine-specific overrides. Copy Directory.Build.local.props.sample to
+    Directory.Build.local.props (gitignored) and edit it, or set VALHEIM_INSTALL
+    as an environment variable instead — either works.
+  -->
+  <Import Project="Directory.Build.local.props" Condition="Exists('Directory.Build.local.props')" />
+
+  <PropertyGroup>
+    <VALHEIM_INSTALL Condition="'$(VALHEIM_INSTALL)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Valheim</VALHEIM_INSTALL>
+    <!--
+      JotunnLib on nuget.org ships lib/net462 only, which a netstandard2.1
+      project silently drops. Reference the Jotunn.dll installed in the dev
+      profile instead, as ItemDrawers does.
+    -->
+    <JOTUNN_INSTALL Condition="'$(JOTUNN_INSTALL)' == ''">C:\Users\ross\AppData\Roaming\r2modmanPlus-local\Valheim\profiles\dev\BepInEx\plugins\ValheimModding-Jotunn</JOTUNN_INSTALL>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!--
+      MSB3277 fires on every build of the Game project and none of it is
+      actionable. Valheim ships its own copies of System.* assemblies at
+      versions differing from the netstandard2.1 reference assemblies; MSBuild
+      reports the conflict and resolves it correctly, and at runtime neither
+      copy is ours. Downgraded to a message rather than suppressed, so it still
+      shows in a detailed log. MSBuild warnings do not respond to NoWarn, which
+      is C#-compiler only; MSBuildWarningsAsMessages is the equivalent.
+    -->
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB3277</MSBuildWarningsAsMessages>
+  </PropertyGroup>
+</Project>
