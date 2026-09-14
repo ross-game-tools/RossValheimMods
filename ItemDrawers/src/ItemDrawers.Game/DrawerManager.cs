@@ -83,6 +83,11 @@ namespace ItemDrawers.Game
         private readonly List<DrawerComponent> _all = new List<DrawerComponent>();
         private readonly HashSet<DrawerComponent> _dirty = new HashSet<DrawerComponent>();
 
+        // Views another mod changed this frame; written to their ZDOs in
+        // LateUpdate, once each, however many Inventory calls changed them.
+        private readonly HashSet<DrawerComponent> _viewDirty = new HashSet<DrawerComponent>();
+        private readonly List<DrawerComponent> _viewFlushScratch = new List<DrawerComponent>(16);
+
         private float _cullTimer;
         private int _syncCursor;
 
@@ -221,12 +226,78 @@ namespace ItemDrawers.Game
             if (drawer == null) return;
             _all.Remove(drawer);
             _dirty.Remove(drawer);
+            _viewDirty.Remove(drawer);
             _grid.Remove(drawer);
         }
 
         public void MarkDirty(DrawerComponent drawer)
         {
             if (drawer != null) _dirty.Add(drawer);
+        }
+
+        internal void MarkViewDirty(DrawerComponent drawer)
+        {
+            if (drawer != null) _viewDirty.Add(drawer);
+        }
+
+        /// <summary>True when some view changed since the last flush; lets ZNetViewResetZdoPatch skip every other object for free.</summary>
+        internal bool HasDirtyViews => _viewDirty.Count > 0;
+
+        /// <summary>
+        /// Hands every dirty view to DrawerComponent.FlushView. In LateUpdate
+        /// that claims, waits for ownership to settle (re-queuing the view
+        /// each frame) and then reconciles. GameShutdownPatch passes
+        /// teardown, which writes each delta immediately instead. Teardown
+        /// never spawns anything, so it is also safe inside
+        /// ZNetScene.Shutdown's enumeration. Iterates a copy: FlushView may
+        /// re-queue a view.
+        /// </summary>
+        internal void FlushViewWrites(bool teardown = false)
+        {
+            if (_viewDirty.Count == 0) return;
+            _viewFlushScratch.Clear();
+            _viewFlushScratch.AddRange(_viewDirty);
+            _viewDirty.Clear();
+
+            for (int i = 0; i < _viewFlushScratch.Count; i++)
+                if (_viewFlushScratch[i] != null) _viewFlushScratch[i].FlushView(teardown);
+            _viewFlushScratch.Clear();
+        }
+
+        private void LateUpdate() => FlushViewWrites();
+
+        /// <summary>
+        /// Owner-side reconcile of view changes, from this client or any
+        /// other. One revision comparison per owned drawer per frame unless
+        /// its ZDO data actually changed.
+        /// </summary>
+        private void ReconcileViews()
+        {
+            for (int i = 0; i < _all.Count; i++)
+            {
+                var drawer = _all[i];
+                if (drawer != null && drawer.ViewNeedsReconcile()) drawer.ReconcileView();
+            }
+        }
+
+        /// <summary>
+        /// Rebuilds every non-dirty view whose ZDO data changed, in place
+        /// (the Inventory instance never changes). Mods that cache
+        /// GetInventory() or Container.m_inventory -- NoVikingLeftBehind
+        /// does -- otherwise read counts from whenever they last called
+        /// GetInventory and can take more than the drawer holds. Idle cost
+        /// is one revision comparison per drawer, no allocation. Runs after
+        /// ReconcileViews, so an owner's fresh publish is already current.
+        /// </summary>
+        private void RefreshViews()
+        {
+            for (int i = 0; i < _all.Count; i++)
+            {
+                var drawer = _all[i];
+                if (drawer == null) continue;
+                var view = drawer.View;
+                if (view != null && !view.IsDirty) view.RefreshFromZdo();
+            }
         }
 
         public void QueryNear(Vector3 position, float radius, List<DrawerComponent> results)
@@ -237,6 +308,9 @@ namespace ItemDrawers.Game
         private void Update()
         {
             if (_dirty.Count > 0) FlushDirty();
+
+            ReconcileViews();
+            RefreshViews();
 
             SyncSomeFaces();
 
@@ -579,7 +653,39 @@ namespace ItemDrawers.Game
 
         private static void Prefix()
         {
+            // Teardown: there is no time left to wait for a claim to settle.
+            DrawerManager.Instance?.FlushViewWrites(teardown: true);
             DrawerManager.Instance?.DrainPendingDepositsBeforeSave();
+        }
+    }
+
+    /// <summary>
+    /// Flushes a drawer's dirty container view before its ZNetView loses its
+    /// ZDO. Verified by decompiling assembly_valheim.dll: every ZNetScene
+    /// removal path (RemoveObjects when a zone unloads, Destroy,
+    /// OnZDODestroyed, Shutdown) calls <c>ZNetView.ResetZDO()</c> -- which
+    /// sets m_zdo to null -- before <c>Object.Destroy</c>, so by the time
+    /// DrawerComponent.OnDestroy runs its FlushView finds no ZDO and a change
+    /// another mod made this frame would be lost -- including a view still
+    /// waiting for its ownership claim to settle. This teardown flush writes
+    /// the delta immediately (see DrawerComponent.FlushView). A ZDO that is
+    /// no longer valid (the OnZDODestroyed path) is skipped; there is
+    /// nothing to write to.
+    /// </summary>
+    [HarmonyPatch(typeof(ZNetView), nameof(ZNetView.ResetZDO))]
+    internal static class ZNetViewResetZdoPatch
+    {
+        private static bool Prepare() =>
+            ValheimCompat.RequireMethod(typeof(ZNetView), nameof(ZNetView.ResetZDO));
+
+        private static void Prefix(ZNetView __instance)
+        {
+            var manager = DrawerManager.Instance;
+            if (manager == null || !manager.HasDirtyViews) return;
+            if (__instance == null || !__instance.IsValid()) return;
+
+            var drawer = __instance.GetComponent<DrawerComponent>();
+            if (drawer != null) drawer.FlushView(teardown: true);
         }
     }
 }

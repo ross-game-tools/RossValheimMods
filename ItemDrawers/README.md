@@ -33,15 +33,10 @@ Each drawer is a 0.66m cube, built from the Hammer's Furniture tab.
   Materials reuse Valheim's own `Custom/Piece` shader (not modelled or
   copied art), so drawers inherit the game's wear, wetness and snow
   shading like any other building piece.
-- **Container-aware automation is not yet bridged.** `DrawerComponent`
-  derives from `Container` so a plain `GetComponent<Container>()` finds
-  it, but `Container.Awake` deliberately never runs on it (see the class
-  doc-comment), so `GetInventory()` returns `null` today and a mod that
-  calls it directly will NRE rather than see the drawer's contents. Don't
-  advertise or rely on OttoFuel/NoVikingLeftBehind-style interop yet — a
-  real bridge (`TryWithdrawExternally`/`TryDepositExternally` already
-  exist on the class as its mediated access points) is future work, not
-  shipped.
+- **Container-aware automation.** `DrawerComponent` derives from
+  `Container`; `GetInventory()` returns the drawer's container view (see
+  `docs/drawer-spec.md`, "Container view"), so mods can read, take from
+  and store into drawers through the ordinary inventory API.
 
 ## Controls
 

@@ -101,14 +101,11 @@ namespace ItemDrawers.Game
                 }, isCheat: true);
 
             // Answers the one question that keeps coming up when a
-            // container-aware mod "cannot see" a drawer, and answers it with
-            // the actual numbers rather than another hypothesis: who owns
-            // this drawer's ZDO, and what does GetInventory hand back?
-            //
-            // Those two are the whole story for automation. A drawer whose
-            // mirror is empty while its ZDO is not is a drawer this client
-            // is not allowed to expose (see DrawerComponent.RefreshMirror),
-            // and the owner column says why.
+            // container-aware mod "cannot see" a drawer, with the actual
+            // numbers: who owns this drawer's ZDO, and what does
+            // GetInventory hand back? The view shows the full count to every
+            // client; a mismatch with the ZDO amount means a change is
+            // waiting for its owner to reconcile it.
             new Terminal.ConsoleCommand("rid_owners",
                 "rid_owners [radius] - who owns nearby drawers, and what automation sees",
                 args =>
@@ -121,47 +118,115 @@ namespace ItemDrawers.Game
 
                     long me = ZDOMan.GetSessionID();
                     args.Context.AddString($"my session id : {me}");
-                    args.Context.AddString("name  zdoAmount  owner  isOwner  mirrorCount");
+                    args.Context.AddString("name  zdoAmount  owner  isOwner  viewCount");
 
-                    int shown = 0, hidden = 0;
+                    int shown = 0, pending = 0;
                     foreach (var d in DrawerComponent.All)
                     {
                         if (d == null) continue;
                         if ((d.transform.position - player.transform.position).sqrMagnitude > radius * radius) continue;
 
                         var snap = d.Snapshot;
-
-                        // Ownership is read BEFORE GetInventory, and the
-                        // order matters. GetInventory runs RefreshMirror,
-                        // which claims an unowned drawer as a side effect
-                        // (see ClaimForAutomationIfUnowned) -- so reading
-                        // afterwards would report the ownership this command
-                        // just caused, and every drawer would look owned on
-                        // the first run no matter what the real state was.
                         var view = d.GetComponent<ZNetView>();
                         var zdo = view != null ? view.GetZDO() : null;
                         long owner = zdo != null ? zdo.GetOwner() : -1L;
                         bool isOwner = view != null && view.IsValid() && view.IsOwner();
+                        bool unresolved = d.View != null && d.View.CannotResolve(snap);
 
                         // Through GetInventory, deliberately: that is the
-                        // exact call OttoFuel and NVLB make, so this reports
-                        // what they see rather than what we believe they see.
+                        // exact call other mods make.
                         var inv = d.GetInventory();
-                        int mirrorCount = 0;
+                        int viewCount = 0;
                         if (inv != null)
                             foreach (var item in inv.GetAllItems())
-                                mirrorCount += item.m_stack;
+                                viewCount += item.m_stack;
 
                         string ownerDesc = owner == 0L ? "0 (nobody)" : owner == me ? $"{owner} (me)" : owner.ToString();
                         args.Context.AddString(
-                            $"{(snap.IsAssigned ? snap.ItemName : "<empty>")}  {snap.Amount}  {ownerDesc}  {isOwner}  {mirrorCount}");
+                            $"{(snap.IsAssigned ? snap.ItemName : "<empty>")}  {snap.Amount}  {ownerDesc}  {isOwner}  "
+                            + (unresolved ? $"{viewCount} (item unresolved on this client)" : viewCount.ToString()));
 
-                        if (snap.Amount > 0 && mirrorCount == 0) hidden++;
+                        // A view this client cannot lay out shows nothing by
+                        // design; that is not a pending change.
+                        if (!unresolved && viewCount != snap.Amount) pending++;
                         shown++;
                     }
 
-                    args.Context.AddString($"-- {shown} drawer(s) within {radius}m, {hidden} holding items but invisible to automation");
-                    args.Context.AddString("note: this claims unowned drawers as a side effect, so a second run can differ from the first");
+                    args.Context.AddString($"-- {shown} drawer(s) within {radius}m, {pending} with a view change not yet reconciled");
+                }, isCheat: true);
+
+            // Replays OttoFuel's container filters (TastyUtils.GetNearbyContainers
+            // and Smelters.RefuelSmelter) against the nearest smelter/kiln, for
+            // every container nearby, and writes each check to the console and
+            // the BepInEx log. Answers "OttoFuel skips a drawer" with the failing
+            // check instead of a guess.
+            new Terminal.ConsoleCommand("rid_probe",
+                "rid_probe [range] - replay OttoFuel's container checks for the nearest smelter/kiln",
+                args =>
+                {
+                    var player = Player.m_localPlayer;
+                    if (player == null) { args.Context.AddString("no local player"); return; }
+                    float range = 40f;
+                    if (args.Length > 1 && float.TryParse(args[1], out float parsed)) range = parsed;
+
+                    void Out(string line)
+                    {
+                        args.Context.AddString(line);
+                        Debug.Log("[rid_probe] " + line);
+                    }
+
+                    Smelter smelter = null;
+                    float best = float.MaxValue;
+                    foreach (var s in Object.FindObjectsByType<Smelter>(FindObjectsSortMode.None))
+                    {
+                        float dist = Vector3.Distance(s.transform.position, player.transform.position);
+                        if (dist < best) { best = dist; smelter = s; }
+                    }
+                    if (smelter == null) { Out("no smelter/kiln loaded"); return; }
+
+                    var sview = smelter.GetComponent<ZNetView>();
+                    Out($"smelter {smelter.name} at {best:F1}m  isOwner={sview != null && sview.IsValid() && sview.IsOwner()}  "
+                        + $"maxOre={smelter.m_maxOre} queue={smelter.GetQueueSize()}  Game.m_worldLevel={(global::Game.m_worldLevel)}");
+                    foreach (var conv in smelter.m_conversion)
+                        Out($"  conversion from {conv.m_from.name} ({conv.m_from.m_itemData.m_shared.m_name})");
+
+                    System.Collections.IList ottoList = null;
+                    var ottoType = System.Type.GetType("OttoFuel.OttoFuelPlugin, OttoFuel");
+                    var listField = ottoType?.GetField("ContainerList",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                    ottoList = listField?.GetValue(null) as System.Collections.IList;
+                    Out(ottoList == null ? "OttoFuel ContainerList: not found" : $"OttoFuel ContainerList: {ottoList.Count} entries");
+
+                    foreach (var c in Object.FindObjectsByType<Container>(FindObjectsSortMode.None))
+                    {
+                        float dist = Vector3.Distance(smelter.transform.position, c.transform.position);
+                        if (dist >= range) continue;
+
+                        var inv = c.GetInventory();
+                        var nv = c.GetComponent<ZNetView>();
+                        Out($"-- {c.name} at {dist:F1}m from smelter");
+                        Out($"   inOttoList={(ottoList == null ? "?" : ottoList.Contains(c).ToString())}  "
+                            + $"pieceInParent={c.GetComponentInParent<Piece>() != null}  inventoryNull={inv == null}  "
+                            + $"checkAccess={c.CheckAccess(player.GetPlayerID())}  inUse={c.IsInUse()}  "
+                            + $"wardAccess={PrivateArea.CheckAccess(c.transform.position, 0f, false, false)}  "
+                            + $"zdoValid={nv != null && nv.IsValid()}  isOwner={nv != null && nv.IsValid() && nv.IsOwner()}");
+                        if (inv == null) continue;
+                        Out($"   grid {inv.GetWidth()}x{inv.GetHeight()}  items={inv.GetAllItems().Count}");
+
+                        c.Load();
+                        foreach (var conv in smelter.m_conversion)
+                        {
+                            var found = new System.Collections.Generic.List<ItemDrop.ItemData>();
+                            inv.GetAllItems(conv.m_from.m_itemData.m_shared.m_name, found);
+                            if (found.Count == 0) continue;
+                            foreach (var it in found)
+                                Out($"   GetAllItems({conv.m_from.m_itemData.m_shared.m_name}): stack={it.m_stack} worldLevel={it.m_worldLevel} "
+                                    + $"dropPrefab={(it.m_dropPrefab != null ? it.m_dropPrefab.name : "NULL")} quality={it.m_quality}");
+                        }
+                        foreach (var it in inv.GetAllItems())
+                            Out($"   item {it.m_shared.m_name} stack={it.m_stack} worldLevel={it.m_worldLevel} "
+                                + $"dropPrefab={(it.m_dropPrefab != null ? it.m_dropPrefab.name : "NULL")} pos={it.m_gridPos}");
+                    }
                 }, isCheat: true);
         }
     }

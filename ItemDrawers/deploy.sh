@@ -10,6 +10,13 @@
 set -euo pipefail
 
 PROFILE="${1:-dev}"
+
+# r2modman owns the Default profile; deploying a dev build there
+# overwrites what r2modman installed and is never what we want.
+if [ "$(printf '%s' "$PROFILE" | tr '[:upper:]' '[:lower:]')" = "default" ]; then
+    echo "REFUSING to deploy to the Default profile -- use the dev profile." >&2
+    exit 1
+fi
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUT="$HERE/src/ItemDrawers.Game/bin/Release/netstandard2.1"
 DEST="$HOME/AppData/Roaming/r2modmanPlus-local/Valheim/profiles/$PROFILE/BepInEx/plugins/ItemDrawers"

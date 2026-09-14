@@ -2,6 +2,35 @@
 
 Beta: functional and in use, but not yet widely tested.
 
+## 1.0.0
+
+- Drawers are designed to work with mods that store items into
+  containers, such as AzuAutoStore and Quick Stack Store. Deposits of a
+  drawer's item are added to its count. Previously those mods saw the
+  deposit succeed and the items were lost, and Quick Stack Store's
+  quick-stack failed for every container once a drawer was nearby.
+- When another mod changes a drawer, the player running that mod takes
+  charge of the drawer, the same way those mods take charge of a chest.
+- Every player and the server must run the same ItemDrawers version
+  (1.0.x); mismatched versions are refused at connect.
+- Other mods see a drawer as a small chest: its full count to take from,
+  and room for more of the same item up to its capacity. Empty and
+  unassigned drawers accept nothing from other mods.
+- A take-all mod emptying a drawer now hands over normal stacks instead
+  of one oversized stack.
+- Dragging an oversized stack onto a mismatched item in your own
+  inventory is now refused instead of dropping items — you'll need to
+  drop it into an empty slot or onto a matching stack.
+- A drawer you just built now works with OttoFuel right away. Before,
+  OttoFuel ignored new drawers until the world was reloaded.
+- Existing drawers need nothing done; they pick this up the first time
+  they load.
+- Known limitation: mods on two players' machines depositing into or
+  withdrawing from the same drawer in the same instant can race, the
+  same exposure a vanilla chest has when two players use it at once. A withdrawal made
+  through another mod in the exact instant a client disconnects may not
+  reach the server.
+
 ## 0.9.10 — beta
 
 - An empty drawer now offers "Unassign" on Ctrl+E instead of "Take one",

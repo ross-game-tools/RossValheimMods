@@ -37,9 +37,17 @@ namespace ItemDrawers.Game
             ("Container", "Awake",
                 "patched with a skip-prefix so vanilla's body never runs on a drawer"),
             ("Container", "GetInventory",
-                "patched to substitute the drawer's 1x1 mirror inventory"),
-            ("Container", "Save", "patched so vanilla never writes its own inventory over a drawer's ZDO"),
-            ("Container", "Load", "patched so vanilla never reads an inventory a drawer does not have"),
+                "patched to return the drawer's container view (DrawerView)"),
+            ("Container", "Save", "patched to write the drawer's view to ViewSlots instead of vanilla's items field"),
+            ("Container", "Load", "patched to reload the drawer's view from ViewSlots"),
+            ("Inventory", "m_inventory", "the drawer view writes its slots directly, bypassing AddItem"),
+            ("Inventory", "m_width", "the drawer view resizes its grid to exactly its slot count"),
+            ("Inventory", "m_height", "the drawer view resizes its grid to exactly its slot count"),
+            ("Inventory", "Changed", "the drawer view and stack guard fire it once per change, as vanilla does"),
+            ("Inventory", "m_temoraryInventory", "the stack guard leaves trader inventories to vanilla"),
+            ("Inventory", "FindEmptySlot", "the stack guard places split stacks where vanilla would"),
+            ("Inventory", "TopFirst", "the stack guard places split stacks where vanilla would"),
+            ("InventoryGrid", "DropItem", "the stack guard refuses oversized drag-swaps that would orphan the remainder"),
             ("Container", "CanBeRemoved", "patched so a drawer holding items can still be removed"),
         };
 
@@ -99,6 +107,21 @@ namespace ItemDrawers.Game
 
             DrawerPlugin.Log.LogError(
                 $"{type.Name}.{method} not found -- skipping that patch. Drawers will misbehave. "
+                + "See the compatibility check above.");
+            return false;
+        }
+
+        /// <summary>
+        /// RequireMethod for an overloaded target: AccessTools.Method by name
+        /// alone is ambiguous when several overloads exist.
+        /// </summary>
+        public static bool RequireMethod(System.Type type, string method, System.Type[] parameters)
+        {
+            if (AccessTools.Method(type, method, parameters) != null) return true;
+
+            string signature = string.Join(", ", System.Array.ConvertAll(parameters, p => p.Name));
+            DrawerPlugin.Log.LogError(
+                $"{type.Name}.{method}({signature}) not found -- skipping that patch. Drawers will misbehave. "
                 + "See the compatibility check above.");
             return false;
         }

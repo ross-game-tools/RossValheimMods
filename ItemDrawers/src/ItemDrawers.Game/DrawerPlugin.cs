@@ -6,16 +6,21 @@ using BepInEx.Logging;
 using HarmonyLib;
 using Jotunn.Configs;
 using Jotunn.Managers;
+using Jotunn.Utils;
 
 namespace ItemDrawers.Game
 {
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency(Jotunn.Main.ModGuid)]
+    // Drawer state, the RPC protocol and the container view's ZDO format
+    // only work when every peer runs the same rules; a 0.9.x peer would
+    // ignore view changes and a 1.0 peer reconciling against it loses them.
+    [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod, VersionStrictness.Minor)]
     public class DrawerPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "com.rossdwest.itemdrawers";
         public const string PluginName = "ItemDrawers";
-        public const string PluginVersion = "0.9.10";
+        public const string PluginVersion = "1.0.0";
 
         internal static ManualLogSource Log;
         private Harmony _harmony;
@@ -234,12 +239,12 @@ namespace ItemDrawers.Game
                 // drawer" directly, rather than inferring it from whether
                 // OttoFuel/NVLB happen to react. Deliberately goes through
                 // the Container-typed reference (`asContainer.GetInventory()`),
-                // never DrawerComponent.MirrorInventory directly -- the
+                // never DrawerComponent.View directly -- the
                 // whole point is to exercise ContainerBridge's Harmony
                 // patch on Container.GetInventory the same way any other
                 // mod's call would, so a patch that failed to apply shows
                 // up here as GetInventory() returning null, not as this
-                // command silently reading the mirror around the patch.
+                // command silently reading the view around the patch.
                 Say("--- Container bridge (nearby drawers) ---");
                 if (localPlayer == null || DrawerManager.Instance == null)
                 {
@@ -261,17 +266,22 @@ namespace ItemDrawers.Game
                         string invDesc;
                         if (inv == null)
                         {
-                            invDesc = "GetInventory()=NULL <-- ContainerBridge's GetInventory patch is not applying";
+                            // A null result is only the patch's fault when
+                            // the drawer actually has a view to return.
+                            invDesc = !InventoryAccess.Available
+                                ? "GetInventory()=NULL (InventoryAccess unavailable: no container view on this game version)"
+                                : d.View == null
+                                    ? "GetInventory()=NULL (this drawer has no view: Awake did not finish)"
+                                    : "GetInventory()=NULL <-- ContainerBridge's GetInventory patch is not applying";
                         }
                         else
                         {
-                            var item = inv.GetItemAt(0, 0);
-                            invDesc = item == null
-                                ? "GetInventory()=non-null, mirror empty"
-                                : $"GetInventory()=non-null, mirror item='{ItemFacts.PrefabNameOf(item)}' stack={item.m_stack}";
+                            int viewTotal = 0;
+                            foreach (var item in inv.GetAllItems()) viewTotal += item.m_stack;
+                            invDesc = $"GetInventory()=non-null, {inv.GetWidth() * inv.GetHeight()} slot(s), "
+                                      + $"{inv.NrOfItems()} stack(s), total={viewTotal}";
                         }
 
-                        var baseline = d.MirroredBaseline;
                         var zdo = d.Snapshot;
 
                         // m_persistent and the ZDO's creator both matter for
@@ -297,7 +307,7 @@ namespace ItemDrawers.Game
                         }
 
                         Say($"{d.DiagId}: {invDesc}; "
-                            + $"_mirrored=('{baseline.ItemName}',{baseline.Amount}); "
+                            + $"view=({d.ViewDiag}); "
                             + $"ZDO=('{zdo.ItemName}',{zdo.Amount}); "
                             + $"m_persistent={persistentDesc}; creator={creatorDesc}; "
                             + $"inAll={inAll}");

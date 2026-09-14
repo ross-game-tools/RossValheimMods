@@ -44,12 +44,35 @@ the config under `[Pickup]`, and are server-synced.
 
 ## Compatibility
 
-Drawers are `Container`s, so container-aware mods can read from and
-withdraw from them through the ordinary inventory API.
+Drawers are `Container`s. Other mods see a drawer as a small chest
+holding its item, and use it through the ordinary inventory API with no
+drawer-specific support. This version is designed for:
 
-Verified in game with **OttoFuel**, which pulls fuel from drawers to feed
-fires, kilns and smelters, and **NoVikingLeftBehind**, which crafts using
-items stored in them.
+- **Taking from drawers** — crafting from nearby containers, OttoFuel,
+  NoVikingLeftBehind: the drawer's whole count is available.
+- **Storing into drawers** — AzuAutoStore, Quick Stack Store: only the
+  drawer's own item is accepted, up to its capacity. Empty and
+  unassigned drawers accept nothing, so they are never chosen as a
+  destination.
+- **Take-all mods** receive normal-sized stacks.
+
+Items moved this way are applied to the drawer's count within a frame by
+the player whose mod moved them, who takes charge of the drawer the same
+way those mods take charge of a chest.
+
+OttoFuel and NoVikingLeftBehind were verified in game against 0.9.x.
+The 1.0 container support above has not yet been tested in game with
+these mods.
+
+Every player and the server must run the same ItemDrawers version.
+
+### Known limitations
+
+- Mods on two players' machines changing the same drawer in the same
+  instant can race — whichever change lands last wins, the same exposure
+  a vanilla chest has when two players use it at once.
+- A withdrawal made through the view in the exact frame a client
+  disconnects may not reach the server.
 
 ## Dependencies
 

@@ -17,19 +17,17 @@ namespace ItemDrawers.Game
     /// patches Container.Awake with a prefix that returns false only for a
     /// DrawerComponent, so that body (a second, unused Inventory; vanilla's
     /// container RPCs; an OnDestroyed subscription) is always skipped -- but
-    /// Awake's own docstring below DOES call base.Awake(), specifically so
-    /// that Harmony postfixes other mods place on Container.Awake (this is
-    /// exactly how OttoFuel and NoVikingLeftBehind discover containers, per
-    /// task-12-report.md's decompile) still fire. This class sets
-    /// Container's own m_nview field to the same ZNetView it already caches
-    /// as _view before that call, since both of those mods' discovery paths
-    /// depend on that field being non-null. ContainerBridge separately
-    /// patches Container.GetInventory to hand back a lazily-refreshed
-    /// one-stack mirror (see MirrorInventory/RefreshMirror below) whenever
-    /// the instance is a DrawerComponent, since m_inventory itself is never
-    /// constructed, and patches Container.Save/Load to no-op for the same
-    /// instances so that mirror never gets serialised into the ZDO's own
-    /// items field.
+    /// Awake below DOES call base.Awake(), specifically so that Harmony
+    /// postfixes other mods place on Container.Awake (this is exactly how
+    /// OttoFuel and NoVikingLeftBehind discover containers, confirmed by
+    /// decompiling both) still fire. Before that call this class sets
+    /// Container's own m_nview field to the ZNetView it caches as _view,
+    /// and m_inventory to the drawer's view Inventory (see DrawerView) --
+    /// mods such as QuickStackStore read that field directly rather than
+    /// calling GetInventory. ContainerBridge also patches
+    /// Container.GetInventory to refresh and return the same view, and
+    /// Container.Save/Load to persist it in the drawer's own ZDO fields
+    /// instead of vanilla's items field.
     /// </summary>
     public class DrawerComponent : Container, Interactable, Hoverable
     {
@@ -77,22 +75,25 @@ namespace ItemDrawers.Game
         // direct local call: no RPC, no delay, nothing to await.
         //
         // Every mutation call in this class -- the two short-circuits
-        // above included -- now goes through WriteOwned, which requires
+        // above included -- goes through WriteOwned, which requires
         // IsOwner() and re-reads/compares before writing (see its
         // docstring for why the CAS is not redundant even for a client
-        // that just checked IsOwner()==true). Nothing in this class calls
-        // ZNetView.ClaimOwnership() any more, anywhere, for any reason:
-        // it is a purely local field set that PROPAGATES (ZDO.SetOwner ->
+        // that just checked IsOwner()==true).
+        //
+        // The player's own interactions never claim ownership; they use
+        // this request protocol. ZNetView.ClaimOwnership() is a purely
+        // local field set that PROPAGATES (ZDO.SetOwner ->
         // IncreaseOwnerRevision -> ZDOMan.ClientChanged, confirmed by
-        // decompile) and is accepted by every other client with no server
-        // arbitration (ZDOMan.RPC_ZDOData applies whichever OwnerRevision
-        // it receives is higher, unconditionally) -- calling it from
-        // automation code (the pre-fix state of
-        // TryWithdrawExternally/TryDepositExternally) durably STEALS
-        // ownership out from under whoever legitimately held it,
-        // permanently breaking this protocol's short-circuit for them.
-        // Both of those methods now refuse outright when this client does
-        // not already own the ZDO, rather than claiming it.
+        // decompile) and is accepted by every other peer with no server
+        // arbitration (ZDOMan.RPC_ZDOData adopts a higher OwnerRevision
+        // unconditionally), so it takes the drawer from whoever held it.
+        // It is used deliberately in three places, all automation acting
+        // the way vanilla and the chest mods act on a chest:
+        // TryWithdrawExternally (ItemDrawersAPI), ResolveDepositRoute
+        // (auto-pickup, unowned drawers only) and FlushView (a change
+        // another mod made through the container view). The first and last
+        // write nothing until ownership has settled (OwnershipSettleSeconds).
+        // TryDepositExternally refuses rather than claims.
         //
         // Verified by decompiling assembly_valheim.dll rather than
         // assumed (see this task's report for the full trail):
@@ -201,29 +202,17 @@ namespace ItemDrawers.Game
 
         internal DrawerTier Tier { get; private set; }
 
-        // ---------- Container bridge mirror ----------
-        // See MirrorInventory/RefreshMirror below and ContainerBridge.cs.
-        // _mirrored is a bookkeeping baseline only -- what the mirror's
-        // live Inventory was last known to hold -- not necessarily equal to
-        // Snapshot at every instant (that mismatch is itself the signal
-        // RefreshMirror uses to know a rebuild is due). Starts at ("", 0),
-        // the same value an unassigned drawer's Snapshot naturally produces,
-        // so a never-yet-built mirror on an empty drawer correctly needs no
-        // rebuild rather than performing a pointless first one.
-        private Inventory _mirror;
-        private DrawerSnapshot _mirrored = new DrawerSnapshot("", 0);
-        private bool _applyingMirror;
+        /// <summary>
+        /// The Inventory other mods see through Container.GetInventory.
+        /// Null until Awake succeeds, or when Inventory internals could not
+        /// be resolved (InventoryAccess.Available false).
+        /// </summary>
+        internal DrawerView View { get; private set; }
 
-        // Set when OnMirrorChanged sees a write-back refused (either
-        // because this client isn't the owner, or a WriteOwned
-        // compare-and-swap lost a split-ownership race while nominally
-        // owning). Forces the NEXT RefreshMirror to rebuild even though
-        // _mirrored may coincidentally still equal the current snapshot --
-        // the mirror's own live Inventory list already diverged from that
-        // snapshot the instant the foreign mod's RemoveItem ran, and only
-        // an actual rebuild (safely off this call stack, never inside
-        // OnMirrorChanged itself -- see its docstring) corrects it.
-        private bool _mirrorNeedsRebuild;
+        // Set once ReconcileView has logged that it is holding back an
+        // unreconciled view change it cannot apply (this client cannot
+        // resolve the drawer's item); cleared when a reconcile runs normally.
+        private bool _loggedUnresolvedPending;
 
         /// <summary>The drawer's face renderer, attached in DrawerPieces.BuildPrefab. Null until Awake runs.</summary>
         public DrawerRenderer Face { get; private set; }
@@ -243,6 +232,9 @@ namespace ItemDrawers.Game
 
             _zdoId = _view.GetZDO().m_uid;
             Tier = TierFromPrefabName(gameObject.name);
+
+            // Conservative start: ownership observed at load counts as fresh.
+            ResetOwnershipClock();
 
             // Restores exactly one fact Container.Awake would otherwise
             // establish: its own private m_nview field, which is simply a
@@ -271,19 +263,19 @@ namespace ItemDrawers.Game
             // everything else that method would have done.
             //
             // Every other Container member that reads m_nview or
-            // m_inventory was individually audited against this change
-            // (task-12-report.md, "m_nview reader audit"): each is either
-            // already patched for a drawer (GetInventory, Save, Load,
-            // CanBeRemoved), shadowed by this class's own `new` overrides
-            // (Interact, UseItem, GetHoverText, GetHoverName), unreachable
-            // because its only call sites are inside Container.Awake's own
-            // skipped body or behind vanilla RPC registrations that now
-            // never happen (AddDefaultItems, DropAllItems, OnDestroyed,
-            // CheckForChanges, OnContainerChanged, UpdateRows, every
-            // RPC_* handler), or reads only m_nview/plain fields that stay
-            // safe once m_nview is set (CheckAccess, IsOwner, IsInUse,
-            // SetInUse, UpdateUseVisual, StackAll, TakeAll) -- none of
-            // which are reachable through m_inventory, which remains null.
+            // m_inventory was audited against the decompiled Container
+            // (1.0.12): each is either patched for a drawer (Awake's body,
+            // GetInventory, Save, Load, CanBeRemoved), shadowed through the
+            // re-declared interfaces (Interact, UseItem, GetHoverText,
+            // GetHoverName), reachable only from Container.Awake's skipped
+            // body or from RPCs that body registers (AddDefaultItems,
+            // DropAllItems, OnDestroyed, CheckForChanges,
+            // OnContainerChanged, UpdateRows, every RPC_* handler), or reads
+            // only m_nview/plain fields (CheckAccess, IsOwner, IsInUse,
+            // SetInUse, UpdateUseVisual, StackAll, TakeAll). m_inventory is
+            // set below only when the GetInventory/Save/Load patches are in
+            // place, so vanilla Save/Load can never serialize or overwrite
+            // the view.
             // Guarded because this is the one name-based lookup in the mod
             // that is both load-bearing and on a hot path. FieldRefAccess
             // throws if "m_nview" is ever renamed, and unguarded that throw
@@ -312,14 +304,50 @@ namespace ItemDrawers.Game
                 return;
             }
 
-            base.Awake();
+            // Before base.Awake(): other mods' Container.Awake postfixes may
+            // call GetInventory straight away, and must get the view rather
+            // than null. The constructor only stores references and builds an
+            // empty Inventory; the first GetInventory call loads it.
+            if (InventoryAccess.Available) View = new DrawerView(this, _view);
+
+            // Container.m_inventory is the view's Inventory -- one instance
+            // for the drawer's lifetime; DrawerView rebuilds it in place and
+            // never replaces it. QuickStackStore (and likely other
+            // container mods) read the field directly, and a null here threw
+            // inside their loops, breaking quick-stack for every container.
+            // Set only when ContainerBridge's GetInventory/Save/Load patches
+            // are active: otherwise vanilla Save would write the view as
+            // vanilla item bytes and vanilla Load would overwrite it with
+            // stacks capped at max stack size (read as a huge withdrawal).
+            if (View != null && ContainerBridge.ViewPatchesApplied)
+            {
+                try
+                {
+                    AccessTools.FieldRefAccess<Container, Inventory>(this, "m_inventory") = View.Inventory;
+                }
+                catch (System.Exception ex)
+                {
+                    DrawerPlugin.Log.LogError(
+                        "Could not set Container.m_inventory; mods that read it directly will not see this drawer. "
+                        + $"{ex.GetType().Name}: {ex.Message}");
+                }
+            }
+
+            // Before base.Awake(): OttoFuel registers containers in a
+            // Container.Awake postfix and skips any whose ZDO has no creator
+            // (unless the prefab name starts with piece_/Container). A freshly
+            // placed piece gets its creator from Player.PlacePiece ->
+            // Piece.SetCreator only after Instantiate returns, i.e. after
+            // Awake -- so a drawer built this session was never registered
+            // and OttoFuel ignored it until a reload. See
+            // PieceSetCreatorPatch for how vanilla's own SetCreator still runs.
             EnsureCreator();
+            base.Awake();
 
             // Container.Awake never runs its own body on this type (see
             // AwakePatch), so nothing else it would normally set up happens
-            // for free: m_inventory is never constructed here
-            // (ContainerBridge's GetInventory patch substitutes the mirror
-            // instead, built on demand -- see MirrorInventory/RefreshMirror),
+            // for free: vanilla's own Inventory is never constructed (the
+            // view is assigned above instead),
             // and there is no subscription to WearNTear.m_onDestroyed via
             // Container.OnDestroyed either -- confirmed explicitly, not
             // assumed: that subscription line lives inside the exact block
@@ -358,8 +386,8 @@ namespace ItemDrawers.Game
         /// <summary>
         /// Self-heal for a missing ZDO "creator" field. OttoFuel's
         /// registration filter and NoVikingLeftBehind's query-time filter
-        /// both require this to be nonzero (confirmed by decompiling both --
-        /// see task-12-report.md); vanilla sets it via
+        /// both require this to be nonzero (confirmed by decompiling both);
+        /// vanilla sets it via
         /// Player.PlacePiece -&gt; Piece.SetCreator for a normally-placed
         /// piece, which this class never touches or interferes with. This
         /// exists only to cover the gap for a drawer that reached this
@@ -396,6 +424,13 @@ namespace ItemDrawers.Game
 
         private void OnDestroy()
         {
+            // Fallback only. On a normal unload ZNetScene calls
+            // ZNetView.ResetZDO before Object.Destroy, so by now the ZDO is
+            // gone and this does nothing; ZNetViewResetZdoPatch flushes the
+            // view before that happens. This still covers a destroy that
+            // bypasses ZNetScene with the ZDO intact.
+            FlushView(teardown: true);
+
             All.Remove(this);
             DrawerManager.Instance?.Unregister(this);
 
@@ -424,6 +459,11 @@ namespace ItemDrawers.Game
         private void OnDrawerDestroyed()
         {
             if (_view == null || !_view.IsOwner()) return;
+
+            // Fold any not-yet-reconciled view change into the stock first,
+            // so it is spilled too rather than lost with the ZDO. Forced:
+            // there is no later moment to wait for ownership to settle.
+            ReconcileView(force: true);
 
             var s = Snapshot;
             if (s.IsAssigned && s.Amount > 0)
@@ -486,12 +526,32 @@ namespace ItemDrawers.Game
             var actual = new DrawerSnapshot(zdo.GetString(KeyPrefabHash, ""), zdo.GetInt(KeyAmountHash, 0));
             if (!actual.Equals(expected)) return false;
 
+            WriteState(next);
+
+            // Every change the drawer's own code makes to Amount republishes
+            // the container view and its baseline. Reconciling (rather than
+            // only publishing) first credits or debits anything another mod
+            // changed through the view that has not been reconciled yet --
+            // publishing alone would overwrite that change and lose or
+            // duplicate it. The pre-write item name is passed on: after a
+            // Clear the drawer has no item, and a pending deposit must still
+            // be spilled as the item it was.
+            ReconcileView(actual.ItemName);
+            return true;
+        }
+
+        /// <summary>
+        /// Writes drawer state with no compare-and-swap. Callers must own the
+        /// ZDO: WriteOwned (after its CAS) and ReconcileView.
+        /// </summary>
+        private void WriteState(DrawerSnapshot next)
+        {
+            var zdo = _view.GetZDO();
             zdo.Set(KeyPrefabHash, next.ItemName);
             zdo.Set(KeyAmountHash, next.Amount);
 
             DrawerManager.Instance?.MarkDirty(this);
             RefreshFace();
-            return true;
         }
 
         /// <summary>
@@ -606,6 +666,10 @@ namespace ItemDrawers.Game
                 return true;
             }
 
+            // Checked before anything leaves the player, so a refusal keeps
+            // the items in their inventory. See RefuseWhileUnsettled.
+            if (RefuseWhileUnsettled(player)) return true;
+
             if (item.m_shared.m_maxStackSize <= 1)
             {
                 player.Message(MessageHud.MessageType.Center,
@@ -705,6 +769,9 @@ namespace ItemDrawers.Game
                 player.Message(MessageHud.MessageType.Center, CommitFailedMessage);
                 return true;
             }
+
+            // Before any RemoveItem, so a refusal keeps the items with the player.
+            if (RefuseWhileUnsettled(player)) return true;
 
             if (!current.IsAssigned)
             {
@@ -845,6 +912,9 @@ namespace ItemDrawers.Game
 
             if (_view.IsOwner())
             {
+                // Nothing has been given yet, so a refusal costs nothing.
+                if (RefuseWhileUnsettled(player)) return;
+
                 var current = Snapshot;
                 var outcome = DrawerState.WithdrawExact(current, requested);
                 if (outcome.MovedToPlayer <= 0) return;
@@ -920,6 +990,11 @@ namespace ItemDrawers.Game
                 _view.InvokeRPC(sender, RpcGrantWithdraw, id, cached.ItemName, cached.Amount);
                 return;
             }
+
+            // No reply while ownership is unsettled: nothing is recorded, so
+            // the requester's pinned retry (or its give-up, which gives
+            // nothing for a withdrawal) is handled normally later.
+            if (!OwnershipSettled()) return;
 
             var current = Snapshot;
             int granted = 0;
@@ -1016,7 +1091,15 @@ namespace ItemDrawers.Game
             {
                 var current = Snapshot;
                 var outcome = DrawerState.Deposit(current, Capacity, itemName, removed);
-                int accepted = (outcome.Accepted && WriteOwned(current, outcome.Result)) ? outcome.MovedToDrawer : 0;
+
+                // UseItem/DepositEverythingMatching already refuse before
+                // removing anything; this covers ownership becoming unsettled
+                // between that check and here. Accepting 0 refunds the whole
+                // removal through the shortfall path below.
+                bool settled = OwnershipSettled();
+                if (!settled) player.Message(MessageHud.MessageType.Center, CommitFailedMessage);
+
+                int accepted = (settled && outcome.Accepted && WriteOwned(current, outcome.Result)) ? outcome.MovedToDrawer : 0;
 
                 int shortfall = DrawerState.RefundShortfall(removed, accepted);
                 if (shortfall > 0) ItemFacts.GiveToPlayer(player, itemName, shortfall);
@@ -1082,6 +1165,12 @@ namespace ItemDrawers.Game
                 return;
             }
 
+            // No reply while ownership is unsettled: nothing is recorded, so
+            // a pinned retry after the settle is processed normally, and if
+            // every retry is used up the requester's GiveUpDeposit spills
+            // the already-removed items, exactly as for any unanswered request.
+            if (!OwnershipSettled()) return;
+
             var current = Snapshot;
             var outcome = DrawerState.Deposit(current, Capacity, itemName, amount);
             int accepted = (outcome.Accepted && WriteOwned(current, outcome.Result)) ? outcome.MovedToDrawer : 0;
@@ -1144,6 +1233,12 @@ namespace ItemDrawers.Game
 
             if (_view.IsOwner())
             {
+                if (!OwnershipSettled())
+                {
+                    Player.m_localPlayer?.Message(MessageHud.MessageType.Center, CommitFailedMessage);
+                    return;
+                }
+
                 var outcome = DrawerState.Clear(current);
                 if (outcome.Accepted) WriteOwned(current, outcome.Result);
                 return;
@@ -1154,7 +1249,8 @@ namespace ItemDrawers.Game
 
         private void RPC_RequestClear(long sender)
         {
-            if (_view == null || !_view.IsValid() || !_view.IsOwner()) return;
+            // Clear is fire-and-forget; an unsettled owner simply ignores it.
+            if (_view == null || !_view.IsValid() || !_view.IsOwner() || !OwnershipSettled()) return;
 
             var current = Snapshot;
             var outcome = DrawerState.Clear(current);
@@ -1162,68 +1258,35 @@ namespace ItemDrawers.Game
         }
 
         // ---------- external access, used by the Container bridge ----------
-        // ContainerBridge/ItemDrawersAPI reach the drawer only through these
-        // two methods and the mirror below -- never by poking the ZDO
-        // directly.
+        // ItemDrawersAPI and auto-pickup reach the drawer through these
+        // methods, ContainerBridge through the container view below -- never
+        // by poking the ZDO directly.
 
         /// <summary>
-        /// Withdraws up to <paramref name="requested"/> on behalf of an
-        /// external caller (ItemDrawersAPI.Withdraw, or the mirror's own
-        /// write-back for a removal another mod performed against it).
-        /// Clamps rather than refusing -- see DrawerState.WithdrawExact --
-        /// but REFUSES OUTRIGHT (returns false, taken = 0) if this client
-        /// does not already own the ZDO, rather than claiming ownership to
-        /// proceed.
-        ///
-        /// This used to call ClaimOwnership() unconditionally, the same as
-        /// every other caller pre-dating the RPC-to-owner rework. That was
-        /// a genuine bug, not a narrow theoretical one: ZDO.SetOwner
-        /// PROPAGATES (SetOwner -> IncreaseOwnerRevision ->
-        /// ZDOMan.ClientChanged, confirmed by decompile) and is accepted by
-        /// every other client with NO server arbitration
-        /// (ZDOMan.RPC_ZDOData applies whichever OwnerRevision it receives
-        /// is higher, unconditionally). DrawerManager.RunAutoPickup calls
-        /// this on every client, on a 0.5s timer by default, for every
-        /// drawer within 40m of a matching dropped item -- against a
-        /// drawer that client did not already own, the old code would
-        /// durably STEAL ownership out from under whoever legitimately
-        /// held it, and that new owner would then take the IsOwner()
-        /// short-circuit in RequestWithdraw/RequestDeposit for every
-        /// subsequent player interaction while the ORIGINAL owner kept
-        /// routing through the RPC protocol against a ZDO it no longer
-        /// owned -- exactly the kind of split-brain state this whole
-        /// protocol exists to prevent.
-        ///
-        /// Refusing here instead of stealing is an acceptable cost:
-        /// auto-pickup, and the mirror write-back that shares this method,
-        /// are both proximity-triggered (a drop this client already owns,
-        /// or a drawer this client's own scan is touching), so the ZDO in
-        /// question is, in the ordinary case, already owned by this exact
-        /// client -- see this task's report for the residual limitation
-        /// this leaves when it is not.
+        /// Withdraws up to <paramref name="requested"/> on behalf of
+        /// ItemDrawersAPI.Withdraw. Clamps rather than refusing (see
+        /// DrawerState.WithdrawExact). When this client does not own the
+        /// drawer it claims it and returns false (nothing withdrawn); it
+        /// also returns false until ownership has settled
+        /// (OwnershipSettleSeconds). The caller retries later -- the only
+        /// caller, ItemDrawersAPI.Withdraw, simply reports less taken and
+        /// hands nothing out for a false. Claiming and debiting in the same
+        /// frame would race the previous owner's own absolute write of
+        /// Amount, and on a tie the debit is discarded after the items were
+        /// handed out. WriteOwned's compare-and-swap refuses a write
+        /// computed from a stale snapshot.
         /// </summary>
         public bool TryWithdrawExternally(int requested, out int taken)
         {
             taken = 0;
             if (_view == null || !_view.IsValid()) return false;
 
-            // Claim before debiting, which is what vanilla does when a
-            // player opens a chest they do not own (Container.Interact).
-            // This used to refuse instead, on the reasoning that claiming
-            // steals a ZDO somebody else holds -- true, but the alternative
-            // turned out to be worse: the foreign mod has ALREADY taken the
-            // items out of the mirror by the time this runs, so refusing
-            // does not prevent the withdrawal, it just fails to record it,
-            // and the items exist twice.
-            //
-            // Correctness of the value does not depend on the claim winning.
-            // WriteOwned re-reads the ZDO and compares against `current`
-            // before writing, so a claim that loses a race, or an amount
-            // that changed underneath us, is refused there and
-            // OnMirrorChanged rebuilds the mirror -- undoing the foreign
-            // mod's removal rather than double-counting it.
-            if (!_view.IsOwner()) _view.ClaimOwnership();
-            if (!_view.IsOwner()) return false;
+            if (!_view.IsOwner())
+            {
+                _view.ClaimOwnership();
+                return false;
+            }
+            if (!OwnershipSettled()) return false;
 
             var current = Snapshot;
             var outcome = DrawerState.WithdrawExact(current, requested);
@@ -1234,41 +1297,6 @@ namespace ItemDrawers.Game
             return true;
         }
 
-        /// <summary>
-        /// Credits the drawer with <paramref name="amount"/> of
-        /// <paramref name="itemName"/>, clamped to the drawer's remaining
-        /// capacity, without removing anything from anywhere.
-        ///
-        /// Contract: the caller must have already removed these items from
-        /// wherever they came from -- via a real, verified removal (e.g. a
-        /// successful Inventory.RemoveItem, or another mod's own AddItem
-        /// having already merged them into this drawer's mirror inventory
-        /// before this method is asked to make that authoritative) -- before
-        /// calling this. This method does not verify a removal happened and
-        /// cannot roll one back if the caller's removal never actually
-        /// occurred; calling it without a prior removal duplicates items
-        /// outright. Its two existing callers:
-        /// DrawerManager.RunAutoPickup deposits first, then removes exactly
-        /// <c>accepted</c> from the ground-item stack afterward -- never
-        /// the other way around, which is what keeps auto-pickup
-        /// conservative. DebugCommands.rid_wall is the one deliberate
-        /// exception: an isCheat: true dev tool that conjures test stock
-        /// with nothing removed from anywhere, the same category as
-        /// vanilla's own cheat console commands -- not a template for a
-        /// real caller.
-        ///
-        /// OnMirrorChanged (below) deliberately does NOT call this for a
-        /// mirror-side deposit: vanilla's own move idiom is
-        /// <c>if (AddItem(item)) fromInventory.RemoveItem(item);</c> --
-        /// add first, remove from the source second. By the time
-        /// m_onChanged fires here, AddItem has already returned true and
-        /// the depositing mod is about to remove from its own source
-        /// regardless of anything this method does; the removal has NOT
-        /// happened yet, so crediting the drawer here would be exactly the
-        /// item creation this contract exists to prevent. See
-        /// OnMirrorChanged's own comment on why that path stays inert
-        /// until a real, testable depositing caller exists.
-        /// </summary>
         /// <summary>
         /// How an automated deposit into THIS drawer has to be routed right
         /// now, which depends entirely on who owns its ZDO.
@@ -1325,7 +1353,11 @@ namespace ItemDrawers.Game
         internal DepositRoute ResolveDepositRoute()
         {
             if (_view == null || !_view.IsValid()) return DepositRoute.Unavailable;
-            if (_view.IsOwner()) return DepositRoute.Owned;
+
+            // An owner whose ownership has not settled must not write Amount
+            // (see OwnershipSettleSeconds); treat it like a claim in progress
+            // and skip this tick.
+            if (_view.IsOwner()) return OwnershipSettled() ? DepositRoute.Owned : DepositRoute.Claiming;
 
             var zdo = _view.GetZDO();
             if (zdo == null) return DepositRoute.Unavailable;
@@ -1395,6 +1427,16 @@ namespace ItemDrawers.Game
             return true;
         }
 
+        /// <summary>
+        /// Credits the drawer with <paramref name="amount"/> of
+        /// <paramref name="itemName"/>, clamped to remaining capacity, without
+        /// removing anything from anywhere. The caller must already have
+        /// removed (or must remove exactly <c>accepted</c> of) these items
+        /// from their source: DrawerManager.RunAutoPickup removes the
+        /// accepted count from the ground stack afterwards; DebugCommands
+        /// rid_wall is a cheat-only tool that conjures test stock. Refuses
+        /// unless this client already owns the ZDO.
+        /// </summary>
         public bool TryDepositExternally(string itemName, int amount, out int accepted)
         {
             accepted = 0;
@@ -1406,8 +1448,8 @@ namespace ItemDrawers.Game
             // Interact/UseItem at all.
             if (!ItemFacts.IsStorable(itemName)) return false;
 
-            // See TryWithdrawExternally's docstring: refuse rather than
-            // steal ownership when this client is not already the owner.
+            // Refuse rather than claim when this client is not already the
+            // owner; auto-pickup decides routing via ResolveDepositRoute.
             if (_view == null || !_view.IsValid() || !_view.IsOwner()) return false;
 
             var current = Snapshot;
@@ -1419,283 +1461,334 @@ namespace ItemDrawers.Game
             return true;
         }
 
-        // ---------- Container bridge: lazily-refreshed mirror inventory ----------
-        // A drawer's whole state is one item name and one int (Snapshot).
-        // Container-aware mods want a real Inventory to read and remove
-        // from. This section is the translation: exactly one ItemData whose
-        // m_stack carries the drawer's entire count -- four thousand coal is
-        // one stack of four thousand, not eighty stacks of fifty.
-        // Materialising real stacks would mean up to Capacity ItemData
-        // objects per drawer, rebuilt on every scan across however many
-        // drawers a mod's radius touches; a mirror makes that a handful of
-        // integer comparisons instead. ContainerBridge's GetInventory patch
-        // calls RefreshMirror before every read, and mutates only when the
-        // ZDO amount has actually changed since the mirror was last built.
+        // ---------- Container view ----------
+        // See DrawerView for the design. ContainerBridge reaches the view
+        // only through GetViewInventory/SaveView/LoadView; DrawerManager
+        // drives FlushView (end of frame) and ReconcileView (owner tick).
 
         /// <summary>
-        /// The mirror Inventory handed back by ContainerBridge's
-        /// Container.GetInventory patch. Built once per drawer, on first
-        /// access, then reused -- RefreshMirror mutates it in place.
-        ///
-        /// Deliberately 1x1, not larger. A larger mirror was tried
-        /// specifically to give a foreign AddItem probe that can't merge
-        /// into the occupied slot (a mismatched item, or the same item at a
-        /// different m_worldLevel -- see FindFreeStackItem) a genuine empty
-        /// slot to land in instead of failing, which avoids vanilla logging
-        /// `ZLog.LogError("Trying to add item to occupied slot -1, -1")`
-        /// (confirmed by decompiling Inventory.AddItem/FindEmptySlot). That
-        /// trade was wrong: with a spare slot, a full drawer reports
-        /// GetEmptySlots()==1, HaveEmptySlot()==true, CanAddItem() a whole
-        /// maxStackSize of phantom room, and SlotsUsedPercentage() 50% on a
-        /// drawer that is actually full. Since a deposit is deliberately
-        /// inert here (see OnMirrorChanged) -- never credited to the ZDO --
-        /// a foreign AddItem that used to correctly FAIL against a full 1x1
-        /// mirror instead SUCCEEDS against the spare slot, the depositing
-        /// mod removes from its own source per vanilla's own move idiom,
-        /// and those items are destroyed outright, not merely mis-logged.
-        /// A logged, correct refusal is strictly better than a silent
-        /// success that destroys items, so the log line is accepted rather
-        /// than engineered around. See the human verification steps in
-        /// this task's report for how to tell this vanilla log line apart
-        /// from an actual bug.
-        /// </summary>
-        /// <summary>
-        /// The mirror's last-reconciled baseline (see _mirrored), exposed
-        /// read-only for rid_diag -- diagnosing "OttoFuel/NVLB don't see
-        /// drawers" needs to distinguish "the mirror was never built"
-        /// (baseline still ("", 0)) from "the mirror is built but stale"
-        /// from "the mirror and ZDO agree", none of which are visible from
-        /// outside this class otherwise.
-        /// </summary>
-        internal DrawerSnapshot MirroredBaseline => _mirrored;
-
-        /// <summary>
-        /// A stable per-instance identifier for rid_diag, combining the
-        /// GameObject name (which is identical -- "rid_drawer_wood(Clone)"
-        /// -- across every drawer of a tier) with its ZDOID, so rid_diag's
-        /// output can distinguish two different drawer instances of the
-        /// same tier.
+        /// A per-instance identifier for logs and rid_diag: the GameObject
+        /// name is identical across every drawer of a tier, so the ZDOID is
+        /// appended.
         /// </summary>
         internal string DiagId =>
             _view != null && _view.IsValid()
                 ? $"{gameObject.name}#{_view.GetZDO().m_uid}"
                 : $"{gameObject.name}#(no ZDO)";
 
-        internal Inventory MirrorInventory
+        internal Inventory GetViewInventory() => View?.GetForCaller();
+
+        /// <summary>
+        /// Container.Save on a drawer. Some mods change m_stack directly and
+        /// call Save without Changed(), so the live view is compared against
+        /// its last sync and a change marks it dirty. Nothing is written
+        /// here: it goes through FlushView like any view change (claim,
+        /// wait for ownership to settle, reconcile and republish), or the
+        /// ResetZDO teardown flush if the drawer unloads first. Save is often called in the middle of a
+        /// mod's loop over the inventory, and republishing rebuilds the
+        /// item list, which would break that loop or orphan ItemData
+        /// references the mod is about to change.
+        /// </summary>
+        internal void SaveView()
         {
-            get
+            if (View == null) return;
+            if (View.IsDirty || View.HasUnflushedChange()) View.MarkDirty();
+        }
+
+        /// <summary>Container.Load on a drawer: true when the view was rebuilt from newer ZDO data.</summary>
+        internal bool LoadView() => View != null && View.RefreshFromZdo();
+
+        /// <summary>
+        /// How long this peer must have held ownership, with no ownership
+        /// change at all, before it writes drawer state computed from a
+        /// view change (and before ItemDrawersAPI withdraws). Longer than a
+        /// round trip, so writes the previous owner sent before it saw the
+        /// claim have arrived and are in the live ZDO that reconcile reads,
+        /// and the previous owner has stopped writing.
+        ///
+        /// Why not claim and write in the same frame: ClaimOwnership only
+        /// moves the owner (ZDO.SetOwner -> IncreaseOwnerRevision). The old
+        /// owner may be sending its own absolute Amount at the same moment
+        /// (a hand deposit, a grant to another peer). ZDOMan.RPC_ZDOData
+        /// keeps whichever data revision is higher, so one of the two
+        /// absolute writes is silently discarded -- items lost or
+        /// duplicated either way. Waiting removes the overlap instead of
+        /// picking a winner.
+        /// </summary>
+        internal const float OwnershipSettleSeconds = 1f;
+
+        // Ownership continuity is tracked through the ZDO's OwnerRevision,
+        // which increases on every owner change (local SetOwner or an
+        // adopted remote one), so losing and regaining ownership between
+        // two checks still restarts the clock. _ownerRevisionSince is when
+        // this peer first observed the current revision -- never earlier
+        // than the real change, so the wait can only be longer, not shorter.
+        private ushort _ownerRevisionSeen;
+        private float _ownerRevisionSince;
+
+        // This peer claimed the drawer to apply its current view change and
+        // has not applied it yet. After such a claim is lost to someone
+        // else, the claim is repeated only once the other owner has itself
+        // been stable for the settle delay, so two peers with pending view
+        // changes take turns instead of stealing it back every frame.
+        private bool _viewClaimMade;
+
+        // A reconcile that WriteOwned or the tick wanted while ownership had
+        // not settled; the tick retries it. _deferredPriorItemName keeps
+        // WriteOwned's pre-write item name for that retry (see ReconcileView).
+        private bool _reconcileDeferred;
+        private string _deferredPriorItemName;
+
+        private void ResetOwnershipClock()
+        {
+            _ownerRevisionSeen = _view != null && _view.IsValid() ? _view.GetZDO().OwnerRevision : (ushort)0;
+            _ownerRevisionSince = Time.time;
+        }
+
+        /// <summary>Seconds since this peer first observed the ZDO's current OwnerRevision.</summary>
+        private float OwnerRevisionAge()
+        {
+            ushort revision = _view.GetZDO().OwnerRevision;
+            if (revision != _ownerRevisionSeen)
             {
-                if (_mirror == null)
-                {
-                    _mirror = new Inventory("drawer", null, 1, 1);
-                    _mirror.m_onChanged += OnMirrorChanged;
-                }
-                return _mirror;
+                _ownerRevisionSeen = revision;
+                _ownerRevisionSince = Time.time;
             }
+            return Time.time - _ownerRevisionSince;
         }
 
         /// <summary>
-        /// Brings the mirror in line with what this client is ALLOWED to
-        /// show, but only when something actually changed since the last
-        /// call -- one snapshot comparison, not a rebuild, for the common
-        /// case of a scan touching a drawer nothing has altered. A hundred
-        /// drawers in a wall should cost a hundred of these comparisons,
-        /// not a hundred rebuilds.
-        ///
-        /// Shows the drawer's real contents to every client -- see
-        /// EffectiveMirrorSnapshot, which used to hide them from anyone
-        /// who did not own the ZDO and no longer does.
-        ///
-        /// Also rebuilds unconditionally when <see cref="_mirrorNeedsRebuild"/>
-        /// is set -- see OnMirrorChanged's belt-and-braces handling of a
-        /// refused write-back, which can still happen even while this
-        /// client IS the owner (a WriteOwned compare-and-swap refusal
-        /// during a split-ownership window -- see WriteOwned's docstring).
+        /// Player hand paths on an owner whose ownership has not settled:
+        /// show "Try again" and return true (refused). Every write of Amount
+        /// is absolute, and the previous owner may still be sending its own
+        /// within the round trip; if both arrive with the same data revision
+        /// the receivers adopt this peer's owner revision but drop its data,
+        /// and nothing resends it -- this peer's next write would then erase
+        /// the other's change. Callers check this before removing anything
+        /// from the player or giving anything to them. Non-owners are not
+        /// refused here; they use the request protocol.
         /// </summary>
-        internal void RefreshMirror()
+        private bool RefuseWhileUnsettled(Player player)
         {
-            var current = EffectiveMirrorSnapshot();
-            if (!_mirrorNeedsRebuild && current.Equals(_mirrored)) return;
-            RebuildMirror(current);
-            _mirrorNeedsRebuild = false;
+            if (_view == null || !_view.IsValid() || !_view.IsOwner() || OwnershipSettled()) return false;
+            player?.Message(MessageHud.MessageType.Center, CommitFailedMessage);
+            return true;
         }
 
-        /// <summary>
-        /// What the mirror shows: the drawer's real contents, to every
-        /// client, owner or not.
-        ///
-        /// This used to report an EMPTY drawer unless this client owned the
-        /// ZDO, to avoid a duplication bug -- a foreign mod that saw stock
-        /// and removed it would keep the items while the drawer, whose debit
-        /// we could not commit without ownership, kept them too. Hiding the
-        /// stock did prevent that, and also broke the mod for its actual
-        /// users: on a server, a drawer is owned by at most one player, so
-        /// everyone else saw an empty box. Two players at the same wall
-        /// meant one of them could not craft.
-        ///
-        /// Vanilla is the model, and it does not do this. Container.Awake
-        /// loads a chest's items from its ZDO on EVERY client, so anyone can
-        /// read any chest, and ownership is taken at the moment someone
-        /// actually changes something (Container.Interact claims before
-        /// opening). Reading replicated state is safe; only writing needs an
-        /// owner. We had it backwards -- gating the read and leaving the
-        /// write to fail -- which is why vanilla containers worked in
-        /// exactly the situation ours did not.
-        ///
-        /// The duplication that gating prevented is now prevented where it
-        /// belongs: TryWithdrawExternally claims ownership before committing
-        /// a debit, so the commit succeeds rather than being refused, and
-        /// WriteOwned's compare-and-swap still refuses if the ZDO moved
-        /// underneath us -- in which case OnMirrorChanged rebuilds the mirror
-        /// and the foreign mod's removal is undone.
-        /// </summary>
-        private DrawerSnapshot EffectiveMirrorSnapshot() => Snapshot;
+        /// <summary>True when this peer owns the drawer and ownership has not changed for OwnershipSettleSeconds.</summary>
+        internal bool OwnershipSettled() =>
+            _view != null && _view.IsValid() && _view.IsOwner() && OwnerRevisionAge() >= OwnershipSettleSeconds;
 
         /// <summary>
-        /// Unconditional rebuild of the mirror from a given snapshot.
-        /// Mutates the existing ItemData's m_stack in place where possible
-        /// (RemoveAll+AddItem is still one allocation, not
-        /// Capacity-many) and is guarded by _applyingMirror so the
-        /// RemoveAll/AddItem calls below -- which themselves fire
-        /// m_onChanged -- do not re-enter OnMirrorChanged.
+        /// Applies a change made through the view. Called from
+        /// DrawerManager's end-of-frame flush, from the ZNetView.ResetZDO
+        /// prefix and from OnDestroy (both with <paramref name="teardown"/>
+        /// true) -- never from inside an Inventory callback.
+        ///
+        /// Non-owners never write ViewSlots. A peer that does not own the
+        /// drawer claims it (the way the chest mods and vanilla take-all
+        /// claim a container) and writes nothing; the view stays dirty, so
+        /// refreshes cannot overwrite what mods see, and this is retried
+        /// every frame. Once ownership has held for OwnershipSettleSeconds
+        /// it reconciles as the owner. Reconcile reads the live ZDO, so it
+        /// includes everything the previous owner wrote before it saw the
+        /// claim, and counts this peer's change once through the dirty
+        /// branch of TryReadForReconcile (stored − baseline, plus live −
+        /// last sync). If the claim is lost while waiting, it is made again
+        /// once the other owner has been stable for the same delay; the
+        /// change is never dropped.
+        ///
+        /// Teardown (ZDO unloading or scene shutdown) cannot wait: the
+        /// delta is written onto ViewSlots immediately (WriteDeltaToZdo) for
+        /// the next owner to reconcile. A non-owner's teardown write keeps
+        /// the old exposure -- the owner's reaction to an earlier write can
+        /// overwrite it within one round trip -- documented as a known
+        /// limitation.
         /// </summary>
-        private void RebuildMirror(DrawerSnapshot current)
+        internal void FlushView(bool teardown = false)
         {
-            _applyingMirror = true;
-            try
+            if (View == null || !View.IsDirty) return;
+            if (_view == null || !_view.IsValid()) return;
+
+            if (!View.HasUnflushedChange())
             {
-                var inventory = MirrorInventory;
-                inventory.RemoveAll();
-
-                if (current.IsAssigned && !current.IsEmpty)
-                {
-                    var prefab = ItemFacts.Prefab(current.ItemName);
-                    if (prefab != null)
-                    {
-                        var drop = prefab.GetComponent<ItemDrop>();
-                        if (drop != null)
-                        {
-                            var data = drop.m_itemData.Clone();
-                            data.m_stack = current.Amount;
-                            data.m_dropPrefab = prefab;
-                            data.m_gridPos = new Vector2i(0, 0);
-                            // Without this, CountItems/HaveItem/RemoveItem(string, ...)
-                            // -- all of which filter on
-                            // item.m_worldLevel >= Game.m_worldLevel -- see every
-                            // drawer as empty stock past the first world-level
-                            // bump. Matches how vanilla's own AddItem(GameObject, int)
-                            // stamps a freshly materialised ItemData. `global::` is
-                            // required here: unqualified `Game` resolves to this
-                            // file's own `ItemDrawers.Game` namespace, not the
-                            // Valheim `Game` class (confirmed the hard way in an
-                            // earlier task -- see task-8-10-report.md).
-                            data.m_worldLevel = (byte)global::Game.m_worldLevel;
-                            inventory.AddItem(data);
-                        }
-                    }
-                }
-                _mirrored = current;
-            }
-            finally
-            {
-                _applyingMirror = false;
-            }
-        }
-
-        /// <summary>
-        /// Fires when another mod's Inventory call removed from the mirror
-        /// -- guarded against firing from this class's own RebuildMirror
-        /// via _applyingMirror. A deposit into the mirror also fires this
-        /// (Inventory.Changed doesn't distinguish), but is not acted on:
-        /// see the no-deposit-case note on MirrorDelta for why crediting a
-        /// foreign deposit here would trust a source removal that, per
-        /// vanilla's own add-then-remove move idiom, has not happened yet.
-        ///
-        /// Reads only slot (0,0), not the whole mirror. The mirror is a
-        /// 1x1 Inventory and slot (0,0) is the only slot this class ever
-        /// deliberately populates, but reading by position rather than
-        /// "whatever GetAllItems() happens to contain" is the more
-        /// defensive choice regardless of current sizing: it cannot be
-        /// fooled into deriving the wrong item identity from something a
-        /// foreign mod left lying around elsewhere in the inventory.
-        ///
-        /// Three things this deliberately does NOT do, all load-bearing:
-        ///
-        /// It never diffs the mirror against the live ZDO amount
-        /// (Snapshot) -- only against _mirrored, the baseline recorded the
-        /// last time this mirror's content was accounted for. The ZDO can
-        /// have moved for reasons that have nothing to do with this
-        /// specific Inventory call (a normal player interaction, say,
-        /// committed without ever touching the mirror); diffing against it
-        /// directly inverts the sign whenever that happened, turning a
-        /// withdrawal into an apparent deposit that creates items. See
-        /// MirrorReconciliation.Compute's own docs and
-        /// MirrorReconciliationTests for the worked example. _mirrored is
-        /// advanced to the mirror's true content at the end of this method
-        /// ONLY when the resulting debit was actually applied -- see below
-        /// for why a refused debit must NOT advance it.
-        ///
-        /// It never mutates _mirror's own list here (no RemoveAll/AddItem).
-        /// GetItemAt below reads that list live, and the mod whose call
-        /// fired this event may still be iterating it on its own call stack
-        /// (Inventory.Changed -- and therefore m_onChanged -- fires
-        /// synchronously from inside RemoveItem/AddItem, before either
-        /// returns to its caller). Mutating the same list here would throw
-        /// an InvalidOperationException out of that mod's own enumerator.
-        /// Any mismatch this leaves between the mirror and the ZDO is
-        /// picked up by the next RefreshMirror -- driven by the next
-        /// Container.GetInventory call, safely off this stack -- which
-        /// performs the actual rebuild.
-        ///
-        /// It does NOT assume TryWithdrawExternally always succeeds here.
-        /// An earlier version of this comment claimed the underlying
-        /// compare-and-swap "cannot fail at this call site" and called it
-        /// a tautology -- that was wrong, and review caught it: this
-        /// client may not even own the ZDO (RefreshMirror now builds an
-        /// EMPTY mirror in that case specifically to keep this path from
-        /// ever running against real stock -- see RefreshMirror's
-        /// docstring -- but a foreign mod holding a REFERENCE to a mirror
-        /// built earlier, while this client still owned the ZDO, can still
-        /// call RemoveItem on it after ownership has since moved on), or
-        /// WriteOwned's own compare-and-swap can lose a genuine
-        /// split-ownership race (see WriteOwned's docstring) even while
-        /// this client nominally still owns the ZDO. Either way,
-        /// TryWithdrawExternally returning false means the ZDO was NOT
-        /// debited even though the mirror's live list already lost the
-        /// item (the foreign mod's RemoveItem already ran, before this
-        /// handler was ever invoked) -- advancing _mirrored to match that
-        /// list would make the next RefreshMirror believe the mirror
-        /// already reflects reality and skip correcting it, permanently
-        /// under-reporting the drawer's true contents. So on a refusal,
-        /// _mirrored is left untouched and _mirrorNeedsRebuild is set
-        /// instead, forcing the next RefreshMirror to rebuild the mirror
-        /// back to ZDO truth regardless of what _mirrored happens to
-        /// already equal.
-        /// </summary>
-        private void OnMirrorChanged()
-        {
-            if (_applyingMirror) return;
-
-            var slot = _mirror.GetItemAt(0, 0);
-            string mirrorItem = slot != null ? (ItemFacts.PrefabNameOf(slot) ?? "") : "";
-            int mirrorTotal = slot != null ? slot.m_stack : 0;
-
-            var zdo = Snapshot;
-            var delta = MirrorReconciliation.Compute(
-                mirrorItem, mirrorTotal,
-                _mirrored.ItemName, _mirrored.Amount,
-                zdo.ItemName, zdo.Amount);
-
-            if (delta.Withdraw > 0 && !TryWithdrawExternally(delta.Withdraw, out _))
-            {
-                _mirrorNeedsRebuild = true;
+                View.ClearDirty();
+                _viewClaimMade = false;
                 return;
             }
 
-            // _mirrored now records what slot (0,0) actually, physically
-            // holds -- not what we wish it held. Only reached when there
-            // was nothing to debit, or the debit above genuinely applied.
-            _mirrored = new DrawerSnapshot(mirrorItem, mirrorTotal);
+            if (teardown)
+            {
+                View.WriteDeltaToZdo();
+                _viewClaimMade = false;
+                return;
+            }
+
+            var manager = DrawerManager.Instance;
+
+            if (!_view.IsOwner())
+            {
+                if (!_viewClaimMade || OwnerRevisionAge() >= OwnershipSettleSeconds)
+                {
+                    _view.ClaimOwnership();
+                    _viewClaimMade = true;
+                }
+                manager?.MarkViewDirty(this);
+                return;
+            }
+
+            if (!OwnershipSettled())
+            {
+                manager?.MarkViewDirty(this);
+                return;
+            }
+
+            ReconcileView();
+        }
+
+        /// <summary>Owner tick: a reconcile is due because the view's ZDO data needs one, or an earlier one was deferred until ownership settled.</summary>
+        internal bool ViewNeedsReconcile() =>
+            View != null && _view != null && _view.IsValid() && _view.IsOwner()
+            && (_reconcileDeferred || View.NeedsReconcile());
+
+        internal string ViewDiag => View != null ? View.Describe() : "no view";
+
+        /// <summary>
+        /// Owner only. Applies what changed through the view since it was
+        /// last published: a deposit is credited up to capacity and the rest
+        /// spilled at the drawer; a withdrawal is debited; items that are not
+        /// the drawer's are spilled. Then republishes the view from the
+        /// resulting state. Never called from inside an Inventory callback.
+        ///
+        /// Publish ALWAYS follows the read -- even when nothing changed and
+        /// nothing is foreign -- and nothing may write the view to the ZDO
+        /// (WriteDeltaToZdo) in between. TryReadForReconcile folds this peer's
+        /// unflushed delta into its result; only Publish resets the view's
+        /// sync baseline, so skipping it (or flushing first) would send that
+        /// same delta again and count it twice. For that reason Publish runs
+        /// straight after the state write, before any spill or log call.
+        ///
+        /// <paramref name="priorItemName"/>: the item the drawer held before
+        /// the write that triggered this reconcile (WriteOwned). When that
+        /// write unassigned the drawer (Clear), the pending view change is
+        /// still read and spilled as that item -- under the new empty name
+        /// ItemFacts.SpillAtPosition finds no prefab and the items vanish.
+        ///
+        /// Unless <paramref name="force"/>, nothing happens until ownership
+        /// has settled (OwnershipSettled): two peers that both briefly
+        /// believe they own the drawer would otherwise both reconcile the
+        /// same stored delta and both spill it. The reconcile is marked
+        /// deferred and the tick retries it; the delta stays stored. Only
+        /// OnDrawerDestroyed forces, because the ZDO is about to be gone.
+        /// </summary>
+        internal void ReconcileView(string priorItemName = null, bool force = false)
+        {
+            if (View == null || _view == null || !_view.IsValid() || !_view.IsOwner()) return;
+
+            if (!force && !OwnershipSettled())
+            {
+                _reconcileDeferred = true;
+                if (!string.IsNullOrEmpty(priorItemName) && _deferredPriorItemName == null)
+                    _deferredPriorItemName = priorItemName;
+                return;
+            }
+
+            if (priorItemName == null) priorItemName = _deferredPriorItemName;
+            _reconcileDeferred = false;
+            _deferredPriorItemName = null;
+            _viewClaimMade = false;
+
+            var current = Snapshot;
+            if (View.CannotResolve(current))
+            {
+                ReconcileUnresolved(current);
+                return;
+            }
+            _loggedUnresolvedPending = false;
+
+            string viewItemName = !current.IsAssigned && !string.IsNullOrEmpty(priorItemName)
+                ? priorItemName
+                : current.ItemName;
+
+            if (!View.TryReadForReconcile(viewItemName, out int itemTotal, out int baseline, out var foreign))
+            {
+                View.Publish(current);
+                return;
+            }
+
+            // Simultaneous takes from several peers can drive the combined
+            // total below zero. ViewReconciliation clamps a negative total to
+            // 0, which would shrink the withdrawal; shift both sides up
+            // instead so total - baseline (the real change) is preserved and
+            // WithdrawExact's clamp decides what the stock can cover.
+            if (itemTotal < 0)
+            {
+                baseline -= itemTotal;
+                itemTotal = 0;
+            }
+
+            int foreignTotal = 0;
+            foreach (var f in foreign) foreignTotal += f.Value;
+
+            var outcome = ViewReconciliation.Apply(current, Capacity, baseline, itemTotal, foreignTotal);
+            if (!outcome.Result.Equals(current)) WriteState(outcome.Result);
+
+            View.Publish(outcome.Result);
+
+            var spillAt = transform.position;
+            if (outcome.SpillDrawerItem > 0)
+                ItemFacts.SpillAtPosition(spillAt, viewItemName, outcome.SpillDrawerItem);
+
+            foreach (var f in foreign)
+            {
+                if (ItemFacts.Prefab(f.Key) != null)
+                    ItemFacts.SpillAtPosition(spillAt, f.Key, f.Value);
+                else
+                    DrawerPlugin.Log.LogWarning(
+                        $"{DiagId}: {f.Value} of unidentifiable item '{f.Key}' left in the drawer's view could not be returned.");
+            }
+
+            if (outcome.Unbacked > 0)
+                DrawerPlugin.Log.LogWarning(
+                    $"{DiagId}: {outcome.Unbacked} {current.ItemName} were taken through the view beyond what the drawer held "
+                    + "(another player changed it at the same moment).");
+        }
+
+        /// <summary>
+        /// ReconcileView for an owner that cannot resolve the drawer's item
+        /// (it shows nothing, so it cannot trust or apply a view total).
+        ///
+        /// If ViewSlots holds a change other peers made (total differs from
+        /// the stored baseline, or foreign items), it is left untouched:
+        /// publishing would overwrite it with an empty layout and baseline 0,
+        /// losing those deltas. It stays for an owner that can resolve the
+        /// item, and is logged once per drawer.
+        ///
+        /// Otherwise nothing is written unless the stored layout is stale
+        /// against Amount (this owner changed Amount, e.g. through the API).
+        /// Replacing a correct layout would race a peer's in-flight
+        /// withdrawal: its negative delta has no slots to apply to once the
+        /// empty layout lands, is dropped, and the items are duplicated.
+        /// </summary>
+        private void ReconcileUnresolved(DrawerSnapshot current)
+        {
+            switch (View.InspectForUnresolvedOwner(current.Amount))
+            {
+                case DrawerView.UnresolvedViewState.PendingChanges:
+                    if (_loggedUnresolvedPending) return;
+                    _loggedUnresolvedPending = true;
+                    DrawerPlugin.Log.LogWarning(
+                        $"{DiagId}: this client cannot resolve item '{current.ItemName}', so a change made through "
+                        + "the drawer's container view is left unreconciled for an owner that can.");
+                    return;
+
+                case DrawerView.UnresolvedViewState.AlreadyPublished:
+                    return;
+
+                default:
+                    View.Publish(current);
+                    return;
+            }
         }
 
         // ---------- hover ----------
@@ -1769,6 +1862,29 @@ namespace ItemDrawers.Game
 
             __result = drawer.Snapshot.IsEmpty;
             return false;
+        }
+    }
+
+    /// <summary>
+    /// DrawerComponent.EnsureCreator writes the ZDO creator during Awake,
+    /// before Player.PlacePiece calls Piece.SetCreator. If Piece.Awake ran
+    /// after that write, Piece.m_creator already holds the same id and
+    /// SetCreator's "creator == 0" guard would skip it, so the creator's
+    /// platform-user index (ZDOVars.s_creatorIndex) would never be written.
+    /// For a drawer whose creator is exactly the id being set, clear the
+    /// cached field so vanilla runs in full and writes both values -- the
+    /// same id, so nothing about ownership or access changes.
+    /// </summary>
+    [HarmonyPatch(typeof(Piece), nameof(Piece.SetCreator))]
+    internal static class PieceSetCreatorPatch
+    {
+        private static bool Prepare() =>
+            ValheimCompat.RequireMethod(typeof(Piece), nameof(Piece.SetCreator));
+
+        private static void Prefix(Piece __instance, long uid)
+        {
+            if (__instance.m_creator == uid && __instance.GetComponent<DrawerComponent>() != null)
+                __instance.m_creator = 0L;
         }
     }
 }

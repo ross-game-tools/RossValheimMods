@@ -65,3 +65,70 @@ Notes:
   that has to track the resize.
 
 Preview tool: https://claude.ai/code/artifact/2760da81-255c-47b7-83e6-c4498ae02526
+
+# Container view (1.0)
+
+What other mods see through `Container.GetInventory()` on a drawer. The
+drawer's `Prefab` + `Amount` ZDO fields remain the only source of truth;
+the view is a translation of them. Design:
+`docs/superpowers/specs/2026-09-14-container-compat-design.md`.
+
+## Layout (`ItemDrawers.Core.ViewLayout`)
+
+For item max stack size *M*, capacity *C*, amount *A*:
+
+- Unassigned, or *A* = 0: 0 slots (a 0×1 grid), so nothing can be added.
+- Otherwise up to 8 slots, all the drawer's item, grid exactly the slot
+  count (8 → 4×2, fewer → n×1), so a stocked view has no empty cell and
+  vanilla `AddItem` refuses any other item.
+- Slot 1 holds the rest and may exceed *M*; slots 2..n hold ≥1, raised
+  evenly (larger values first), never above *M*, until the deposit room
+  vanilla sees — Σ(*M* − count) over every slot below *M*, slot 1 included
+  — is ≤ *C* − *A*. When no layout of n ≥ 2 slots meets that (very large
+  *M* such as coins, or tiny capacities), fewer slots are used; one slot of
+  *A* is the last resort.
+
+| *A* (M=50, C=1000) | Slots |
+|---|---|
+| 0 | – |
+| 3 | 1, 1, 1 |
+| 500 | 493, 1 ×7 |
+| 900 | 650, 36 ×5, 35 ×2 |
+| 1000 | 650, 50 ×7 |
+
+View items carry the drawer item's prefab, `Game.m_worldLevel`, and
+`m_cheated = false`.
+
+## Persistence
+
+| ZDO key | Content |
+|---|---|
+| `ViewSlots` | ZPackage: `int` format version (1), `int` slot count (0–8), each slot's `int` count, `int` foreign-entry count, then (`string` prefab, `int` count) per foreign item |
+| `ViewBaseline` | `int`: total of the drawer's item the view held when the owner last published it |
+
+Absent on pre-1.0 drawers; the owner publishes them on first tick.
+
+## Flow
+
+1. A mod changes the view → `m_onChanged` marks it dirty.
+2. `DrawerManager.LateUpdate` writes dirty views to `ViewSlots` from
+   whichever peer changed them (`Container.Save` does the same
+   immediately).
+3. On the owner, `DrawerManager.Update` sees the ZDO revision change and,
+   if the `ViewSlots` total differs from `ViewBaseline` (or holds foreign
+   items, or the baseline no longer matches `Amount`), runs
+   `DrawerComponent.ReconcileView`: `ViewReconciliation.Apply` credits
+   (`DrawerState.Deposit`, excess spilled at the drawer) or debits
+   (`DrawerState.WithdrawExact`), foreign items are spilled, then the view
+   is republished.
+4. Every write of `Amount` by the drawer's own code (`WriteOwned`) also
+   reconciles and republishes.
+
+## Oversized-stack guard (`InventoryStackGuard`)
+
+Prefixes on `Inventory.AddItem(ItemData)`, `AddItem(ItemData, Vector2i)`
+and the private `AddItem(ItemData, int, int, int, bool)`. An incoming
+amount above max stack size is split: partial stacks topped up, the rest
+placed as max-size stacks (the 4-argument overload places its first stack
+in its target slot first), anything left stays on the source item and the
+call returns false. `Changed()` fires once. Everything else runs vanilla.

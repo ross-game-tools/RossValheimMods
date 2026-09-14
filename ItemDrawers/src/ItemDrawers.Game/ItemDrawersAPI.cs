@@ -35,7 +35,10 @@ namespace ItemDrawers.Game
         /// (a prefab name) from drawers within <paramref name="radius"/> of
         /// <paramref name="near"/>, across as many drawers as it takes.
         /// Returns how much was actually taken -- may be less than
-        /// requested, never more.
+        /// requested, never more. A drawer this client does not own is
+        /// claimed and contributes nothing on this call; it can be taken
+        /// from about a second later (DrawerComponent.OwnershipSettleSeconds),
+        /// so call again rather than treating a short result as final.
         /// </summary>
         public static int Withdraw(Vector3 near, float radius, string itemName, int amount)
         {

@@ -152,12 +152,12 @@ elsewhere in the codebase:
    nothing. If disabling `AutoPickupEnabled` in the config measurably
    changes the wall's frame time, the pass itself is the problem, not
    drawer count.
-4. **`GetInventory` called per frame.** The `ContainerBridge` mirror-refresh
-   guard (`RefreshMirror`, comparing against the last-mirrored
-   `DrawerSnapshot`) must make repeat calls free. If some other mod (or our
-   own code) is polling `Container.GetInventory()` every frame per drawer,
-   that reintroduces exactly the kind of per-drawer work this design
-   avoids.
+4. **`GetInventory` or reconcile doing work per frame.** `DrawerView`
+   rebuilds only when the drawer ZDO's `DataRevision` changed, and the
+   owner's reconcile check (`DrawerManager.ReconcileViews`) is one revision
+   comparison per owned drawer unless the data changed. If the wall's frame
+   time moves with container-aware mods polling `GetInventory()`, one of
+   those guards has regressed.
 
 Fix the regression, not the criterion, and re-measure from Step 2.
 
