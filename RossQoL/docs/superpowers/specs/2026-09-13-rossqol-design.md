@@ -78,23 +78,29 @@ covers every category.
 ### The feature model
 
 ```csharp
-enum FeatureScope { Client, Synced }
+enum FeatureScope { Client, Synced }   // Core
 
-interface IFeature
+abstract class Feature                 // Game
 {
-    string Key { get; }            // config key of its own toggle, e.g. "TamesFollow"
-    FeatureScope Scope { get; }
-    void Bind(CategoryConfig config);                  // its entries, incl. the toggle
-    IEnumerable<Type> PatchClasses { get; }            // [HarmonyPatch] classes it owns
-    IEnumerable<CompatMember> RequiredMembers { get; } // Valheim members reached by name
+    abstract string Key { get; }            // its own toggle, e.g. "TamesFollow"
+    abstract FeatureScope Scope { get; }
+    abstract string Description { get; }
+    virtual void BindSettings(ConfigFile config, string section);   // entries beyond the toggle
+    abstract IEnumerable<Type> PatchClasses { get; }                // [HarmonyPatch] classes it owns
+    virtual IEnumerable<CompatMember> RequiredMembers { get; }      // Valheim members reached by name
+    virtual void OnActivated(GameObject host);                      // e.g. add a component to the shared host
+    bool IsActive { get; }                                          // category Enabled && own toggle
 }
 
-abstract class Category
+sealed class Category
 {
     string Section { get; }        // "Portals"
-    IReadOnlyList<IFeature> Features { get; }
+    IReadOnlyList<Feature> Features { get; }
 }
 ```
+
+An abstract class rather than an interface, because every feature carries
+the same toggle, category back-reference and `IsActive`.
 
 A `FeatureRegistry` in the Game layer lists the categories explicitly — no
 reflection discovery — so the set of features is readable in one file.
@@ -170,7 +176,7 @@ Changes are structural only:
 | `RossPortalTames.Core.*` | `RossQoL.Core.Portals.*` |
 | `RossPortalTames.Game.*` | `RossQoL.Game.Portals.*` |
 | `PortalTamesPlugin` | removed; logic that belonged to the plugin moves to the framework |
-| `PortalTamesManager` as its own GameObject | ticked by the shared RossQoL manager |
+| `PortalTamesManager` on its own GameObject | a component on the single shared RossQoL host object, added only when the feature is active |
 | `[General] Enabled / FollowRadius / SearchDistance` | `[Portals] TamesFollow / TameFollowRadius / TameSearchDistance` |
 | "Config is local because there is no Jotunn" | Config is local because the feature is `Client` scope: every setting only affects which of your own tames follow you. |
 
@@ -199,8 +205,9 @@ its own record.
 | `Kind` | `LocalWorld` | `Server` |
 | `CharacterFile`, `CharacterSource` | profile filename and `FileHelpers.FileSource` | same |
 | `WorldName`, `WorldSource` | world `m_name` and file source | — |
-| `ServerKind` | — | `Dedicated`, `SteamUser` or `JoinCode` |
-| `ServerAddress` | — | `host:port`, Steam id, or crossplay join code |
+| `ServerKind` | — | `Dedicated`, `SteamUser` or `PlayFab` |
+| `ServerAddress` | — | `host:port`, host Steam id, or PlayFab remote player id |
+| `JoinCode` | — | crossplay join code when one was known, else empty |
 | `DisplayName` | world name | server name as shown in the server list, else the address |
 
 Stored as one string under `PlatformPrefs` key `RossQoL.LastSession`,
@@ -213,19 +220,23 @@ Passwords are never part of it.
 Only once a session has **actually started**, so a failed connect or a
 wrong password never replaces a good record:
 
-1. **Server join intent.** Postfix `FejdStartup.JoinServer`: stash
-   `GetServerToJoin()` statically. A prefix on
-   `ZPlayFabMatchmaking.ResolveJoinCode` stashes the join code, since the
-   resolved PlayFab host id changes when the host restarts and must not be
-   what is stored.
+1. **Intent.** Postfix `FejdStartup.JoinServer`: stash `GetServerToJoin()`
+   with its display name (`MultiBackendMatchmaking.GetServerName`) and, for
+   PlayFab servers, the join code from
+   `MultiBackendMatchmaking.GetServerMatchmakingData(...).m_joinCode` when
+   the matchmaking data has one. Prefix `FejdStartup.OnWorldStart`: clear
+   any stashed server intent.
 2. **Commit.** On `Game.m_playerInitialSpawn` (fires after connection and
    password succeed):
    - `ZNet.instance.IsServer()` and not dedicated → record `LocalWorld` from
      `ZNet.World` and `Game.instance.GetPlayerProfile()`.
-   - otherwise → record `Server` from the stash. `Dedicated` stores
-     `host:port`; a stashed join code stores `JoinCode`; `SteamUser` stores
-     the host's Steam id. A Steam lobby join with no reconnectable address
-     is **not recorded**, leaving the previous record intact.
+   - otherwise → record `Server` from the stash: `Dedicated` stores
+     `ServerJoinDataDedicated.ToString()` (`host:port`), `SteamUser` the
+     host's Steam id, `PlayFab` the remote player id plus any join code.
+     Steam invites and lobby joins resolve to the host's `SteamUser` entry
+     before `JoinServer`, so they are recorded like any Steam host and
+     reconnect while that host is online. A spawn with no valid stash
+     records nothing, leaving the previous record intact.
 
 ### The button
 
@@ -264,10 +275,13 @@ version-mismatch handling and error dialogs keep working.
 
 **Server:**
 1. Select the character as above.
-2. Build `ServerJoinData`: `ServerJoinDataDedicated(host, port)` or
-   `ServerJoinDataSteamUser(id)`; for `JoinCode`, call
-   `ZPlayFabMatchmaking.ResolveJoinCode` first and continue in its success
-   callback.
+2. Build `ServerJoinData`: `ServerJoinDataDedicated(address)`,
+   `ServerJoinDataSteamUser(ulong)` or `ServerJoinDataPlayFabUser(id)`. For
+   `PlayFab` with a join code while logged in to PlayFab, call
+   `ZPlayFabMatchmaking.ResolveJoinCode` first and join the resolved
+   `remotePlayerId`, falling back to the stored id if the code no longer
+   resolves (codes are regenerated when a host restarts; dedicated crossplay
+   ids are expected to be stable).
 3. `SetServerToJoin(data)`, then `JoinServer()`. Vanilla adds it to the recent
    list and shows the password prompt if the server has one.
 
@@ -363,8 +377,9 @@ that touch the same areas.
 - `LastSessionFormat`: round-trips every kind; rejects unknown versions,
   truncated and garbage strings; handles names containing the separator.
 - `ContinuePolicy`: each hidden condition above, and the visible cases.
-- Recording: failed session commits nothing; Steam lobby join leaves the
-  previous record; join code is stored instead of a resolved PlayFab id.
+- `SessionCapture`: a spawn without intent commits nothing; a local world
+  start clears a stale server intent; a server spawn records the stashed
+  kind, address, join code and name.
 
 **In game, dev profile:**
 1. Continue into a local world, quit, relaunch: button shows it; click resumes
