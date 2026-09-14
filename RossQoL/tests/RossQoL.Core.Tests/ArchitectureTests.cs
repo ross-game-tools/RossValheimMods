@@ -1,4 +1,4 @@
-using RossQoL.Core.Portals;
+using RossQoL.Core.Framework;
 using System;
 using System.Linq;
 using System.Reflection;
@@ -22,7 +22,7 @@ namespace RossQoL.Core.Tests
         [InlineData("Jotunn")]
         public void Core_does_not_reference(string forbidden)
         {
-            var core = typeof(Vec3).Assembly;
+            var core = typeof(FeatureRules).Assembly;
             var referenced = core.GetReferencedAssemblies().Select(a => a.Name).ToArray();
 
             Assert.DoesNotContain(referenced, name =>
