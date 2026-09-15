@@ -170,6 +170,22 @@ digging or levelling ground while the feature is off, or after lowering
 `MaxRaise` or `MaxDig`, permanently cuts the edited area down to the lower
 limit. Lower the limits only on ground you do not mind losing.
 
+## World
+
+Server-controlled when connected.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `Enabled` | `true` | All world and item tweaks. |
+| `FloatingItems` | `true` | Dropped items float on water instead of sinking, as wood does. |
+| `FloatDepth` | `0.4` (metres) | How deep a floating item sits below the surface, 0 to 2. |
+
+Items get vanilla's own floating behaviour, so they bob, splash and ride
+waves like wood, and float in tar too. Live fish are left alone, so
+fishing works as normal; a fish you drop from your inventory floats like
+any other item. Items already lying on a seabed stay there until someone
+picks them up and drops them again.
+
 ## Dependencies
 
 - BepInEx 5.4.2350

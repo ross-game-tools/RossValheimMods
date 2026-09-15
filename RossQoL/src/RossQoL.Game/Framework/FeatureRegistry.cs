@@ -6,6 +6,7 @@ using RossQoL.Game.Portals;
 using RossQoL.Game.Production;
 using RossQoL.Game.Startup;
 using RossQoL.Game.Tames;
+using RossQoL.Game.Items;
 using RossQoL.Game.Terrain;
 
 namespace RossQoL.Game.Framework
@@ -39,6 +40,8 @@ namespace RossQoL.Game.Framework
                 new SilentBirthsFeature()),
             new Category("Terrain", "All terrain tweaks.",
                 new UnlimitedHeightFeature()),
+            new Category("World", "All world and item tweaks.",
+                new FloatingItemsFeature()),
         };
     }
 }

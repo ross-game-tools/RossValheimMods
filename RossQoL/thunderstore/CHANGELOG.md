@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.0
+
+- **World / FloatingItems:** dropped items float on water instead of
+  sinking, as wood does. Live fish are unchanged. Server-controlled.
+
 ## 0.8.0
 
 - **Portals / InstantPortals:** portals skip vanilla's fixed wait. You
