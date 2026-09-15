@@ -4,6 +4,13 @@
 
 - **Interface / Clock:** the in-game day and time under the minimap, in
   24-hour or 12-hour format.
+- **Production / AutoHarvest:** beehives, sap collectors and fermenters
+  near a player empty themselves into containers within `HarvestRadius`
+  (default 40 m), first into containers already holding that item, then
+  the nearest with room. Works with containers from storage mods, such as
+  ItemDrawers drawers. Output that fits nowhere stays in the producer; a
+  fermenter's batch goes into one container whole and is never split.
+  Server-controlled.
 
 ## 0.3.0
 

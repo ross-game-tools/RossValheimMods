@@ -65,6 +65,37 @@ to leave the box, or close the panel with Esc.
 
 Ridden creatures (a saddled lox, for example) are not brought along.
 
+## Production
+
+Server-controlled when connected.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `Enabled` | `true` | All production tweaks. |
+| `AutoHarvest` | `true` | Beehives, sap collectors and fermenters near a player empty themselves into nearby containers. |
+| `HarvestBeehives` | `true` | Include beehives. |
+| `HarvestSapCollectors` | `true` | Include sap collectors. |
+| `HarvestFermenters` | `true` | Include fermenters. A finished batch moves whole or not at all. |
+| `HarvestRadius` | `40` (metres) | How far from a producer to look for containers, 1 to 100. Measured in three dimensions. |
+| `HarvestInterval` | `10` (seconds) | Time between harvest attempts for each producer, 1 to 3600. |
+
+Output goes first into containers that already hold that item, then into
+the nearest container with room. Containers from storage mods count too:
+ItemDrawers drawers take only the item they hold, up to their capacity.
+Output that fits nowhere stays in the producer; a fermenter's batch goes
+into one container whole and is never split.
+
+Harvesting is done by the game of the player the producer belongs to at
+the moment, usually whoever is nearest, so a base empties only while
+someone is near it. Beehives and sap collectors fill up as normal while
+nobody is. A producer is harvested only while that player has ward
+access where it stands, the same as it would take to use it by hand.
+
+A container is used only if you could open it yourself: not private to
+someone else, not behind a ward you have no access to, and not open. A
+container another player's game is looking after is skipped until they
+leave the area.
+
 ## Startup
 
 | Setting | Default | What it does |

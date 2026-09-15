@@ -3,6 +3,7 @@ using RossQoL.Game.Combat;
 using RossQoL.Game.Crafting;
 using RossQoL.Game.Interface;
 using RossQoL.Game.Portals;
+using RossQoL.Game.Production;
 using RossQoL.Game.Startup;
 using RossQoL.Game.Terrain;
 
@@ -24,6 +25,8 @@ namespace RossQoL.Game.Framework
                 new ClockFeature()),
             new Category("Portals", "All portal tweaks.",
                 new TamesFollowFeature()),
+            new Category("Production", "All production tweaks.",
+                new AutoHarvestFeature()),
             new Category("Startup", "All startup and main menu tweaks.",
                 new ContinueButtonFeature(),
                 new SkipSplashFeature(),
