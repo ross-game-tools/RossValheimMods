@@ -68,8 +68,13 @@ to leave the box, or close the panel with Esc.
 | `TamesFollow` | `true` | Tames following you come through portals with you. |
 | `TameFollowRadius` | `20` (metres) | How close a following tame must be to come along. Measured in three dimensions. `0` brings nothing. |
 | `TameSearchDistance` | `6` (metres) | How far from your arrival point to look for a clear spot for each tame, before placing it at your own position. Lower it for tight portal huts. |
+| `InstantPortals` | `true` | Portals skip the fixed wait: you arrive as soon as the destination has loaded, instantly when it already is. Other teleports are unchanged. |
 
 Ridden creatures (a saddled lox, for example) are not brought along.
+
+With `InstantPortals`, a portal to somewhere already loaded, such as the
+other end of a portal hub, is instant. A far portal still shows the
+loading screen while the destination actually loads.
 
 ## Production
 

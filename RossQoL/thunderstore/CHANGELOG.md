@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0
+
+- **Portals / InstantPortals:** portals skip vanilla's fixed wait. You
+  arrive as soon as the destination has loaded, instantly when it already
+  is. Personal setting.
+
 ## 0.7.1
 
 - **Interface / Clock:** a thin dark outline keeps the clock readable over
