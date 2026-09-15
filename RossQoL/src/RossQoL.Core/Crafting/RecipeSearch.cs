@@ -22,6 +22,23 @@ namespace RossQoL.Core.Crafting
             return Normalize(displayName).IndexOf(needle, StringComparison.Ordinal) >= 0;
         }
 
+        /// <summary>
+        /// Matches the displayed name or any of the recipe's category words
+        /// (item type words and weapon skill), with the same rules.
+        /// </summary>
+        public static bool Matches(string displayName, System.Collections.Generic.IEnumerable<string> categoryWords, string term)
+        {
+            if (Matches(displayName, term)) return true;
+            if (categoryWords == null) return false;
+
+            string needle = Normalize(term);
+            foreach (string word in categoryWords)
+            {
+                if (word != null && Normalize(word).IndexOf(needle, StringComparison.Ordinal) >= 0) return true;
+            }
+            return false;
+        }
+
         private static string Normalize(string text)
         {
             if (string.IsNullOrEmpty(text)) return string.Empty;

@@ -92,18 +92,34 @@ namespace RossQoL.Game.Crafting
             if (s_field.text.Length > 0) s_field.SetTextWithoutNotify(string.Empty);
         }
 
-        /// <summary>The recipes whose displayed name matches, in their original order.</summary>
+        /// <summary>
+        /// The recipes whose displayed name or category words match, in their
+        /// original order. Category words: the item type's English words, and
+        /// for weapons, bows and tools the weapon skill's name in the game's
+        /// language.
+        /// </summary>
         public static List<Recipe> Filter(List<Recipe> recipes, string term)
         {
             s_filtered.Clear();
             foreach (var recipe in recipes)
             {
                 if (!recipe || !recipe.m_item) continue;
-                string name = Localization.instance.Localize(recipe.m_item.m_itemData.m_shared.m_name);
-                if (RecipeSearch.Matches(name, term)) s_filtered.Add(recipe);
+
+                var shared = recipe.m_item.m_itemData.m_shared;
+                string name = Localization.instance.Localize(shared.m_name);
+
+                s_words.Clear();
+                string itemType = shared.m_itemType.ToString();
+                s_words.AddRange(RecipeCategories.WordsFor(itemType));
+                if (RecipeCategories.HasSkillWord(itemType) && shared.m_skillType != Skills.SkillType.None)
+                    s_words.Add(Localization.instance.Localize("$skill_" + shared.m_skillType.ToString().ToLower()));
+
+                if (RecipeSearch.Matches(name, s_words, term)) s_filtered.Add(recipe);
             }
             return s_filtered;
         }
+
+        private static readonly List<string> s_words = new List<string>();
 
         private static bool EnsureCreated(InventoryGui gui)
         {

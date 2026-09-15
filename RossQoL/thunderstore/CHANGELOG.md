@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0
+
+- **Crafting / RecipeSearch:** the search box also finds recipes by type:
+  `armor`, `helmet`, `weapon`, `food` and more, or a weapon's skill such as
+  `axes` or `bows`.
+
 ## 0.6.1
 
 - **Portals / TamesFollow:** tames following you come through portals even
