@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.1
+
+- **Interface / Clock:** a thin dark outline keeps the clock readable over
+  bright backgrounds such as snow and sky.
+
 ## 0.7.0
 
 - **Crafting / RecipeSearch:** the search box also finds recipes by type:
