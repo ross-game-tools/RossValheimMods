@@ -4,6 +4,10 @@
 
 - **World / FloatingItems:** dropped items float on water instead of
   sinking, as wood does. Live fish are unchanged. Server-controlled.
+- **World / FastSleep:** sleeping is quicker. The night passes in
+  `SleepSkipSeconds` (default 2) instead of vanilla's 12, and the black
+  screen fades in `SleepFadeSeconds` (default 0.5) instead of 3.
+  Server-controlled.
 
 ## 0.8.0
 

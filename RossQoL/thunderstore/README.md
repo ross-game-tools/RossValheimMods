@@ -179,12 +179,20 @@ Server-controlled when connected.
 | `Enabled` | `true` | All world and item tweaks. |
 | `FloatingItems` | `true` | Dropped items float on water instead of sinking, as wood does. |
 | `FloatDepth` | `0.4` (metres) | How deep a floating item sits below the surface, 0 to 2. |
+| `FastSleep` | `true` | Sleeping is quicker: the night passes in `SleepSkipSeconds` and the black screen fades in `SleepFadeSeconds`. |
+| `SleepSkipSeconds` | `2` (seconds) | How long the night takes to pass while everyone sleeps, 0.1 to 12. Vanilla is 12. |
+| `SleepFadeSeconds` | `0.5` (seconds) | How long the screen takes to fade to black and back when sleeping, 0 to 3. Vanilla is 3. |
 
 Items get vanilla's own floating behaviour, so they bob, splash and ride
 waves like wood, and float in tar too. Live fish are left alone, so
 fishing works as normal; a fish you drop from your inventory floats like
 any other item. Items already lying on a seabed stay there until someone
 picks them up and drops them again.
+
+Sleeping keeps every vanilla rule: everyone must be in a bed, the same
+night passes, and you wake rested. Only the waiting is shorter, about 3
+seconds end to end instead of 18. The night is skipped by the server, so
+`SleepSkipSeconds` comes from the server you are on.
 
 ## Dependencies
 

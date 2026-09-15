@@ -12,6 +12,21 @@ namespace RossQoL.Game.Items
     public static class WorldConfig
     {
         public static ConfigEntry<float> FloatDepth;
+        public static ConfigEntry<float> SleepSkipSeconds;
+        public static ConfigEntry<float> SleepFadeSeconds;
+
+        internal static void BindSleep(ConfigFile config, string section, FeatureScope scope)
+        {
+            SleepSkipSeconds = config.Bind(section, "SleepSkipSeconds", 2f,
+                ConfigText.Description(
+                    "Seconds the night takes to pass while everyone sleeps. Vanilla is 12.",
+                    scope, requiresRestart: false, range: new AcceptableValueRange<float>(0.1f, 12f)));
+
+            SleepFadeSeconds = config.Bind(section, "SleepFadeSeconds", 0.5f,
+                ConfigText.Description(
+                    "Seconds the screen takes to fade to black and back when sleeping. Vanilla is 3.",
+                    scope, requiresRestart: false, range: new AcceptableValueRange<float>(0f, 3f)));
+        }
 
         internal static void Bind(ConfigFile config, string section, FeatureScope scope)
         {

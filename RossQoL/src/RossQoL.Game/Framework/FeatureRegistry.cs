@@ -41,7 +41,8 @@ namespace RossQoL.Game.Framework
             new Category("Terrain", "All terrain tweaks.",
                 new UnlimitedHeightFeature()),
             new Category("World", "All world and item tweaks.",
-                new FloatingItemsFeature()),
+                new FloatingItemsFeature(),
+                new FastSleepFeature()),
         };
     }
 }
