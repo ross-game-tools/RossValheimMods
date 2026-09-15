@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0
+
+- **Tames / FollowCommand:** every tamed creature can be told to follow or
+  stay by pressing Use on it, not just wolves. Server-controlled.
+
 ## 0.4.0
 
 - **Interface / Clock:** the in-game day and time under the minimap, in

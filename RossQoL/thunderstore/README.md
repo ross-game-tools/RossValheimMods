@@ -115,6 +115,20 @@ About Continue:
   when the game was launched with `+connect`, `-joincode` or
   `-joinserverwithcharacter`.
 
+## Tames
+
+Server-controlled when connected.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `Enabled` | `true` | All tame tweaks. |
+| `FollowCommand` | `true` | Every tamed creature can be told to follow you or stay, like a wolf: press Use on it to switch. Creatures vanilla already lets you command are unchanged. |
+
+A creature told to follow keeps following after you log out and back in,
+as a wolf does, even if `FollowCommand` is turned off in between; tell it
+to stay first. With Portals/TamesFollow, following tames come through
+portals with you.
+
 ## Terrain
 
 Server-controlled when connected.

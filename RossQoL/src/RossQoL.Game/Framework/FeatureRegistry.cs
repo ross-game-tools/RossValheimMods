@@ -5,6 +5,7 @@ using RossQoL.Game.Interface;
 using RossQoL.Game.Portals;
 using RossQoL.Game.Production;
 using RossQoL.Game.Startup;
+using RossQoL.Game.Tames;
 using RossQoL.Game.Terrain;
 
 namespace RossQoL.Game.Framework
@@ -31,6 +32,8 @@ namespace RossQoL.Game.Framework
                 new ContinueButtonFeature(),
                 new SkipSplashFeature(),
                 new SkipValkyrieFeature()),
+            new Category("Tames", "All tame tweaks.",
+                new FollowCommandFeature()),
             new Category("Terrain", "All terrain tweaks.",
                 new UnlimitedHeightFeature()),
         };
