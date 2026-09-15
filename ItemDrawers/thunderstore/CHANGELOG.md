@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.3
+
+- Fewer "Try again" refusals when taking items out. The mod was
+  refusing your own keypress for a second whenever its own housekeeping
+  touched a drawer, which needed no other player and so survived the
+  1.0.2 fix. Waiting now only happens when the drawer genuinely changed
+  hands with another player.
+
 ## 1.0.2
 
 - Fixed drawers becoming slow and unresponsive when more than one player

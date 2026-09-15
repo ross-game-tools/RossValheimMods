@@ -134,5 +134,46 @@ namespace ItemDrawers.Core.Tests
 
             return false;
         }
+
+        // MayWriteAfterOwnerChange: the wait exists only for a real handover.
+
+        [Fact]
+        public void A_handover_from_another_peer_is_waited_out()
+        {
+            Assert.False(ViewFlushPolicy.MayWriteAfterOwnerChange(
+                ownerRevisionAge: Settle - 0.01f, previousOwner: 77L, thisPeer: 42L));
+            Assert.True(ViewFlushPolicy.MayWriteAfterOwnerChange(
+                ownerRevisionAge: Settle, previousOwner: 77L, thisPeer: 42L));
+        }
+
+        [Fact]
+        public void Claiming_a_drawer_nobody_owned_needs_no_wait()
+        {
+            // Owner 0 means nobody held it, so nobody can have an absolute
+            // write already in flight.
+            Assert.True(ViewFlushPolicy.MayWriteAfterOwnerChange(
+                ownerRevisionAge: 0f, previousOwner: 0L, thisPeer: 42L));
+        }
+
+        [Fact]
+        public void Reclaiming_a_drawer_this_peer_already_owned_needs_no_wait()
+        {
+            // THE refusal players actually hit. ZDO.SetOwner bumps
+            // OwnerRevision even when this peer is the one claiming, so the
+            // mod's own bookkeeping restarted the clock and then refused the
+            // player's next keypress for a second -- with no other player
+            // involved at all.
+            Assert.True(ViewFlushPolicy.MayWriteAfterOwnerChange(
+                ownerRevisionAge: 0f, previousOwner: 42L, thisPeer: 42L));
+        }
+
+        [Fact]
+        public void A_handover_is_still_waited_out_however_recent()
+        {
+            // The narrowing must not weaken the case it exists for.
+            for (float age = 0f; age < Settle; age += 0.1f)
+                Assert.False(ViewFlushPolicy.MayWriteAfterOwnerChange(age, previousOwner: 9L, thisPeer: 42L),
+                    $"a handover at age {age} must still wait");
+        }
     }
 }

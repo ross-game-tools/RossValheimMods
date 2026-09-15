@@ -1557,6 +1557,17 @@ namespace ItemDrawers.Game
         private ushort _ownerRevisionSeen;
         private float _ownerRevisionSince;
 
+        // Who held the drawer immediately before the current revision.
+        // Recorded because the wait only guards a real HANDOVER -- another
+        // peer's absolute write may still be in flight. A claim from nobody
+        // (0), or this peer re-claiming what it already held, races nothing,
+        // and refusing those was refusing the player for the mod's own
+        // bookkeeping. See ViewFlushPolicy.MayWriteAfterOwnerChange.
+        private long _previousOwner;
+
+        /// <summary>The owner id matching _ownerRevisionSeen.</summary>
+        private long _ownerSeen;
+
         // This peer claimed the drawer to apply its current view change and
         // has not applied it yet. After such a claim is lost to someone
         // else, the claim is repeated only once the other owner has itself
@@ -1573,6 +1584,8 @@ namespace ItemDrawers.Game
         private void ResetOwnershipClock()
         {
             _ownerRevisionSeen = _view != null && _view.IsValid() ? _view.GetZDO().OwnerRevision : (ushort)0;
+            _ownerSeen = _view != null && _view.IsValid() ? _view.GetZDO().GetOwner() : 0L;
+            _previousOwner = _ownerSeen;
             _ownerRevisionSince = Time.time;
         }
 
@@ -1586,6 +1599,13 @@ namespace ItemDrawers.Game
                 // what separates "peers are fighting over this drawer" from
                 // "it simply belongs to someone else".
                 if (_ownerRevisionSeen != 0) DrawerDiagnostics.OwnershipChanges++;
+
+                // Captured BEFORE adopting the new revision: this is the
+                // owner being replaced, which is the one that might still be
+                // writing.
+                _previousOwner = _ownerSeen;
+                _ownerSeen = _view.GetZDO().GetOwner();
+
                 _ownerRevisionSeen = revision;
                 _ownerRevisionSince = Time.time;
             }
@@ -1612,8 +1632,14 @@ namespace ItemDrawers.Game
         }
 
         /// <summary>True when this peer owns the drawer and ownership has not changed for OwnershipSettleSeconds.</summary>
-        internal bool OwnershipSettled() =>
-            _view != null && _view.IsValid() && _view.IsOwner() && OwnerRevisionAge() >= OwnershipSettleSeconds;
+        internal bool OwnershipSettled()
+        {
+            if (_view == null || !_view.IsValid() || !_view.IsOwner()) return false;
+
+            // OwnerRevisionAge() first: it is what refreshes _previousOwner.
+            float age = OwnerRevisionAge();
+            return ViewFlushPolicy.MayWriteAfterOwnerChange(age, _previousOwner, ZDOMan.GetSessionID());
+        }
 
         /// <summary>
         /// Applies a change made through the view. Called from

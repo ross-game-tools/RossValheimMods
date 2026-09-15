@@ -48,6 +48,39 @@ namespace ItemDrawers.Core
         public const float ClaimRetrySeconds = SettleSeconds * 2f;
 
         /// <summary>
+        /// Whether this peer may write drawer state computed from a player's
+        /// own action.
+        ///
+        /// The wait exists for exactly one hazard: the PREVIOUS owner may
+        /// still be sending its own absolute Amount, sent before it saw the
+        /// ownership change. Two absolute writes crossing means one is
+        /// discarded, so items are lost or duplicated. Waiting longer than a
+        /// round trip removes the overlap.
+        ///
+        /// That hazard needs a previous owner who was actually writing, and
+        /// two common cases have none -- yet both used to be refused, because
+        /// the clock keys off OwnerRevision and ZDO.SetOwner bumps that even
+        /// when THIS peer is the one claiming:
+        ///
+        ///   previousOwner == 0        nobody held it, so nobody was writing.
+        ///   previousOwner == this peer  we already held it; a re-claim is
+        ///                               not a handover and races nothing.
+        ///
+        /// Both were refusing the player's own keypress for a second after
+        /// this mod's own bookkeeping touched the drawer -- no second player
+        /// needed, which is why "Try again" survived fixing the two-peer
+        /// livelock. Narrowing to a real handover keeps the protection where
+        /// the hazard is and drops it where it never was.
+        /// </summary>
+        public static bool MayWriteAfterOwnerChange(
+            float ownerRevisionAge, long previousOwner, long thisPeer)
+        {
+            if (previousOwner == 0L) return true;
+            if (previousOwner == thisPeer) return true;
+            return ownerRevisionAge >= SettleSeconds;
+        }
+
+        /// <summary>
         /// <paramref name="ownerRevisionAge"/> is seconds since this peer
         /// last saw ownership change. <paramref name="jitterSeconds"/> is a
         /// small per-peer offset so two peers do not stay in lockstep; pass
