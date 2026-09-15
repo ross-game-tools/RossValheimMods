@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.2
+
+- Fixed drawers becoming slow and unresponsive when more than one player
+  is nearby, with withdrawals frequently refused. Two clients could take
+  a drawer from each other indefinitely, so neither ever finished writing
+  and every attempt to take items out was turned away.
+
 ## 1.0.1
 
 - Hotbar keys no longer interact with a drawer that already has an item.

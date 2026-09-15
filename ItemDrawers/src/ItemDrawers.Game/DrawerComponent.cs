@@ -967,7 +967,10 @@ namespace ItemDrawers.Game
         internal void SendWithdrawRequestRpc(long id, long targetOwner, int requested)
         {
             if (_view != null && _view.IsValid())
+            {
+                DrawerDiagnostics.RequestSent(id, Time.time);
                 _view.InvokeRPC(targetOwner, RpcReqWithdraw, id, requested);
+            }
         }
 
         /// <summary>
@@ -1050,6 +1053,8 @@ namespace ItemDrawers.Game
         {
             var manager = DrawerManager.Instance;
             if (manager == null || !manager.TryCompleteWithdrawal(id, out var pending)) return;
+
+            DrawerDiagnostics.GrantReceived(id, Time.time);
 
             if (sender != pending.TargetOwner)
                 DrawerPlugin.Log.LogWarning(
@@ -1528,7 +1533,20 @@ namespace ItemDrawers.Game
         /// duplicated either way. Waiting removes the overlap instead of
         /// picking a winner.
         /// </summary>
-        internal const float OwnershipSettleSeconds = 1f;
+        internal const float OwnershipSettleSeconds = ViewFlushPolicy.SettleSeconds;
+
+        /// <summary>
+        /// Up to half a second of per-peer, per-drawer offset added to the
+        /// retry above, so two peers that started contending in the same
+        /// frame do not stay in lockstep. Derived from the session id and
+        /// the drawer's own id rather than random, so a peer's behaviour is
+        /// reproducible and two peers reliably differ.
+        /// </summary>
+        private float ClaimJitterSeconds()
+        {
+            long seed = ZDOMan.GetSessionID() ^ (_zdoId.UserID * 31L) ^ _zdoId.ID;
+            return (Mathf.Abs(seed % 500)) / 1000f;
+        }
 
         // Ownership continuity is tracked through the ZDO's OwnerRevision,
         // which increases on every owner change (local SetOwner or an
@@ -1564,6 +1582,10 @@ namespace ItemDrawers.Game
             ushort revision = _view.GetZDO().OwnerRevision;
             if (revision != _ownerRevisionSeen)
             {
+                // Counted, not just recorded: how often ownership moves is
+                // what separates "peers are fighting over this drawer" from
+                // "it simply belongs to someone else".
+                if (_ownerRevisionSeen != 0) DrawerDiagnostics.OwnershipChanges++;
                 _ownerRevisionSeen = revision;
                 _ownerRevisionSince = Time.time;
             }
@@ -1584,6 +1606,7 @@ namespace ItemDrawers.Game
         private bool RefuseWhileUnsettled(Player player)
         {
             if (_view == null || !_view.IsValid() || !_view.IsOwner() || OwnershipSettled()) return false;
+            DrawerDiagnostics.RefusedUnsettled++;
             player?.Message(MessageHud.MessageType.Center, CommitFailedMessage);
             return true;
         }
@@ -1639,24 +1662,33 @@ namespace ItemDrawers.Game
 
             var manager = DrawerManager.Instance;
 
-            if (!_view.IsOwner())
+            // The decision itself lives in Core (ViewFlushPolicy) so the
+            // two-peer behaviour can be simulated in tests. Observing it in
+            // game needs a second player on a server, which is how the
+            // livelock it now guards against survived to a release.
+            var action = ViewFlushPolicy.Decide(
+                isOwner: _view.IsOwner(),
+                ownerRevisionAge: OwnerRevisionAge(),
+                claimAlreadyMade: _viewClaimMade,
+                jitterSeconds: ClaimJitterSeconds());
+
+            switch (action)
             {
-                if (!_viewClaimMade || OwnerRevisionAge() >= OwnershipSettleSeconds)
-                {
+                case ViewFlushAction.Claim:
+                    DrawerDiagnostics.ClaimsMade++;
                     _view.ClaimOwnership();
                     _viewClaimMade = true;
-                }
-                manager?.MarkViewDirty(this);
-                return;
-            }
+                    manager?.MarkViewDirty(this);
+                    return;
 
-            if (!OwnershipSettled())
-            {
-                manager?.MarkViewDirty(this);
-                return;
-            }
+                case ViewFlushAction.Wait:
+                    manager?.MarkViewDirty(this);
+                    return;
 
-            ReconcileView();
+                default:
+                    ReconcileView();
+                    return;
+            }
         }
 
         /// <summary>Owner tick: a reconcile is due because the view's ZDO data needs one, or an earlier one was deferred until ownership settled.</summary>

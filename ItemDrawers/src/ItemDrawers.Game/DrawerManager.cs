@@ -503,6 +503,11 @@ namespace ItemDrawers.Game
         /// </summary>
         private static void GiveUpWithdrawal(long id, PendingWithdrawal payload)
         {
+            // A request that never came back: counted, and its timing entry
+            // dropped so an unanswered send cannot leak one.
+            DrawerDiagnostics.GrantsGivenUp++;
+            DrawerDiagnostics.RequestClosed(id);
+
             payload.Player?.Message(MessageHud.MessageType.Center, DrawerComponent.CommitFailedMessage);
         }
 

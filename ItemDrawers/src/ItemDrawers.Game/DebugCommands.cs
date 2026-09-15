@@ -228,6 +228,39 @@ namespace ItemDrawers.Game
                                 + $"dropPrefab={(it.m_dropPrefab != null ? it.m_dropPrefab.name : "NULL")} pos={it.m_gridPos}");
                     }
                 }, isCheat: true);
+
+            // Answers "why is pulling items out slow, and why does it keep
+            // saying try again" with counts rather than another theory.
+            // Play for a minute with other players nearby, then run this.
+            //
+            // Reading the numbers:
+            //   ownership changes high AND claims high -> this mod's own
+            //     view-flush claim cycle is trading the drawer between
+            //     peers, and nobody's ownership ever settles.
+            //   refusals high but claims ~0 -> ownership is churning for a
+            //     reason outside this mod.
+            //   requests high with a real mean latency -> ordinary round
+            //     trips; the drawer just belongs to another player.
+            new Terminal.ConsoleCommand("rid_diag",
+                "rid_diag [reset] - withdraw contention counters since the last reset",
+                args =>
+                {
+                    if (args.Length > 1 && args[1] == "reset")
+                    {
+                        DrawerDiagnostics.Reset();
+                        args.Context.AddString("rid_diag: counters reset");
+                        return;
+                    }
+
+                    args.Context.AddString($"refused (ownership unsettled) : {DrawerDiagnostics.RefusedUnsettled}");
+                    args.Context.AddString($"ownership changes seen       : {DrawerDiagnostics.OwnershipChanges}");
+                    args.Context.AddString($"claims made by this client   : {DrawerDiagnostics.ClaimsMade}");
+                    args.Context.AddString($"withdraw requests sent       : {DrawerDiagnostics.RequestsSent}");
+                    args.Context.AddString($"  granted                    : {DrawerDiagnostics.GrantsReceived}");
+                    args.Context.AddString($"  gave up                    : {DrawerDiagnostics.GrantsGivenUp}");
+                    args.Context.AddString($"  still outstanding          : {DrawerDiagnostics.OutstandingRequests}");
+                    args.Context.AddString($"grant latency mean/max ms    : {DrawerDiagnostics.MeanGrantLatencyMs:F0} / {DrawerDiagnostics.MaxGrantLatencyMs:F0}");
+                }, isCheat: true);
         }
     }
 }
