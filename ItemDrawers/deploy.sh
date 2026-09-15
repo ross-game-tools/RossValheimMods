@@ -42,3 +42,23 @@ done
 
 [ "$copied" -gt 0 ] || { echo "nothing to deploy -- did the build produce output?" >&2; exit 1; }
 echo "deployed $copied assemblies to profile '$PROFILE'"
+
+# A profile can end up with TWO copies of this plugin: the folder above,
+# written by this script, and an r2modman-installed "Ross-RossItemDrawers"
+# of a released version. BepInEx loads whichever declares the higher
+# version and logs only a mild "Skipping [ItemDrawers x] because a newer
+# version exists" -- so a test can silently exercise the released build
+# instead of the one just deployed, and nothing about the game says so.
+# That happened, and cost a session's worth of confusing results.
+#
+# Warn rather than delete: the other copy is r2modman's to manage, not
+# this script's.
+PLUGINS_ROOT="$(dirname "$DEST")"
+others=$(find "$PLUGINS_ROOT" -name "ItemDrawers.dll" -not -path "$DEST/*" 2>/dev/null)
+if [ -n "$others" ]; then
+    echo >&2
+    echo "WARNING: another copy of ItemDrawers.dll is installed in this profile:" >&2
+    echo "$others" | sed "s|^|  |" >&2
+    echo "BepInEx will load only the highest version, which may not be the one just deployed." >&2
+    echo "Remove it in r2modman (or disable that mod) before testing." >&2
+fi
