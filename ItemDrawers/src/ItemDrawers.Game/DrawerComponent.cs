@@ -925,14 +925,7 @@ namespace ItemDrawers.Game
 
             if (_view.IsOwner())
             {
-                // Nothing has been given yet, so a refusal costs nothing.
-                if (RefuseWhileUnsettled(player)) return;
-
-                var current = Snapshot;
-                var outcome = DrawerState.WithdrawExact(current, requested);
-                if (outcome.MovedToPlayer <= 0) return;
-                if (!WriteOwned(current, outcome.Result)) return;
-                ItemFacts.GiveToPlayer(player, current.ItemName, outcome.MovedToPlayer);
+                WithdrawAsOwner(player, requested);
                 return;
             }
 
@@ -942,10 +935,34 @@ namespace ItemDrawers.Game
             long targetOwner = _view.GetZDO().GetOwner();
             if (targetOwner == 0L)
             {
-                // See the class-level RPC comment on why 0 (no owner) is
-                // refused outright rather than sent: nothing was removed
-                // from the player yet for a withdrawal, so failing
-                // immediately costs nothing.
+                // Nobody owns this drawer, so take it and serve the player
+                // here. Sending to owner 0 is still forbidden -- ZRoutedRpc
+                // routes it as Everybody, which is the multi-owner
+                // double-apply that pinning exists to prevent -- but that is
+                // an argument against SENDING, not against claiming.
+                //
+                // This used to refuse outright, on the reasoning that
+                // nothing had been taken from the player yet so failing was
+                // free. It is not free: the player pressed a key and got
+                // "Try again" with no way to make it work, and on a server
+                // an untouched drawer sits at owner 0 routinely. It was the
+                // single largest source of that message, and it is invisible
+                // to the refusal counter because it is not a settle refusal.
+                //
+                // Claiming takes nothing from anyone (this is the same rule
+                // auto-pickup already uses for unowned drawers), and because
+                // the previous owner was 0 there is no in-flight write to
+                // wait for -- MayWriteAfterOwnerChange returns true
+                // immediately -- so the withdrawal completes in this frame.
+                DrawerDiagnostics.UnownedClaims++;
+                _view.ClaimOwnership();
+
+                if (_view.IsOwner())
+                {
+                    WithdrawAsOwner(player, requested);
+                    return;
+                }
+
                 player.Message(MessageHud.MessageType.Center, CommitFailedMessage);
                 return;
             }
@@ -955,6 +972,23 @@ namespace ItemDrawers.Game
                 drawerId: _zdoId, targetOwner: targetOwner, player: player,
                 requested: requested, playerPosition: player.transform.position));
             SendWithdrawRequestRpc(id, targetOwner, requested);
+        }
+
+        /// <summary>
+        /// The owner-side withdrawal: read, compute, write, hand over. Shared
+        /// by the already-owner path and the claim-an-unowned-drawer path, so
+        /// the two cannot drift.
+        /// </summary>
+        private void WithdrawAsOwner(Player player, int requested)
+        {
+            // Nothing has been given yet, so a refusal costs nothing.
+            if (RefuseWhileUnsettled(player)) return;
+
+            var current = Snapshot;
+            var outcome = DrawerState.WithdrawExact(current, requested);
+            if (outcome.MovedToPlayer <= 0) return;
+            if (!WriteOwned(current, outcome.Result)) return;
+            ItemFacts.GiveToPlayer(player, current.ItemName, outcome.MovedToPlayer);
         }
 
         /// <summary>
@@ -1627,6 +1661,22 @@ namespace ItemDrawers.Game
         {
             if (_view == null || !_view.IsValid() || !_view.IsOwner() || OwnershipSettled()) return false;
             DrawerDiagnostics.RefusedUnsettled++;
+
+            // Logged with the reason, not just counted. A refusal is what the
+            // player sees as "Try again", and it happens in the middle of
+            // play on a server -- expecting someone to notice it, open the
+            // console and run a command before it passes is expecting too
+            // much. This writes the three numbers that identify the cause to
+            // LogOutput.log, which is what actually reaches a bug report.
+            //
+            // Capped, because the failure this diagnoses is repetitive by
+            // nature and a per-keypress log line would bury the rest of the
+            // log. The cap is per session, and the counters stay exact
+            // regardless.
+            DrawerDiagnostics.LogRefusal(
+                previousOwner: _previousOwner,
+                thisPeer: ZDOMan.GetSessionID(),
+                ownerRevisionAge: OwnerRevisionAge());
             player?.Message(MessageHud.MessageType.Center, CommitFailedMessage);
             return true;
         }

@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.5
+
+- Fixed "Try again" when taking items from a drawer nobody had touched.
+  On a server a drawer commonly has no owner, and taking from one was
+  refused outright with no way for the player to make it work. It is now
+  claimed and served immediately.
+- A refused withdrawal now records why in the log, so the cause is
+  captured as it happens instead of needing to be caught live.
+  `rid_diag` also writes to the log, not just the console, so its output
+  can be attached to a report.
+
 ## 1.0.4
 
 - The `rid_diag` diagnostic command now works while connected to a

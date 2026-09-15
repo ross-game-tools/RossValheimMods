@@ -266,14 +266,27 @@ namespace ItemDrawers.Game
                         return;
                     }
 
-                    args.Context.AddString($"refused (ownership unsettled) : {DrawerDiagnostics.RefusedUnsettled}");
-                    args.Context.AddString($"ownership changes seen       : {DrawerDiagnostics.OwnershipChanges}");
-                    args.Context.AddString($"claims made by this client   : {DrawerDiagnostics.ClaimsMade}");
-                    args.Context.AddString($"withdraw requests sent       : {DrawerDiagnostics.RequestsSent}");
-                    args.Context.AddString($"  granted                    : {DrawerDiagnostics.GrantsReceived}");
-                    args.Context.AddString($"  gave up                    : {DrawerDiagnostics.GrantsGivenUp}");
-                    args.Context.AddString($"  still outstanding          : {DrawerDiagnostics.OutstandingRequests}");
-                    args.Context.AddString($"grant latency mean/max ms    : {DrawerDiagnostics.MeanGrantLatencyMs:F0} / {DrawerDiagnostics.MaxGrantLatencyMs:F0}");
+                    // Every line goes to BOTH the console and the BepInEx
+                    // log. Console-only output cannot be shared: a player who
+                    // reproduces the problem has the numbers on screen and no
+                    // way to hand them over, and LogOutput.log is what
+                    // actually gets attached to a report. This command's
+                    // first outing was lost exactly that way.
+                    void Line(string text)
+                    {
+                        args.Context.AddString(text);
+                        DrawerPlugin.Log.LogInfo("rid_diag: " + text);
+                    }
+
+                    Line($"refused (ownership unsettled) : {DrawerDiagnostics.RefusedUnsettled}");
+                    Line($"ownership changes seen       : {DrawerDiagnostics.OwnershipChanges}");
+                    Line($"claims made by this client   : {DrawerDiagnostics.ClaimsMade}");
+                    Line($"unowned drawers claimed     : {DrawerDiagnostics.UnownedClaims}");
+                    Line($"withdraw requests sent       : {DrawerDiagnostics.RequestsSent}");
+                    Line($"  granted                    : {DrawerDiagnostics.GrantsReceived}");
+                    Line($"  gave up                    : {DrawerDiagnostics.GrantsGivenUp}");
+                    Line($"  still outstanding          : {DrawerDiagnostics.OutstandingRequests}");
+                    Line($"grant latency mean/max ms    : {DrawerDiagnostics.MeanGrantLatencyMs:F0} / {DrawerDiagnostics.MaxGrantLatencyMs:F0}");
                 }, isCheat: false);
         }
     }

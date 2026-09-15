@@ -31,6 +31,9 @@ namespace ItemDrawers.Game
         public static int OwnershipChanges;
         public static int ClaimsMade;
         public static int RequestsSent;
+
+        /// <summary>Drawers claimed because nobody owned them, rather than refusing the player.</summary>
+        public static int UnownedClaims;
         public static int GrantsReceived;
         public static int GrantsGivenUp;
 
@@ -67,17 +70,46 @@ namespace ItemDrawers.Game
 
         public static int OutstandingRequests => _sentAt.Count;
 
+        /// <summary>How many refusals get a detailed log line before it goes quiet.</summary>
+        private const int RefusalLogLimit = 15;
+
+        private static int _refusalsLogged;
+
+        /// <summary>
+        /// Records why one refusal happened. The three values together name
+        /// the cause: a previous owner that is another peer is a genuine
+        /// handover and the wait is doing its job; 0 or this peer means the
+        /// wait is being applied where there is no in-flight write to guard
+        /// against.
+        /// </summary>
+        public static void LogRefusal(long previousOwner, long thisPeer, float ownerRevisionAge)
+        {
+            if (_refusalsLogged >= RefusalLogLimit) return;
+            _refusalsLogged++;
+
+            string who = previousOwner == 0L ? "nobody"
+                : previousOwner == thisPeer ? "this client"
+                : $"peer {previousOwner}";
+
+            DrawerPlugin.Log.LogInfo(
+                $"Withdraw refused ({RefusedUnsettled} so far): ownership came from {who} "
+                + $"{ownerRevisionAge:F2}s ago."
+                + (_refusalsLogged == RefusalLogLimit ? " Further refusals will not be logged; use rid_diag for totals." : ""));
+        }
+
         public static void Reset()
         {
             RefusedUnsettled = 0;
             OwnershipChanges = 0;
             ClaimsMade = 0;
             RequestsSent = 0;
+            UnownedClaims = 0;
             GrantsReceived = 0;
             GrantsGivenUp = 0;
             _grantLatencyTotalMs = 0.0;
             _grantLatencyMaxMs = 0.0;
             _sentAt.Clear();
+            _refusalsLogged = 0;
         }
     }
 }
