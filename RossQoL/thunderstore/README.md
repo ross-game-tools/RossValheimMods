@@ -123,11 +123,23 @@ Server-controlled when connected.
 |---|---|---|
 | `Enabled` | `true` | All tame tweaks. |
 | `FollowCommand` | `true` | Every tamed creature can be told to follow you or stay, like a wolf: press Use on it to switch. Creatures vanilla already lets you command are unchanged. |
+| `FeedFromContainers` | `true` | A hungry tame with no food on the ground near it eats one item it likes from a container within `FeedRadius`. Only creatures that are already tame. |
+| `FeedRadius` | `10` (metres) | How far from a hungry tame to look for food in containers, 1 to 50. Measured in three dimensions. |
+| `SilentBirths` | `true` | Tames give birth without the birth sound. The birth's other effects still play. |
 
 A creature told to follow keeps following after you log out and back in,
 as a wolf does, even if `FollowCommand` is turned off in between; tell it
 to stay first. With Portals/TamesFollow, following tames come through
 portals with you.
+
+A hungry tame looks for food on the ground first, as usual, and only then
+in the nearest container holding something it eats. It eats one item each
+time it would look for food, so it stays fed as it would from food on the
+ground. Containers follow the same rules as AutoHarvest: only ones you
+could open yourself, not open, and not being looked after by another
+player's game. Drawers count too. In multiplayer a tame is fed by the game
+of whoever is nearest to it, so it eats from containers near that player;
+a container someone else is standing by waits until they move away.
 
 ## Terrain
 

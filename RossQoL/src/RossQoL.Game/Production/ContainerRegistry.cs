@@ -18,7 +18,24 @@ namespace RossQoL.Game.Production
     internal static class ContainerRegistry
     {
         private static readonly List<Container> Containers = new List<Container>();
+
+        // Reference identity, not Unity's ==: a destroyed container stays the
+        // same key until pruned from both collections together.
+        private static readonly HashSet<Container> Known = new HashSet<Container>(ReferenceComparer.Instance);
         private static readonly Predicate<Container> IsDestroyed = c => c == null;
+
+        private sealed class ReferenceComparer : IEqualityComparer<Container>
+        {
+            public static readonly ReferenceComparer Instance = new ReferenceComparer();
+            public bool Equals(Container a, Container b) => ReferenceEquals(a, b);
+            public int GetHashCode(Container c) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(c);
+        }
+
+        private static void Prune()
+        {
+            Known.RemoveWhere(c => c == null);
+            Containers.RemoveAll(IsDestroyed);
+        }
 
         private const int PruneEvery = 64;
         private static int _addsSincePrune;
@@ -27,11 +44,15 @@ namespace RossQoL.Game.Production
         {
             if (!IsStatic(container)) return;
 
-            // Near prunes only while the feature is on; this keeps the list bounded while it stays off.
+            // Several features patch Container.Awake with the same registry
+            // postfix; a container is listed once however many ran.
+            if (!Known.Add(container)) return;
+
+            // Near prunes only while a feature queries it; this keeps the list bounded otherwise.
             if (++_addsSincePrune >= PruneEvery)
             {
                 _addsSincePrune = 0;
-                Containers.RemoveAll(IsDestroyed);
+                Prune();
             }
 
             Containers.Add(container);
@@ -54,13 +75,12 @@ namespace RossQoL.Game.Production
             return true;
         }
 
-        /// <summary>Containers within radius (3D) of point. Empty while AutoHarvest is off.</summary>
+        /// <summary>Containers within radius (3D) of point. Callers check their own feature is active.</summary>
         public static void Near(Vector3 point, float radius, List<Container> results)
         {
             results.Clear();
-            if (AutoHarvestFeature.Instance?.IsActive != true) return;
 
-            Containers.RemoveAll(IsDestroyed);
+            Prune();
 
             float limit = radius * radius;
             foreach (var container in Containers)
@@ -73,18 +93,18 @@ namespace RossQoL.Game.Production
     }
 
     /// <summary>
-    /// Registers every container as it wakes. Deliberately NOT gated on
-    /// AutoHarvest being active, the one patch in this feature that is not:
-    /// a server can switch the feature on after this client loaded a base,
-    /// and the harvester must then see containers that already existed.
-    /// Registering is one list add; ContainerRegistry.Near returns nothing
-    /// while the feature is off.
+    /// Registers every container as it wakes, for every feature that takes
+    /// from or puts into containers (AutoHarvest, FeedFromContainers); each
+    /// lists this patch. Deliberately NOT gated on a feature being active:
+    /// a server can switch a feature on after this client loaded a base,
+    /// and it must then see containers that already existed. Registering is
+    /// one list add; each feature checks it is active before querying.
     /// </summary>
     [HarmonyPatch(typeof(Container), nameof(Container.Awake))]
     internal static class ContainerAwakeRegistryPatch
     {
         private static bool Prepare() =>
-            ValheimCompat.RequireMethod(typeof(Container), nameof(Container.Awake), AutoHarvestFeature.FeatureName);
+            ValheimCompat.RequireMethod(typeof(Container), nameof(Container.Awake), "container registry");
 
         private static void Postfix(Container __instance)
         {
@@ -96,7 +116,7 @@ namespace RossQoL.Game.Production
             }
             catch (Exception ex)
             {
-                RossQoLPlugin.Log.LogError($"AutoHarvest: registering a container failed and it was skipped: {ex}");
+                RossQoLPlugin.Log.LogError($"Container registry: registering a container failed and it was skipped: {ex}");
             }
         }
     }

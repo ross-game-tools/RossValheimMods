@@ -152,8 +152,9 @@ namespace RossQoL.Game.Production
 
             foreach (var container in Nearby)
             {
-                if (!MayUse(container, playerId)) continue;
-                if (!IsFresh(container)) continue;
+                // Theft is stopped by the ward check at the producer, before anything is harvested.
+                if (!ContainerAccess.MayUse(container, playerId)) continue;
+                if (!ContainerAccess.IsFresh(container)) continue;
 
                 var inventory = container.GetInventory();
                 if (inventory == null) continue;
@@ -188,44 +189,6 @@ namespace RossQoL.Game.Production
             var plan = HarvestPlan.Plan(amount, unitSize, HarvestPlan.Rank(Candidates), wholeOnly);
             foreach (var placement in plan)
                 AddTo(Destinations[placement.Index], item, placement.Amount, cheated, maxStack, ref placed);
-        }
-
-        /// <summary>The same checks vanilla applies when the local player opens a container.</summary>
-        private static bool MayUse(Container container, long playerId)
-        {
-            if (container == null) return false;
-
-            var nview = container.m_nview;
-            if (nview == null || !nview.IsValid()) return false;
-            if (container.IsInUse()) return false;
-
-            // CheckAccess reads the Piece for anything but Public.
-            if (container.m_privacy != Container.PrivacySetting.Public && container.m_piece == null) return false;
-            if (!container.CheckAccess(playerId)) return false;
-
-            // As Container.Interact: the ward is checked only for containers that ask for it.
-            // Theft is stopped by the ward check at the producer, before anything is harvested.
-            return !container.m_checkGuardStone || PrivateArea.CheckAccess(container.transform.position, 0f, flash: false);
-        }
-
-        /// <summary>
-        /// Brings the container's local inventory up to its ZDO before room
-        /// is measured. Vanilla reloads a chest only in CheckForChanges, once
-        /// a second; a peer that just received ownership and newer data would
-        /// otherwise add into stale contents, and the Save that follows would
-        /// write that stale state back: items the previous owner took
-        /// duplicated, items it added lost.
-        ///
-        /// Load returns early while the container is in use; in-use
-        /// containers are already skipped by MayUse. Only an exact Container
-        /// must then match the ZDO's data revision: subclasses from storage
-        /// mods load in their own way and need not track m_lastRevision.
-        /// </summary>
-        private static bool IsFresh(Container container)
-        {
-            container.Load();
-            if (container.GetType() != typeof(Container)) return true;
-            return container.m_lastRevision == container.m_nview.GetZDO().DataRevision;
         }
 
         /// <summary>

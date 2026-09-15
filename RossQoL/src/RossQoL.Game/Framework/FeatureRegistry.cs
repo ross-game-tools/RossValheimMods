@@ -33,7 +33,9 @@ namespace RossQoL.Game.Framework
                 new SkipSplashFeature(),
                 new SkipValkyrieFeature()),
             new Category("Tames", "All tame tweaks.",
-                new FollowCommandFeature()),
+                new FollowCommandFeature(),
+                new FeedFromContainersFeature(),
+                new SilentBirthsFeature()),
             new Category("Terrain", "All terrain tweaks.",
                 new UnlimitedHeightFeature()),
         };

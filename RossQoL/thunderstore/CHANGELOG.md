@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0
+
+- **Tames / FeedFromContainers:** a hungry tame with no food on the ground
+  nearby eats from a container within `FeedRadius` (default 10 m), drawers
+  included. Only creatures that are already tame. Server-controlled.
+- **Tames / SilentBirths:** tames give birth without the birth sound.
+  Server-controlled.
+
 ## 0.5.0
 
 - **Tames / FollowCommand:** every tamed creature can be told to follow or
