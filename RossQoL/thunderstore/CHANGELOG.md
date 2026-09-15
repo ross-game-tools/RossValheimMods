@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.1
+
+- **Portals / TamesFollow:** tames following you come through portals even
+  when another player's game is looking after them, such as a tame someone
+  else tamed. Before, only the player whose game owned the tame could bring
+  it.
+
 ## 0.6.0
 
 - **Tames / FeedFromContainers:** a hungry tame with no food on the ground

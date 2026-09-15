@@ -65,8 +65,15 @@ namespace RossQoL.Game.Portals
                 var view = character.GetComponent<ZNetView>();
                 if (view == null || !view.IsValid()) continue;
 
+                // Tameable.Command is an RPC routed to the tame's owner, so
+                // only the owner's copy of the MonsterAI has a follow target.
+                // A tame another client owns (usually whoever tamed it, or is
+                // nearest) follows this player only as far as the ZDO's saved
+                // follow name, which the owner writes and every client has.
                 var ai = character.GetComponent<MonsterAI>();
-                bool followingMe = ai != null && ai.GetFollowTarget() == player.gameObject;
+                bool followingMe = ai != null
+                    && (ai.GetFollowTarget() == player.gameObject
+                        || view.GetZDO().GetString(ZDOVars.s_follow) == player.GetPlayerName());
 
                 candidates.Add(new TameCandidate(
                     position: ToVec3(character.transform.position),
