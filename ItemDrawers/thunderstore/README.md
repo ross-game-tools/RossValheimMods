@@ -23,7 +23,7 @@ Drawers are 0.66m cubes and snap to each other, so they tile into a wall.
 
 | Input | Effect |
 |---|---|
-| Use item from hotbar | Assign that item to an empty drawer, or deposit a stack into a matching one |
+| Use item from hotbar | Assign that item to an empty drawer. Once a drawer has an item, the hotbar no longer touches it |
 | `E` (Interact) | Take one stack |
 | `Ctrl+E` | Take one item |
 | `Ctrl+E` on an empty (zero-count) drawer | Unassign it, so it can hold something else |

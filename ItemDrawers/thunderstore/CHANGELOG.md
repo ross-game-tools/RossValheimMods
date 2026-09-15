@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.1
+
+- Hotbar keys no longer interact with a drawer that already has an item.
+  Selecting a matching item near one used to deposit the stack you were
+  holding without asking, and a mismatched item printed a message and
+  swallowed the keypress. The hotbar is now only for assigning an empty
+  drawer; Shift+E still stores everything matching that you carry.
+
 ## 1.0.0
 
 - Drawers are designed to work with mods that store items into

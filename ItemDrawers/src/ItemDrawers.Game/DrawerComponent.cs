@@ -647,6 +647,33 @@ namespace ItemDrawers.Game
             var player = user as Player;
             if (player == null || item == null) return false;
 
+            // Once a drawer has an item assigned, the hotbar stops talking
+            // to it at all: this returns FALSE so Valheim handles the key
+            // normally, rather than true, which claims the interaction.
+            //
+            // Assigning is the only thing the hotbar is needed for, and it
+            // can only happen once. After that, a number key aimed at a
+            // drawer was either a mistake or an attempt to equip something,
+            // and both previous outcomes were wrong: a mismatched item
+            // printed a message and swallowed the keypress, and -- worse --
+            // a MATCHING item silently deposited the stack you were holding.
+            // Walking past your own wood drawer while selecting wood took
+            // the wood out of your hands.
+            //
+            // Depositing is still available and still deliberate: Shift+E
+            // stores every matching item you carry. What is gone is the
+            // deposit you did not ask for.
+            //
+            // Placed ahead of the guards below on purpose. Those print
+            // messages and claim the keypress ("Drawers only hold stackable
+            // items", and the destroyed-drawer warning), which is right when
+            // the player is trying to ASSIGN something and wrong when they
+            // are just selecting a weapon near a drawer that is already
+            // full of nails. Snapshot degrades to an empty snapshot on an
+            // invalid view, so a broken drawer still falls through to those
+            // guards rather than being treated as assigned.
+            if (Snapshot.IsAssigned) return false;
+
             // Checked before anything is removed from the player, not just
             // inside Commit: if another player or a troll destroys this
             // drawer between the interaction starting and RemoveItem
@@ -690,20 +717,6 @@ namespace ItemDrawers.Game
             }
 
             var current = Snapshot;
-
-            // Rejected early, with the specific item named, rather than
-            // falling through to DrawerState.Deposit's generic "This drawer
-            // holds a different item" message. Same rule DrawerState.Deposit
-            // itself enforces (a mismatched item is refused either way);
-            // this only improves what the player is told and stops short of
-            // running the rest of the deposit path for a request that was
-            // never going to succeed.
-            if (current.IsAssigned && current.ItemName != itemName)
-            {
-                player.Message(MessageHud.MessageType.Center,
-                    $"This drawer holds {ItemFacts.LocalizedName(current.ItemName)}");
-                return true;
-            }
 
             var outcome = DrawerState.Deposit(current, Capacity, itemName, item.m_stack);
             if (!outcome.Accepted)
