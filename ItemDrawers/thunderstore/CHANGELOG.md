@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.4
+
+- The `rid_diag` diagnostic command now works while connected to a
+  dedicated server. It was gated behind developer commands, which
+  Valheim disables on clients connected to a server regardless of admin
+  status -- so it could not run in the situation it exists to diagnose.
+
 ## 1.0.3
 
 - Fewer "Try again" refusals when taking items out. The mod was

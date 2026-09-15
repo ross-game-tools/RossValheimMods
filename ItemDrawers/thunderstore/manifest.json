@@ -1,6 +1,6 @@
 {
   "name": "RossItemDrawers",
-  "version_number": "1.0.3",
+  "version_number": "1.0.4",
   "website_url": "https://github.com/ross-game-tools/RossValheimMods",
   "description": "A set of tiered item drawers that hold a large amount of a single item, display its quantity on the front, and pull in matching items dropped nearby",
   "dependencies": [

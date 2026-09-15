@@ -5,9 +5,12 @@ namespace ItemDrawers.Game
 {
     /// <summary>
     /// Console commands for measuring the wall the whole design exists to
-    /// support. Neither command is meant to ship active in a normal game --
-    /// both are registered isCheat: true, so they only run once a player has
-    /// enabled the developer console.
+    /// support. Most are registered isCheat: true, so they only run once a
+    /// player has enabled the developer console.
+    ///
+    /// rid_diag is the exception and is deliberately ungated -- see its own
+    /// comment. A cheat command cannot run on a client connected to a
+    /// dedicated server, which is the only place its counters mean anything.
     /// </summary>
     internal static class DebugCommands
     {
@@ -241,6 +244,17 @@ namespace ItemDrawers.Game
             //     reason outside this mod.
             //   requests high with a real mean latency -> ordinary round
             //     trips; the drawer just belongs to another player.
+            // NOT isCheat, unlike everything else here, and the reason is
+            // that a cheat command cannot run where this one is needed.
+            // Terminal.IsCheatsEnabled() is `m_cheat && ZNet.instance.IsServer()`,
+            // so on a client connected to a dedicated server it is always
+            // false -- being a server admin makes no difference. The
+            // contention this counts only happens with several players on a
+            // server, which is exactly the case a cheat gate excludes.
+            //
+            // Safe to leave open: it reports counters this client already
+            // collected and changes no game state. "reset" zeroes those
+            // counters and nothing else.
             new Terminal.ConsoleCommand("rid_diag",
                 "rid_diag [reset] - withdraw contention counters since the last reset",
                 args =>
@@ -260,7 +274,7 @@ namespace ItemDrawers.Game
                     args.Context.AddString($"  gave up                    : {DrawerDiagnostics.GrantsGivenUp}");
                     args.Context.AddString($"  still outstanding          : {DrawerDiagnostics.OutstandingRequests}");
                     args.Context.AddString($"grant latency mean/max ms    : {DrawerDiagnostics.MeanGrantLatencyMs:F0} / {DrawerDiagnostics.MaxGrantLatencyMs:F0}");
-                }, isCheat: true);
+                }, isCheat: false);
         }
     }
 }
