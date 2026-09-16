@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.10.0
+
+- **Interface / ProductionTimers:** beehives, sap collectors and fermenters
+  show how long until the next honey or sap, until they are full, and until
+  a batch is ready.
+- **Interface / PanCamera:** hold left Alt (`PanKey`) to look around with
+  the mouse without turning your character. Releasing it snaps the camera
+  back.
+- **Tames / QuietWolves:** tamed wolves stop howling. Wild wolves are
+  unchanged.
+- **World / AoeRepair:** repairing with the hammer also repairs every
+  damaged piece within `RepairRadius` (default 15 m) of the one you
+  clicked, for one swing's stamina and durability. Server-controlled.
+
 ## 0.9.0
 
 - **World / FloatingItems:** dropped items float on water instead of

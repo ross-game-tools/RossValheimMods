@@ -24,7 +24,9 @@ namespace RossQoL.Game.Framework
             new Category("Crafting", "All crafting station tweaks.",
                 new CraftingSearchFeature()),
             new Category("Interface", "All HUD and interface tweaks.",
-                new ClockFeature()),
+                new ClockFeature(),
+                new ProductionTimersFeature(),
+                new PanCameraFeature()),
             new Category("Portals", "All portal tweaks.",
                 new TamesFollowFeature(),
                 new InstantPortalsFeature()),
@@ -37,12 +39,14 @@ namespace RossQoL.Game.Framework
             new Category("Tames", "All tame tweaks.",
                 new FollowCommandFeature(),
                 new FeedFromContainersFeature(),
-                new SilentBirthsFeature()),
+                new SilentBirthsFeature(),
+                new QuietWolvesFeature()),
             new Category("Terrain", "All terrain tweaks.",
                 new UnlimitedHeightFeature()),
             new Category("World", "All world and item tweaks.",
                 new FloatingItemsFeature(),
-                new FastSleepFeature()),
+                new FastSleepFeature(),
+                new AoeRepairFeature()),
         };
     }
 }

@@ -14,6 +14,15 @@ namespace RossQoL.Game.Items
         public static ConfigEntry<float> FloatDepth;
         public static ConfigEntry<float> SleepSkipSeconds;
         public static ConfigEntry<float> SleepFadeSeconds;
+        public static ConfigEntry<float> RepairRadius;
+
+        internal static void BindRepair(ConfigFile config, string section, FeatureScope scope)
+        {
+            RepairRadius = config.Bind(section, "RepairRadius", 15f,
+                ConfigText.Description(
+                    "How far from the piece you repair, in metres, other damaged pieces are repaired too.",
+                    scope, requiresRestart: false, range: new AcceptableValueRange<float>(1f, 50f)));
+        }
 
         internal static void BindSleep(ConfigFile config, string section, FeatureScope scope)
         {

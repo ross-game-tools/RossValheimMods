@@ -59,6 +59,15 @@ to leave the box, or close the panel with Esc.
 | `Enabled` | `true` | All HUD and interface tweaks. |
 | `Clock` | `true` | Shows the in-game day and time under the minimap, e.g. `Day 42  14:30`. Midnight is 00:00, sunrise 06:00, sunset 18:00. Hidden whenever the minimap is, including on worlds without a map. |
 | `Clock24Hour` | `true` | 24-hour time. Off shows 12-hour time, e.g. `2:30 PM`. |
+| `ProductionTimers` | `true` | Beehives, sap collectors and fermenters show how long until the next honey or sap, until they are full, and until a batch is ready. |
+| `PanCamera` | `true` | Hold `PanKey` to look around with the mouse without turning your character. |
+| `PanKey` | `LeftAlt` | The key to hold for panning. |
+| `PanMaxPitch` | `70` (degrees) | How far up or down panning can look, 10 to 89. |
+
+Production countdowns are in real minutes and seconds, and read the same
+for everyone, not just the player the producer belongs to. They follow
+each producer's own rate, so a mod or server that changes how fast things
+produce is reflected.
 
 ## Portals
 
@@ -137,6 +146,7 @@ Server-controlled when connected.
 | `FeedFromContainers` | `true` | A hungry tame with no food on the ground near it eats one item it likes from a container within `FeedRadius`. Only creatures that are already tame. |
 | `FeedRadius` | `10` (metres) | How far from a hungry tame to look for food in containers, 1 to 50. Measured in three dimensions. |
 | `SilentBirths` | `true` | Tames give birth without the birth sound. The birth's other effects still play. |
+| `QuietWolves` | `true` | Tamed wolves stop howling. Wild wolves still howl, and other creatures keep their own sounds. |
 
 A creature told to follow keeps following after you log out and back in,
 as a wolf does, even if `FollowCommand` is turned off in between; tell it
@@ -182,12 +192,19 @@ Server-controlled when connected.
 | `FastSleep` | `true` | Sleeping is quicker: the night passes in `SleepSkipSeconds` and the black screen fades in `SleepFadeSeconds`. |
 | `SleepSkipSeconds` | `2` (seconds) | How long the night takes to pass while everyone sleeps, 0.1 to 12. Vanilla is 12. |
 | `SleepFadeSeconds` | `0.5` (seconds) | How long the screen takes to fade to black and back when sleeping, 0 to 3. Vanilla is 3. |
+| `AoeRepair` | `true` | Repairing with the hammer also repairs every damaged piece within `RepairRadius` of the one you clicked. |
+| `RepairRadius` | `15` (metres) | How far the hammer's repair reaches, 1 to 50. |
 
 Items get vanilla's own floating behaviour, so they bob, splash and ride
 waves like wood, and float in tar too. Live fish are left alone, so
 fishing works as normal; a fish you drop from your inventory floats like
 any other item. Items already lying on a seabed stay there until someone
 picks them up and drops them again.
+
+A hammer repair costs one swing of stamina and durability however many
+pieces it fixes. Pieces behind a ward you have no access to are skipped,
+and so are undamaged ones. A message says how many extra pieces were
+repaired.
 
 Sleeping keeps every vanilla rule: everyone must be in a bed, the same
 night passes, and you wake rested. Only the waiting is shorter, about 3
