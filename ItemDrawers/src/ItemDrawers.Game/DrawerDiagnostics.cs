@@ -34,6 +34,12 @@ namespace ItemDrawers.Game
 
         /// <summary>Drawers claimed because nobody owned them, rather than refusing the player.</summary>
         public static int UnownedClaims;
+
+        /// <summary>Withdrawals held for ownership to settle instead of refused.</summary>
+        public static int DeferredWithdraws;
+
+        /// <summary>View-flush claims postponed because a player was using the drawer.</summary>
+        public static int ClaimsHeldForPlayer;
         public static int GrantsReceived;
         public static int GrantsGivenUp;
 
@@ -104,6 +110,8 @@ namespace ItemDrawers.Game
             ClaimsMade = 0;
             RequestsSent = 0;
             UnownedClaims = 0;
+            DeferredWithdraws = 0;
+            ClaimsHeldForPlayer = 0;
             GrantsReceived = 0;
             GrantsGivenUp = 0;
             _grantLatencyTotalMs = 0.0;

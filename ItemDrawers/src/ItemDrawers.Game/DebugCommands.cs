@@ -282,6 +282,8 @@ namespace ItemDrawers.Game
                     Line($"ownership changes seen       : {DrawerDiagnostics.OwnershipChanges}");
                     Line($"claims made by this client   : {DrawerDiagnostics.ClaimsMade}");
                     Line($"unowned drawers claimed     : {DrawerDiagnostics.UnownedClaims}");
+                    Line($"withdrawals deferred        : {DrawerDiagnostics.DeferredWithdraws}");
+                    Line($"claims held for the player  : {DrawerDiagnostics.ClaimsHeldForPlayer}");
                     Line($"withdraw requests sent       : {DrawerDiagnostics.RequestsSent}");
                     Line($"  granted                    : {DrawerDiagnostics.GrantsReceived}");
                     Line($"  gave up                    : {DrawerDiagnostics.GrantsGivenUp}");

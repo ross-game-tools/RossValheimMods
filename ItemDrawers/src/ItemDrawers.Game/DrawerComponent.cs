@@ -604,6 +604,10 @@ namespace ItemDrawers.Game
             var player = user as Player;
             if (player == null) return false;
 
+            // Covers E, Ctrl+E and Shift+E in one place rather than each
+            // branch below, so a path added later cannot forget it.
+            NotePlayerAction();
+
             var current = Snapshot;
 
             bool ctrlHeld = ZInput.GetButton("Crouch");
@@ -646,6 +650,8 @@ namespace ItemDrawers.Game
         {
             var player = user as Player;
             if (player == null || item == null) return false;
+
+            NotePlayerAction();
 
             // Once a drawer has an item assigned, the hotbar stops talking
             // to it at all: this returns FALSE so Valheim handles the key
@@ -923,8 +929,42 @@ namespace ItemDrawers.Game
         {
             if (_view == null || !_view.IsValid() || requested <= 0) return;
 
+            // Also noted here, not only in Interact: the deferred retry
+            // re-enters through this method, and a retry is still the player
+            // waiting on their keypress.
+            NotePlayerAction();
+
             if (_view.IsOwner())
             {
+                // Ownership that has not settled does not mean "tell the
+                // player no". It means "not yet": the peer we took this
+                // drawer from may still have an absolute write in flight,
+                // and writing over it loses or duplicates items.
+                //
+                // The refusal used to be visible as "Try again" for an
+                // action the player was entitled to perform, and on a server
+                // it fires constantly for a reason of our own making --
+                // FlushView claims the drawer from the server whenever the
+                // view is dirty, which converts a working RPC withdrawal
+                // into a local one that is then refused. Logged instance:
+                // "ownership came from peer 3220881525 0.00s ago", i.e. our
+                // own claim in the same frame.
+                //
+                // Holding the request for the second it takes makes that
+                // invisible. The player only hears about it if ownership is
+                // still unsettled after DeferredWithdrawTimeout, which is no
+                // longer a momentary handover.
+                if (!OwnershipSettled())
+                {
+                    var pendingManager = DrawerManager.Instance;
+                    if (pendingManager != null)
+                    {
+                        DrawerDiagnostics.DeferredWithdraws++;
+                        pendingManager.DeferWithdraw(this, player, requested, DeferredWithdrawTimeout);
+                        return;
+                    }
+                }
+
                 WithdrawAsOwner(player, requested);
                 return;
             }
@@ -972,6 +1012,39 @@ namespace ItemDrawers.Game
                 drawerId: _zdoId, targetOwner: targetOwner, player: player,
                 requested: requested, playerPosition: player.transform.position));
             SendWithdrawRequestRpc(id, targetOwner, requested);
+        }
+
+        /// <summary>
+        /// How long a deferred withdrawal waits for ownership to settle
+        /// before the player is told it failed. Comfortably longer than the
+        /// settle interval itself, so an ordinary handover always completes
+        /// quietly; long enough to cover a second handover arriving during
+        /// the wait, short enough that a genuinely stuck drawer does not
+        /// leave the player staring at nothing.
+        /// </summary>
+        private const float DeferredWithdrawTimeout = 3f;
+
+        /// <summary>
+        /// Runs a withdrawal that was held while ownership settled. Returns
+        /// false while it still cannot run, so the caller keeps waiting.
+        /// </summary>
+        internal bool TryCompleteDeferredWithdraw(Player player, int requested)
+        {
+            if (_view == null || !_view.IsValid()) return true;   // drawer gone; stop waiting
+
+            // Ownership can move again while waiting. If it landed on someone
+            // else, the ordinary request path is now the right one and it is
+            // not a failure.
+            if (!_view.IsOwner())
+            {
+                RequestWithdraw(player, Snapshot.ItemName, requested);
+                return true;
+            }
+
+            if (!OwnershipSettled()) return false;
+
+            WithdrawAsOwner(player, requested);
+            return true;
         }
 
         /// <summary>
@@ -1599,6 +1672,35 @@ namespace ItemDrawers.Game
         // bookkeeping. See ViewFlushPolicy.MayWriteAfterOwnerChange.
         private long _previousOwner;
 
+        // When a player last acted on this drawer by hand. A view flush will
+        // not take ownership out from under them inside PlayerPriorityWindow
+        // of that -- see FlushView.
+        private float _lastPlayerActionAt = float.NegativeInfinity;
+
+        // When the view first wanted to claim and was held back, so a player
+        // who never stops interacting cannot starve the write forever.
+        private float _viewClaimHeldSince = float.NegativeInfinity;
+
+        /// <summary>
+        /// How long after a player's own interaction a background view flush
+        /// keeps its hands off this drawer.
+        ///
+        /// Longer than the settle interval, so a player acting repeatedly --
+        /// which is the normal way a drawer is used -- never runs into a
+        /// window this mod opened itself.
+        /// </summary>
+        private const float PlayerPriorityWindow = 2f;
+
+        /// <summary>
+        /// How long the view flush will be held back before it claims anyway.
+        /// The player's convenience does not outrank writing down a change
+        /// another mod already made; it only outranks doing it this instant.
+        /// </summary>
+        private const float ViewClaimHoldCap = 6f;
+
+        /// <summary>Called from every player-hand path, before anything else.</summary>
+        private void NotePlayerAction() => _lastPlayerActionAt = Time.time;
+
         /// <summary>The owner id matching _ownerRevisionSeen.</summary>
         private long _ownerSeen;
 
@@ -1747,6 +1849,34 @@ namespace ItemDrawers.Game
                 ownerRevisionAge: OwnerRevisionAge(),
                 claimAlreadyMade: _viewClaimMade,
                 jitterSeconds: ClaimJitterSeconds());
+
+            // A claim here is what creates the unsettled window that made
+            // withdrawals fail: taking the drawer from the server converts a
+            // withdrawal that would have gone over RPC into a local one that
+            // then has to wait. The change being flushed is real -- another
+            // mod moved items through the view -- but it is background work,
+            // and it does not have to happen in the same second the player is
+            // using the drawer.
+            //
+            // So the player wins the race by default, and the flush waits. It
+            // stays dirty and retries every frame, so nothing is dropped, and
+            // ViewClaimHoldCap stops a player who never stops interacting
+            // from starving it indefinitely.
+            if (action == ViewFlushAction.Claim && Time.time - _lastPlayerActionAt < PlayerPriorityWindow)
+            {
+                if (float.IsNegativeInfinity(_viewClaimHeldSince)) _viewClaimHeldSince = Time.time;
+
+                if (Time.time - _viewClaimHeldSince < ViewClaimHoldCap)
+                {
+                    DrawerDiagnostics.ClaimsHeldForPlayer++;
+                    manager?.MarkViewDirty(this);
+                    return;
+                }
+            }
+            else
+            {
+                _viewClaimHeldSince = float.NegativeInfinity;
+            }
 
             switch (action)
             {

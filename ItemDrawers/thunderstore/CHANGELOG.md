@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.6
+
+- Taking items from a drawer no longer says "Try again" on a server.
+  Background bookkeeping was taking the drawer over mid-use, which made
+  your next keypress fail; it now waits while you are using the drawer
+  instead. In the rare case the timing is still unlucky the request is
+  held and completed rather than refused.
+
 ## 1.0.5
 
 - Fixed "Try again" when taking items from a drawer nobody had touched.

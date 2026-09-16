@@ -83,6 +83,14 @@ namespace ItemDrawers.Game
         private readonly List<DrawerComponent> _all = new List<DrawerComponent>();
         private readonly HashSet<DrawerComponent> _dirty = new HashSet<DrawerComponent>();
 
+        // Player withdrawals waiting for ownership to settle. The wait is
+        // real -- the peer we just took the drawer from may have an absolute
+        // write in flight -- but failing the player for it is a choice, and
+        // the wrong one: they pressed a key and the drawer is theirs to use.
+        // Holding the request for the second it takes turns "Try again" into
+        // a short delay. See DrawerComponent.RequestWithdraw.
+        private readonly List<DeferredWithdraw> _deferredWithdraws = new List<DeferredWithdraw>();
+
         // Views another mod changed this frame; written to their ZDOs in
         // LateUpdate, once each, however many Inventory calls changed them.
         private readonly HashSet<DrawerComponent> _viewDirty = new HashSet<DrawerComponent>();
@@ -307,6 +315,7 @@ namespace ItemDrawers.Game
 
         private void Update()
         {
+            if (_deferredWithdraws.Count > 0) TickDeferredWithdraws();
             if (_dirty.Count > 0) FlushDirty();
 
             ReconcileViews();
@@ -594,6 +603,69 @@ namespace ItemDrawers.Game
                     drawer.Face.TryConfigureCountText();
 
                 drawer.RefreshFace();
+            }
+        }
+
+        /// <summary>
+        /// A player withdrawal held until the drawer's ownership settles.
+        /// </summary>
+        private struct DeferredWithdraw
+        {
+            public DrawerComponent Drawer;
+            public Player Player;
+            public int Requested;
+            public float Deadline;
+        }
+
+        /// <summary>
+        /// Queues a withdrawal to run as soon as ownership settles. Called
+        /// instead of refusing the player outright.
+        /// </summary>
+        internal void DeferWithdraw(DrawerComponent drawer, Player player, int requested, float timeoutSeconds)
+        {
+            if (drawer == null || player == null || requested <= 0) return;
+
+            // One deferral per drawer. A player holding the key down would
+            // otherwise queue a dozen withdrawals that all fire the instant
+            // ownership settles, emptying the drawer in one frame.
+            for (int i = 0; i < _deferredWithdraws.Count; i++)
+                if (_deferredWithdraws[i].Drawer == drawer) return;
+
+            _deferredWithdraws.Add(new DeferredWithdraw
+            {
+                Drawer = drawer,
+                Player = player,
+                Requested = requested,
+                Deadline = Time.time + timeoutSeconds,
+            });
+        }
+
+        private void TickDeferredWithdraws()
+        {
+            for (int i = _deferredWithdraws.Count - 1; i >= 0; i--)
+            {
+                var pending = _deferredWithdraws[i];
+
+                if (pending.Drawer == null || pending.Player == null)
+                {
+                    _deferredWithdraws.RemoveAt(i);
+                    continue;
+                }
+
+                if (pending.Drawer.TryCompleteDeferredWithdraw(pending.Player, pending.Requested))
+                {
+                    _deferredWithdraws.RemoveAt(i);
+                    continue;
+                }
+
+                // Only now does the player hear about it. Ownership that has
+                // not settled in this long is not a momentary handover, and
+                // silently dropping the request would be worse than saying so.
+                if (Time.time >= pending.Deadline)
+                {
+                    pending.Player.Message(MessageHud.MessageType.Center, DrawerComponent.CommitFailedMessage);
+                    _deferredWithdraws.RemoveAt(i);
+                }
             }
         }
 
