@@ -1,4 +1,12 @@
-# Changelog
+﻿# Changelog
+
+## 0.11.1
+
+- **Tames / QuietWolves:** tamed wolves owned by another player are quiet
+  too. A howl is a networked sound made by whichever client owns the wolf,
+  so silencing the idle timer only ever quieted this client's own wolves --
+  in multiplayer, usually none of them. The howl is now silenced as it is
+  played, which every client does for itself. Wild wolves still howl.
 
 ## 0.11.0
 

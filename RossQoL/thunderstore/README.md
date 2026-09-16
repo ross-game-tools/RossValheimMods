@@ -151,7 +151,7 @@ Server-controlled when connected.
 | `FeedFromContainers` | `true` | A hungry tame with no food on the ground near it eats one item it likes from a container within `FeedRadius`. Only creatures that are already tame. |
 | `FeedRadius` | `10` (metres) | How far from a hungry tame to look for food in containers, 1 to 50. Measured in three dimensions. |
 | `SilentBirths` | `true` | Tames give birth without the birth sound. The birth's other effects still play. |
-| `QuietWolves` | `true` | Tamed wolves stop howling. Wild wolves still howl, and other creatures keep their own sounds. |
+| `QuietWolves` | `true` | Tamed wolves stop howling, including wolves another player owns. Wild wolves still howl, and other creatures keep their own sounds. |
 
 A creature told to follow keeps following after you log out and back in,
 as a wolf does, even if `FollowCommand` is turned off in between; tell it

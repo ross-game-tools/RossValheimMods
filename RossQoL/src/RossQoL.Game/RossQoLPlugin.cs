@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -20,7 +20,7 @@ namespace RossQoL.Game
         // changing it silently resets everyone's settings to defaults.
         public const string PluginGuid = "com.rossdwest.rossqol";
         public const string PluginName = "RossQoL";
-        public const string PluginVersion = "0.11.0";
+        public const string PluginVersion = "0.11.1";
 
         internal static ManualLogSource Log;
         private Harmony _harmony;
