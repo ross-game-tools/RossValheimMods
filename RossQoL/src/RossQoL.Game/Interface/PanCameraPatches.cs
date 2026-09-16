@@ -33,7 +33,13 @@ namespace RossQoL.Game.Interface
         {
             float limit = PanCameraConfig.PanMaxPitch?.Value ?? 70f;
             Yaw += delta.x;
-            Pitch = Mathf.Clamp(Pitch + delta.y, -limit, limit);
+
+            // Pitch turns the camera about its right axis, where a positive
+            // angle looks DOWN, while the mouse reports up as positive. The
+            // two must be subtracted or panning comes out inverted. The
+            // game's own invert-mouse setting is applied before this, so a
+            // player who inverts the mouse still gets what they asked for.
+            Pitch = Mathf.Clamp(Pitch - delta.y, -limit, limit);
             Panning = true;
         }
 

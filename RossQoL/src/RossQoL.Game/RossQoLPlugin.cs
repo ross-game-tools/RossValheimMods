@@ -20,7 +20,7 @@ namespace RossQoL.Game
         // changing it silently resets everyone's settings to defaults.
         public const string PluginGuid = "com.rossdwest.rossqol";
         public const string PluginName = "RossQoL";
-        public const string PluginVersion = "0.11.1";
+        public const string PluginVersion = "0.12.0";
 
         internal static ManualLogSource Log;
         private Harmony _harmony;

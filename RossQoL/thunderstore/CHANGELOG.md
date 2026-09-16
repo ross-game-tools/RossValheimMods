@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.12.0
+
+- **Crafting / MultiCraft:** a number box and a second craft button sit above
+  the Craft button. Type how many you want and press it to make that many of
+  a stackable item at once, for the materials they all cost. The pair appears
+  only for recipes that stack, and is greyed out when you cannot afford the
+  amount typed; upgrades and items that do not stack are unchanged. The box
+  starts at `MultiCraftAmount`, default 10.
+- **Crafting / AutoRepair:** opening a crafting station repairs everything
+  that station can repair, with one sound and one message instead of a click
+  per item. A station still only mends what its own type and level allow, so
+  a workbench will not mend a bronze axe and a level 1 forge will not mend
+  what needs level 2. The repair button works as before.
+- **Interface / PanCamera:** panning up no longer looks down. Vertical
+  panning was inverted against the rest of the game; the game's own
+  invert-mouse setting still applies.
+
 ## 0.11.1
 
 - **Tames / QuietWolves:** tamed wolves owned by another player are quiet

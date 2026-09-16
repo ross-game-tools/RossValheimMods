@@ -41,6 +41,9 @@ twice alongside this.
 | `Enabled` | `true` | All crafting station tweaks. |
 | `RecipeSearch` | `true` | A search box above the crafting recipe list. Typing narrows the list to recipes whose name or type contains the text, ignoring case and spaces. Works on the Craft and Upgrade tabs; clears when the panel closes. |
 | `SearchAutoFocus` | `true` | Puts the cursor in the search box when you open a crafting station, so you can type straight away. Not for the plain inventory, or with a gamepad. |
+| `MultiCraft` | `true` | Adds a number box and a second craft button above the Craft button, for making many of a stackable item at once. Server-controlled. |
+| `MultiCraftAmount` | `10` | The number the box starts at, 2 to 100. Type any amount over it. |
+| `AutoRepair` | `true` | Opening a crafting station repairs everything it is able to repair, in one go. Server-controlled. |
 
 Besides names, you can search by type: `helmet`, `chest`, `legs`, `cape`,
 `armor`, `shield`, `utility`, `tool`, `torch`, `ammo`, `food`,
