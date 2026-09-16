@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.7
+
+- Drawers now play the build and repair effect other pieces do, in the
+  material they are faced with. Both were silent before.
+
 ## 1.0.6
 
 - Taking items from a drawer no longer says "Try again" on a server.

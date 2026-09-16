@@ -696,6 +696,29 @@ namespace ItemDrawers.Game
             piece.m_usage = Piece.UsageTagFlags.Furniture | Piece.UsageTagFlags.Storage;
             piece.m_comfort = 0;
 
+            // The effect played when the piece is built AND when it is
+            // repaired: Player.Repair calls hoveringPiece.m_placeEffect
+            // .Create(...), the same list, so one missing field silenced
+            // both. Piece initialises it to an EMPTY EffectList rather than
+            // null, so nothing threw and nothing logged -- the drawer just
+            // went up and got repaired in silence while every vanilla piece
+            // thumped and sparkled.
+            //
+            // Taken from the same donor the material comes from, so each
+            // tier sounds like what it is faced with: wood thuds, stone
+            // grinds, black marble rings. Guarded because a donor without a
+            // Piece would otherwise null the list and put us back where we
+            // started.
+            if (donorPiece != null && donorPiece.m_placeEffect != null)
+            {
+                piece.m_placeEffect = donorPiece.m_placeEffect;
+            }
+            else
+            {
+                DrawerPlugin.Log.LogWarning(
+                    $"{tier}: donor '{donor.name}' has no place effect; this drawer will build and repair silently.");
+            }
+
             var wear = go.AddComponent<WearNTear>();
             wear.m_health = tier == DrawerTier.Wood ? 200f : 400f;
             wear.m_noSupportWear = false;
