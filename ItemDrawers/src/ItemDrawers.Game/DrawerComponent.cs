@@ -570,34 +570,78 @@ namespace ItemDrawers.Game
         // ---------- player interaction ----------
 
         /// <summary>
-        /// Take-one is bound to Ctrl, not Alt, because Valheim 1.0 has no
-        /// Alt binding at all. `alt` here is sourced from the "AltPlace"
-        /// input action (decompiled from Player.Update:
-        /// <c>alt = ZInput.GetButton("AltPlace") || ZInput.GetButton("JoyAltPlace")</c>
-        /// on keyboard/mouse) -- "alternative placement", not the Alt key --
-        /// and the user's own registry confirms both
-        /// <c>kbmBinding_AltPlace</c> and <c>kbmBinding_Run</c> are bound to
-        /// <c>&lt;Keyboard&gt;/LeftShift</c>, the same physical key. There is
-        /// also no "Sneak" button in Valheim 1.0 at all (an earlier version
-        /// of this method checked that nonexistent name, which was always
-        /// false). Under default bindings `alt` and Shift are therefore the
-        /// same signal, and makail's original "Alt+Interact" was never
-        /// actually reading a distinct Alt key even in the original mod.
+        /// The modifier keys are read DIRECTLY, from this mod's own config,
+        /// not through Valheim's input actions.
         ///
-        /// Take-one is read directly via <c>ZInput.GetButton("Crouch")</c>
-        /// instead, which the same registry confirms is bound to
-        /// <c>&lt;Keyboard&gt;/LeftCtrl</c> by default -- a key genuinely
-        /// distinct from both Run and AltPlace. Reading the named button
-        /// rather than a raw KeyCode means a player who rebinds Crouch gets
-        /// the rebound key, the same way Shift here follows a rebound Run.
-        /// `alt` itself is now unused for this purpose.
+        /// They used to read ZInput.GetButton("Crouch") and ("Run"). That
+        /// followed a player's rebinds, which sounded like a courtesy and
+        /// was not: crouch and run are movement bindings with nothing to do
+        /// with storage, so someone who rebound them for movement reasons
+        /// found their drawers silently answering to different keys. The
+        /// binding is the drawer's, so the drawer owns it.
         ///
-        /// Ctrl and Shift are physically distinct keys, but a player can
-        /// still hold both at once, so the check order below is a
-        /// deliberate, defined choice rather than an accident of which
-        /// branch happens to run first: Ctrl (take one) wins over Shift
-        /// (deposit all) if both are held.
+        /// It also removes a trap worth recording. Take-one was never bound
+        /// to Alt, because Valheim 1.0 has no Alt binding: the `alt`
+        /// parameter of this method comes from the "AltPlace" action
+        /// (Player.Update: alt = ZInput.GetButton("AltPlace") ||
+        /// ZInput.GetButton("JoyAltPlace")) -- "alternative placement", not
+        /// the Alt key -- and by default AltPlace and Run are both bound to
+        /// LeftShift, the same physical key. makail's original
+        /// "Alt+Interact" was therefore never reading a distinct Alt key
+        /// even in the original mod. With direct keys none of that applies:
+        /// LeftAlt now means LeftAlt. `alt` remains unused here.
+        ///
+        /// Either key may be set to None to switch that action off. Both can
+        /// be held at once, so the order below is a defined choice rather
+        /// than an accident of which branch runs first: take-one wins over
+        /// deposit-all.
+        ///
+        /// Keyboard only. Valheim's input actions carry gamepad bindings and
+        /// a raw KeyCode does not, so a controller player loses these two
+        /// modifiers -- the plain Interact still works. That is the cost of
+        /// the binding being ours, and it is worth naming rather than
+        /// discovering.
         /// </summary>
+        /// <summary>
+        /// True when a configured key is held. A null entry (config not yet
+        /// bound) or KeyCode.None reads as not held, so a missing or
+        /// disabled binding degrades to "no modifier" rather than throwing
+        /// on a hot interaction path.
+        /// </summary>
+        /// <summary>
+        /// How a configured key is written in the hover text. Null when the
+        /// action is switched off, so the caller drops that line rather than
+        /// advertising a key that does nothing.
+        ///
+        /// The common modifiers get their familiar names -- a tooltip saying
+        /// "LeftControl+E" reads like a debug dump -- and anything else falls
+        /// back to the KeyCode name, which is exactly what the config file
+        /// holds, so an unusual binding shows the same word in both places.
+        /// </summary>
+        private static string KeyLabel(BepInEx.Configuration.ConfigEntry<KeyCode> entry)
+        {
+            if (entry == null || entry.Value == KeyCode.None) return null;
+
+            switch (entry.Value)
+            {
+                case KeyCode.LeftControl:
+                case KeyCode.RightControl: return "Ctrl";
+                case KeyCode.LeftShift:
+                case KeyCode.RightShift: return "Shift";
+                case KeyCode.LeftAlt:
+                case KeyCode.RightAlt: return "Alt";
+                default: return entry.Value.ToString();
+            }
+        }
+
+        private static bool KeyHeld(BepInEx.Configuration.ConfigEntry<KeyCode> entry)
+        {
+            if (entry == null) return false;
+
+            KeyCode key = entry.Value;
+            return key != KeyCode.None && Input.GetKey(key);
+        }
+
         public new bool Interact(Humanoid user, bool hold, bool alt)
         {
             if (hold) return false;
@@ -610,8 +654,8 @@ namespace ItemDrawers.Game
 
             var current = Snapshot;
 
-            bool ctrlHeld = ZInput.GetButton("Crouch");
-            bool shiftHeld = ZInput.GetButton("Run");
+            bool ctrlHeld = KeyHeld(DrawerConfig.TakeOneKey);
+            bool shiftHeld = KeyHeld(DrawerConfig.DepositAllKey);
 
             // Ctrl checked first: see this method's docstring for the
             // defined precedence when both modifiers are held.
@@ -2065,12 +2109,22 @@ namespace ItemDrawers.Game
             // The take lines are dropped at zero rather than shown as
             // no-ops: there is nothing to take, and offering the action is
             // what made this confusing in the first place.
-            string actions = s.Amount > 0
-                ? "[<color=yellow><b>E</b></color>] Take stack\n" +
-                  "[<color=yellow><b>Ctrl+E</b></color>] Take one\n" +
-                  "[<color=yellow><b>Shift+E</b></color>] Store all"
-                : "[<color=yellow><b>Ctrl+E</b></color>] Unassign\n" +
-                  "[<color=yellow><b>Shift+E</b></color>] Store all";
+            // Built from the configured keys rather than written out: the
+            // bindings are the player's to change now, and a tooltip naming
+            // keys they do not use is worse than none. An action switched
+            // off drops its line entirely instead of advertising a key that
+            // does nothing.
+            string takeOne = KeyLabel(DrawerConfig.TakeOneKey);
+            string depositAll = KeyLabel(DrawerConfig.DepositAllKey);
+
+            var lines = new List<string>(3);
+            if (s.Amount > 0) lines.Add("[<color=yellow><b>E</b></color>] Take stack");
+            if (takeOne != null)
+                lines.Add($"[<color=yellow><b>{takeOne}+E</b></color>] " + (s.Amount > 0 ? "Take one" : "Unassign"));
+            if (depositAll != null)
+                lines.Add($"[<color=yellow><b>{depositAll}+E</b></color>] Store all");
+
+            string actions = string.Join("\n", lines);
 
             return Localization.instance.Localize(
                 $"{label}  <color=orange>{s.Amount}</color>/{Capacity}\n" + actions);

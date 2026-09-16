@@ -53,8 +53,11 @@ Take-one is bound to Ctrl, not Alt as in makail's original scheme: Valheim
 original mod was always reading Valheim's "AltPlace" input action, which
 means "alternative placement" and is bound to Shift by default — the same
 key as "deposit all" above, which never actually gave the original mod a
-third distinct combination either. Ctrl is bound to Valheim's own "Crouch"
-action instead, a key genuinely distinct from Shift.
+third distinct combination either. The modifiers are this mod's own
+bindings, read directly and configurable under `[Controls]`, so LeftAlt
+now means the Alt key if you want it to. Keyboard only: a raw key carries
+no gamepad binding, so controller players keep plain Interact and lose the
+two modifiers.
 
 ## Building
 

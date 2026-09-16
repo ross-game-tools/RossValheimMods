@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using BepInEx.Configuration;
 using ItemDrawers.Core;
+using UnityEngine;
 using Jotunn.Managers;
 
 namespace ItemDrawers.Game
@@ -22,6 +23,8 @@ namespace ItemDrawers.Game
         public static ConfigEntry<float> PickupScanRange;
         public static ConfigEntry<float> PickupInterval;
         public static ConfigEntry<float> LabelDistance;
+        public static ConfigEntry<KeyCode> TakeOneKey;
+        public static ConfigEntry<KeyCode> DepositAllKey;
 
         private static readonly Dictionary<DrawerTier, ConfigEntry<string>> Recipes =
             new Dictionary<DrawerTier, ConfigEntry<string>>();
@@ -103,6 +106,30 @@ namespace ItemDrawers.Game
             PickupInterval = config.Bind("Pickup", "Interval", 0.5f,
                 new ConfigDescription("Seconds between pickup passes.",
                     null, new ConfigurationManagerAttributes { IsAdminOnly = true }));
+
+            // Held while interacting to take a single item, or to deposit
+            // everything matching. Real keys, not Valheim input actions.
+            //
+            // These used to read ZInput.GetButton("Crouch") and ("Run"),
+            // which meant the drawer's controls silently moved whenever a
+            // player rebound crouching or running -- two actions with
+            // nothing to do with storage, which people rebind for movement
+            // reasons and then find their drawers behaving differently.
+            // Reading the key directly makes the binding this mod's own, and
+            // configurable without touching Valheim's controls.
+            //
+            // Local, not admin-only: which key a player holds is theirs to
+            // choose and affects nobody else on the server.
+            //
+            // Set either to None to switch that action off; the plain E
+            // interaction is unaffected either way.
+            TakeOneKey = config.Bind("Controls", "TakeOneKey", KeyCode.LeftControl,
+                "Held with Interact to take a single item, or to unassign an empty drawer. "
+                + "A UnityEngine.KeyCode name, e.g. LeftControl, LeftAlt, C. None disables it.");
+
+            DepositAllKey = config.Bind("Controls", "DepositAllKey", KeyCode.LeftShift,
+                "Held with Interact to deposit every matching item you carry. "
+                + "A UnityEngine.KeyCode name, e.g. LeftShift, LeftAlt, V. None disables it.");
 
             // Purely a local display preference -- not admin-only, since a
             // client choosing when labels fade affects nobody else.

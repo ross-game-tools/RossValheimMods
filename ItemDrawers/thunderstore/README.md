@@ -29,8 +29,9 @@ Drawers are 0.66m cubes and snap to each other, so they tile into a wall.
 | `Ctrl+E` on an empty (zero-count) drawer | Unassign it, so it can hold something else |
 | `Shift+E` | Deposit every matching item in your inventory |
 
-`Ctrl` and `Shift` here are Valheim's Crouch and Run actions, so rebinding
-those in Valheim's settings rebinds these too.
+`Ctrl` and `Shift` are this mod's own bindings, not Valheim's. Change them
+under `[Controls]` in the config to any key you like, or set one to `None`
+to switch that action off. The hover text follows whatever you choose.
 
 ## Nearby items
 

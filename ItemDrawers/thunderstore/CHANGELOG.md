@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.8
+
+- The take-one and store-all keys are now the mod's own and configurable
+  under `[Controls]`, defaulting to Ctrl and Shift as before. They used
+  to borrow Valheim's crouch and run bindings, so rebinding those for
+  movement silently changed how drawers worked. Set either to `None` to
+  switch it off; the hover text follows your choice.
+
 ## 1.0.7
 
 - Drawers now play the build and repair effect other pieces do, in the
