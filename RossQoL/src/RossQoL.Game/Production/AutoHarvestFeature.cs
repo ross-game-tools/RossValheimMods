@@ -7,7 +7,7 @@ using RossQoL.Game.Framework;
 namespace RossQoL.Game.Production
 {
     /// <summary>
-    /// Beehives, sap collectors and fermenters empty themselves into nearby
+    /// Beehives, sap collectors, fermenters and windmills empty themselves into nearby
     /// containers. Runs on the client that owns each loaded producer, the
     /// peer vanilla already lets write it, so a base harvests while a
     /// player is near it.
@@ -28,7 +28,7 @@ namespace RossQoL.Game.Production
         public override FeatureScope Scope => FeatureScope.Synced;
 
         public override string Description =>
-            "Beehives, sap collectors and fermenters near a player empty themselves into containers within "
+            "Beehives, sap collectors, fermenters and windmills near a player empty themselves into containers within "
             + "HarvestRadius: first containers already holding that item, then the nearest with room. "
             + "Output that fits nowhere stays in the producer.";
 
@@ -38,6 +38,8 @@ namespace RossQoL.Game.Production
             typeof(BeehiveHarvestPatch),
             typeof(SapCollectorHarvestPatch),
             typeof(FermenterHarvestPatch),
+            typeof(WindmillHarvestPatch),
+            typeof(WindmillSpawnPatch),
         };
 
         public override IEnumerable<CompatMember> RequiredMembers => new[]
@@ -70,11 +72,18 @@ namespace RossQoL.Game.Production
             new CompatMember("Fermenter", "m_fermentationDuration", "knowing when a batch is ready"),
             new CompatMember("Fermenter", "GetItemConversion", "what a batch turns into"),
             new CompatMember("Fermenter", "m_outputPoint", "where an unplaced part of a batch drops"),
+            new CompatMember("Smelter", "UpdateSmelter", "the moment a windmill is emptied"),
+            new CompatMember("Smelter", "Spawn", "catching a windmill's flour before it drops"),
+            new CompatMember("Smelter", "m_windmill", "harvesting windmills and no other smelter"),
+            new CompatMember("Smelter", "m_nview", "harvesting only windmills this client owns"),
+            new CompatMember("Smelter", "GetItemConversion", "what a windmill's grain turns into"),
             new CompatMember("Game", "ScaleDrops", "matching vanilla's honey and sap per level"),
             new CompatMember("PlayerProfile", "s_bypassCheatChecks", "keeping vanilla's cheated flag on output"),
             new CompatMember("ZDOVars", "s_level", "reading and emptying beehives and sap collectors"),
             new CompatMember("ZDOVars", "s_content", "reading and emptying fermenters"),
             new CompatMember("ZDOVars", "s_startTime", "reading and emptying fermenters"),
+            new CompatMember("ZDOVars", "s_spawnOre", "reading and emptying windmills"),
+            new CompatMember("ZDOVars", "s_spawnAmount", "reading and emptying windmills"),
             new CompatMember("ZDOVars", "s_cheatedQueued", "keeping vanilla's cheated flag on output"),
             new CompatMember("ZDOVars", "s_cheated", "keeping vanilla's cheated flag on output"),
         };

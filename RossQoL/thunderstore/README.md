@@ -92,10 +92,11 @@ Server-controlled when connected.
 | Setting | Default | What it does |
 |---|---|---|
 | `Enabled` | `true` | All production tweaks. |
-| `AutoHarvest` | `true` | Beehives, sap collectors and fermenters near a player empty themselves into nearby containers. |
+| `AutoHarvest` | `true` | Beehives, sap collectors, fermenters and windmills near a player empty themselves into nearby containers. |
 | `HarvestBeehives` | `true` | Include beehives. |
 | `HarvestSapCollectors` | `true` | Include sap collectors. |
 | `HarvestFermenters` | `true` | Include fermenters. A finished batch moves whole or not at all. |
+| `HarvestWindmills` | `true` | Include windmills. Flour goes into a container as it is milled, instead of waiting to be emptied by hand. |
 | `HarvestRadius` | `40` (metres) | How far from a producer to look for containers, 1 to 100. Measured in three dimensions. |
 | `HarvestInterval` | `10` (seconds) | Time between harvest attempts for each producer, 1 to 3600. |
 
@@ -103,7 +104,11 @@ Output goes first into containers that already hold that item, then into
 the nearest container with room. Containers from storage mods count too:
 ItemDrawers drawers take only the item they hold, up to their capacity.
 Output that fits nowhere stays in the producer; a fermenter's batch goes
-into one container whole and is never split.
+into one container whole and is never split. A windmill's milled flour
+moves the same way, so it no longer has to be emptied by hand, and stays
+in the windmill when nothing nearby has room. Kilns, smelters, blast
+furnaces and spinning wheels are left alone and keep dropping their
+output on the ground.
 
 Harvesting is done by the game of the player the producer belongs to at
 the moment, usually whoever is nearest, so a base empties only while

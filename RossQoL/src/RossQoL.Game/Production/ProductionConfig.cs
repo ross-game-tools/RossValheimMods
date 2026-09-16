@@ -13,6 +13,7 @@ namespace RossQoL.Game.Production
         public static ConfigEntry<bool> HarvestBeehives;
         public static ConfigEntry<bool> HarvestSapCollectors;
         public static ConfigEntry<bool> HarvestFermenters;
+        public static ConfigEntry<bool> HarvestWindmills;
         public static ConfigEntry<float> HarvestRadius;
         public static ConfigEntry<float> HarvestInterval;
 
@@ -29,6 +30,11 @@ namespace RossQoL.Game.Production
             HarvestFermenters = config.Bind(section, "HarvestFermenters", true,
                 ConfigText.Description(
                     "Fermenters empty finished batches into nearby containers. A batch moves whole or not at all.",
+                    scope, requiresRestart: false));
+
+            HarvestWindmills = config.Bind(section, "HarvestWindmills", true,
+                ConfigText.Description(
+                    "Windmills put finished flour into nearby containers instead of dropping it. A stack moves whole or not at all.",
                     scope, requiresRestart: false));
 
             HarvestRadius = config.Bind(section, "HarvestRadius", 40f,

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.0
+
+- **Production / AutoHarvest:** windmills empty themselves into nearby
+  containers as they mill, instead of holding flour until someone empties
+  them by hand. Flour moves whole or not at all and stays in the windmill
+  when nothing nearby has room. Kilns, smelters, blast furnaces and
+  spinning wheels are unchanged. Turn it off with `HarvestWindmills`.
+
 ## 0.10.0
 
 - **Interface / ProductionTimers:** beehives, sap collectors and fermenters

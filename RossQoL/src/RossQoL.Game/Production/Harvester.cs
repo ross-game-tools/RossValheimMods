@@ -133,6 +133,18 @@ namespace RossQoL.Game.Production
         }
 
         /// <summary>
+        /// Places a producer's whole output stack into one nearby container.
+        /// The caller decides what to do when it does not all fit.
+        /// </summary>
+        /// <returns>How much landed: amount, or 0.</returns>
+        public static int PlaceWholeStack(ItemDrop item, int amount, bool cheated, Vector3 origin)
+        {
+            int placed = 0;
+            Place(item, amount, amount, wholeOnly: true, cheated, origin, ref placed);
+            return placed;
+        }
+
+        /// <summary>
         /// Plans and places output. placed grows as each container's add
         /// is counted, so a throw part-way still reports what landed.
         /// </summary>
