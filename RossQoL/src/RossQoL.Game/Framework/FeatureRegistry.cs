@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using RossQoL.Game.Combat;
 using RossQoL.Game.Crafting;
+using RossQoL.Game.Fires;
 using RossQoL.Game.Interface;
 using RossQoL.Game.Portals;
 using RossQoL.Game.Production;
@@ -29,11 +30,17 @@ namespace RossQoL.Game.Framework
                 new ClockFeature(),
                 new ProductionTimersFeature(),
                 new PanCameraFeature()),
+            new Category("Fires", "All fire tweaks.",
+                new FiresFeedFeature(),
+                new InfiniteFireFuelFeature()),
+            new Category("Items", "All item tweaks.",
+                new StackableMeadBasesFeature()),
             new Category("Portals", "All portal tweaks.",
                 new TamesFollowFeature(),
                 new InstantPortalsFeature()),
             new Category("Production", "All production tweaks.",
-                new AutoHarvestFeature()),
+                new AutoHarvestFeature(),
+                new AutoFeedFeature()),
             new Category("Startup", "All startup and main menu tweaks.",
                 new ContinueButtonFeature(),
                 new SkipSplashFeature(),

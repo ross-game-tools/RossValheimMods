@@ -6,37 +6,71 @@ using RossQoL.Game.Framework;
 
 namespace RossQoL.Game.Crafting
 {
-    /// <summary>Shared plumbing for the craft-many widgets.</summary>
-    internal static class MultiCraftPatches
-    {
-        private static MethodInfo s_craftPressed;
-
-        /// <summary>
-        /// Presses vanilla's own craft path. Private, so it is called by
-        /// reflection rather than copied: everything a craft does -- the timer,
-        /// the materials, the station effects, the skill, the inventory-full
-        /// check -- stays vanilla's.
-        /// </summary>
-        public static void InvokeCraftPressed(InventoryGui gui)
-        {
-            s_craftPressed = s_craftPressed ?? AccessTools.Method(typeof(InventoryGui), "OnCraftPressed");
-            if (s_craftPressed == null)
-                throw new InvalidOperationException("InventoryGui.OnCraftPressed not found");
-
-            s_craftPressed.Invoke(gui, null);
-        }
-    }
-
     /// <summary>
     /// UpdateRecipe runs every frame the crafting panel is open and is where
-    /// vanilla decides what the Craft button says and whether it is usable.
-    /// The postfix keeps the craft-many widgets in step with it.
+    /// vanilla decides what the Craft button says, what the requirement list
+    /// shows, and whether the button may be pressed. It reads
+    /// m_touchMultiCrafting -- the flag its own touch UI sets -- together with
+    /// m_multiCraftAmount to answer all three for a multi-craft.
+    ///
+    /// The prefix sets those two from the amount box before vanilla reads
+    /// them, so the button says "Craft x 12", the requirement list shows what
+    /// twelve cost, the button greys out when twelve is unaffordable, and
+    /// pressing it makes twelve. Nothing is reimplemented and nothing is drawn
+    /// over the ingredients.
+    ///
+    /// At an amount of 1 the flag stays off and the panel is vanilla's.
     /// </summary>
     [HarmonyPatch(typeof(InventoryGui), "UpdateRecipe")]
     internal static class MultiCraftSyncPatch
     {
+        /// <summary>Vanilla's own multi-craft amount, read before it is first changed.</summary>
+        private static int? _vanillaAmount;
+
+        /// <summary>
+        /// Whether the flag on the panel is ours. Vanilla clears it only when
+        /// a craft is pressed, so leaving it set would carry the amount to the
+        /// next recipe selected -- including one that does not stack, which
+        /// vanilla would then happily multi-craft.
+        /// </summary>
+        private static bool _armed;
+
         private static bool Prepare() =>
             ValheimCompat.RequireMethod(typeof(InventoryGui), "UpdateRecipe", MultiCraftFeature.FeatureName);
+
+        private static void Prefix(InventoryGui __instance)
+        {
+            try
+            {
+                _vanillaAmount = _vanillaAmount ?? __instance.m_multiCraftAmount;
+
+                bool apply = MultiCraftFeature.Instance?.IsActive == true
+                             && __instance.m_selectedRecipe.Recipe
+                             && MultiCraftBox.Allows(__instance)
+                             && MultiCraftBox.Amount > 1;
+
+                if (apply)
+                {
+                    __instance.m_multiCraftAmount = MultiCraftBox.Amount;
+                    __instance.m_touchMultiCrafting = true;
+                    _armed = true;
+                    return;
+                }
+
+                // Only ever disarm what this set: vanilla's own touch UI uses
+                // the same flag, and clearing it under that would swallow a
+                // multi-craft a player asked for.
+                if (!_armed) return;
+
+                __instance.m_touchMultiCrafting = false;
+                __instance.m_multiCraftAmount = _vanillaAmount.Value;
+                _armed = false;
+            }
+            catch (Exception ex)
+            {
+                RossQoLPlugin.Log.LogError($"MultiCraft: could not set the craft amount, leaving vanilla's: {ex}");
+            }
+        }
 
         private static void Postfix(InventoryGui __instance)
         {
@@ -47,7 +81,7 @@ namespace RossQoL.Game.Crafting
             }
             catch (Exception ex)
             {
-                RossQoLPlugin.Log.LogError($"MultiCraft: updating the craft box failed: {ex}");
+                RossQoLPlugin.Log.LogError($"MultiCraft: updating the amount box failed: {ex}");
             }
         }
     }
@@ -68,7 +102,7 @@ namespace RossQoL.Game.Crafting
             }
             catch (Exception ex)
             {
-                RossQoLPlugin.Log.LogError($"MultiCraft: releasing the craft box failed: {ex}");
+                RossQoLPlugin.Log.LogError($"MultiCraft: releasing the amount box failed: {ex}");
             }
         }
     }

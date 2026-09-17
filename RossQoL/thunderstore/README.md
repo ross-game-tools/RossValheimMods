@@ -41,8 +41,7 @@ twice alongside this.
 | `Enabled` | `true` | All crafting station tweaks. |
 | `RecipeSearch` | `true` | A search box above the crafting recipe list. Typing narrows the list to recipes whose name or type contains the text, ignoring case and spaces. Works on the Craft and Upgrade tabs; clears when the panel closes. |
 | `SearchAutoFocus` | `true` | Puts the cursor in the search box when you open a crafting station, so you can type straight away. Not for the plain inventory, or with a gamepad. |
-| `MultiCraft` | `true` | Adds a number box and a second craft button above the Craft button, for making many of a stackable item at once. Server-controlled. |
-| `MultiCraftAmount` | `10` | The number the box starts at, 2 to 100. Type any amount over it. |
+| `MultiCraft` | `true` | Adds a number box beside the Craft button; that button then makes as many as the box says, 1 to 100. Stackable items only. Server-controlled. |
 | `AutoRepair` | `true` | Opening a crafting station repairs everything it is able to repair, in one go. Server-controlled. |
 
 Besides names, you can search by type: `helmet`, `chest`, `legs`, `cape`,
@@ -54,6 +53,41 @@ like names, so `bow` also finds crossbows.
 While the search box has the cursor, game keys are ignored: E and Tab
 type letters instead of closing the panel. Press Enter or click elsewhere
 to leave the box, or close the panel with Esc.
+
+## Fires
+
+Server-controlled when connected.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `Enabled` | `true` | All fire tweaks. |
+| `AutoFeed` | `true` | Fire pits, hearths, standing and wall torches, braziers and bathtubs take fuel from nearby containers. |
+| `InfiniteFuel` | `true` | A fire at maximum fuel stops burning down and stays lit without spending more. |
+
+How far fires reach for fuel, how often they try, and how much wood they
+leave behind are the Production settings `FeedRadius`, `FeedInterval`,
+`MinimumLeftBehind` and `MinimumPerItem`, shared with the workshop so a
+reserve of wood is set in one place.
+
+A fire below maximum burns as it always did, so one that is never filled
+still goes out. Fires that are eternal in vanilla are left exactly as
+they are.
+
+## Items
+
+Server-controlled when connected.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `Enabled` | `true` | All item tweaks. |
+| `StackableMeadBases` | `true` | Mead bases stack instead of taking a slot each. Finished meads are unchanged. |
+| `MeadBaseStackSize` | `20` | How many mead bases fit in one slot, 1 to 100. |
+
+Stack sizes are written into saved items, so everyone in a world needs to
+agree on them: this is a server setting, and a player without the mod
+would see stacks their game does not expect. Unstack your mead bases
+before turning it off, or a stack larger than vanilla allows is left in
+your chest.
 
 ## Interface
 
@@ -102,6 +136,21 @@ Server-controlled when connected.
 | `HarvestWindmills` | `true` | Include windmills. Flour goes into a container as it is milled, instead of waiting to be emptied by hand. |
 | `HarvestRadius` | `40` (metres) | How far from a producer to look for containers, 1 to 100. Measured in three dimensions. |
 | `HarvestInterval` | `10` (seconds) | Time between harvest attempts for each producer, 1 to 3600. |
+| `AutoFeed` | `true` | Producers take what they need from nearby containers. |
+| `FeedSmelters` | `true` | Include smelters. |
+| `FeedKilns` | `true` | Include charcoal kilns. See `KilnFuel`. |
+| `FeedBlastFurnaces` | `true` | Include blast furnaces. |
+| `FeedWindmills` | `true` | Include windmills. |
+| `FeedSpinningWheels` | `true` | Include spinning wheels. |
+| `FeedOvens` | `true` | Include ovens. Fuel only; what to cook is still put in by hand. |
+| `FeedShieldGenerators` | `true` | Include shield generators. |
+| `FeedFermenters` | `true` | An empty fermenter takes a mead base and starts it. |
+| `FeedRadius` | `40` (metres) | How far from a producer to look for containers to take from, 1 to 100. Fires use this too. |
+| `FeedInterval` | `1` (second) | Time between feed attempts for each producer, 1 to 3600. One item moves per attempt, so this is also how fast a producer fills. Fires use this too. |
+| `MinimumLeftBehind` | `0` | How many of an item to leave across the containers near a producer. A total for the area, not per chest. |
+| `MinimumPerItem` | (empty) | Per-item totals overriding `MinimumLeftBehind`, e.g. `Wood:50, Barley:20`. |
+| `KilnFuel` | `Wood` | What a kiln may be fed, comma-separated. Empty allows anything it accepts. |
+| `MaxOutput` | (empty) | Stop feeding a producer once this many of what it makes sit in nearby containers, e.g. `Coal:200`. |
 
 Output goes first into containers that already hold that item, then into
 the nearest container with room. Containers from storage mods count too:

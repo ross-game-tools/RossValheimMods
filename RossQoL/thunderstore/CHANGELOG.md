@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.13.0
+
+- **Production / AutoFeed:** smelters, kilns, blast furnaces, windmills and
+  spinning wheels take ore and fuel from nearby containers; ovens and shield
+  generators take fuel; an empty fermenter takes a mead base and starts it.
+  One item moves per attempt and an attempt runs every second, so a producer
+  fills gradually and a container is never emptied in one go.
+  Everything is handed over with vanilla's own RPCs, one unit at a time, and
+  containers are used under the same rules as harvesting: ward access at the
+  producer, the container's privacy, fresh contents and settled ownership.
+  `MinimumLeftBehind` and `MinimumPerItem` keep a reserve across the chests
+  near a producer, counted as a total for the area rather than per chest,
+  `KilnFuel` limits what a kiln may burn (plain wood by default), and
+  `MaxOutput` stops a producer once you have enough of what it makes. Ore
+  into metal is never capped.
+- **Fires / AutoFeed:** fire pits, hearths, torches, braziers and bathtubs
+  take fuel from nearby containers, using the Production feed settings.
+- **Fires / InfiniteFuel:** a fire at maximum fuel stops burning down and
+  stays lit without spending more. Below maximum it burns as it always did.
+- **Crafting / MultiCraft:** the amount is now a box beside the Craft button
+  rather than a second button above it, which covered the ingredient list.
+  The Craft button itself makes as many as the box says, and vanilla's own
+  multi-craft path drives the label, the ingredient list and the greying-out,
+  so they all agree. The box starts at 1, so crafting is vanilla's until you
+  type a number, and the `MultiCraftAmount` setting is gone: the box is the
+  setting, and it is in front of you.
+- **Items / StackableMeadBases:** mead bases stack to `MeadBaseStackSize`
+  (20 by default) instead of taking a slot each. Unstack them before turning
+  it off.
+
 ## 0.12.0
 
 - **Crafting / MultiCraft:** a number box and a second craft button sit above
