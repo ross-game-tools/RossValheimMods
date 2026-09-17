@@ -9,7 +9,7 @@
   <PropertyGroup>
     <VALHEIM_INSTALL Condition="'$(VALHEIM_INSTALL)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Valheim</VALHEIM_INSTALL>
     <!--
-      JotunnLib on nuget.org (v2.30.0) ships lib/net462 only — no netstandard2.0/2.1
+      JotunnLib on nuget.org ships lib/net462 only — no netstandard2.0/2.1
       asset, so a netstandard2.1 project cannot restore it as a PackageReference (it
       is silently dropped, no compile error, no NU1701 warning). We reference the
       Jotunn.dll that is already installed for the dev profile directly instead.

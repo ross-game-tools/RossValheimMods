@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.9
+
+- Built and tested against Jotunn 2.30.1, which the dependency now asks for.
+  Nothing else changed.
+
 ## 1.0.8
 
 - The take-one and store-all keys are now the mod's own and configurable

@@ -318,4 +318,4 @@ seconds end to end instead of 18. The night is skipped by the server, so
 ## Dependencies
 
 - BepInEx 5.4.2350
-- Jotunn 2.30.0
+- Jotunn 2.30.1

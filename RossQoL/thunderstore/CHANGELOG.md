@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.17.1
+
+- Built and tested against Jotunn 2.30.1, which the dependency now asks for.
+  Nothing else changed.
+
 ## 0.17.0
 
 - **Tames / QuietChickens:** chicks and hens make no sound at all -- no

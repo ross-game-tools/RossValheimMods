@@ -29,7 +29,7 @@ namespace ItemDrawers.Game
 
                 // Preferred: Jotunn's own bundled TMP font, a supported API
                 // rather than a memory scrape. Verified by decompiling the
-                // deployed Jotunn 2.30.0 (Jotunn.Managers.GUIManager
+                // deployed Jotunn 2.30.1 (Jotunn.Managers.GUIManager
                 // declares `TMP_FontAsset TMP_AveriaSansLibre`, populated
                 // from Jotunn's own "jotunn" asset bundle inside
                 // GUIManager.InitializeAssets() -- not scraped from

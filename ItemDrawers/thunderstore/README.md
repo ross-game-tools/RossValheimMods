@@ -78,7 +78,7 @@ Every player and the server must run the same ItemDrawers version.
 ## Dependencies
 
 - BepInEx 5.4.2350
-- Jotunn 2.30.0
+- Jotunn 2.30.1
 
 ## Thanks
 

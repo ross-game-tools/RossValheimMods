@@ -70,7 +70,7 @@ is committed with a real value:
 - `JOTUNN_INSTALL` — the folder holding your installed `Jotunn.dll` (e.g. an
   r2modman profile's `BepInEx\plugins\ValheimModding-Jotunn`). This is a
   `HintPath` reference rather than a `PackageReference` because JotunnLib
-  2.30.0 on nuget.org ships `lib/net462` only, with no netstandard asset — a
+  on nuget.org ships `lib/net462` only, with no netstandard asset — a
   netstandard2.1 project restores it with zero usable references and no
   warning to explain why.
 
