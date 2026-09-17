@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.17.3
+
+- **Tames / QuietChickens:** the mating sound is quiet too. It is named
+  "fx_hen_love" rather than anything with "sfx_chicken" in it, so the name
+  check that silenced the rest of the bird never caught it; a sound is now
+  a bird's either by its own name or by hanging under a Hen or a Chicken.
+
 ## 0.17.2
 
 - **Crafting / CraftFromChests:** every requirement row now reads

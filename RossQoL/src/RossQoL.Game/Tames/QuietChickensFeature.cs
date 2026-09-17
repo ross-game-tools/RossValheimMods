@@ -7,8 +7,8 @@ namespace RossQoL.Game.Tames
 {
     /// <summary>
     /// Chicks and hens make no sound at all: no peeping, wing flapping,
-    /// clucking, pecking, footsteps, hurt or death. Every other creature is
-    /// unchanged.
+    /// clucking, pecking, mating, footsteps, hurt or death. Every other
+    /// creature is unchanged.
     ///
     /// Client scope: the sound is silenced as this machine plays it, so it
     /// changes only what this player hears, and it works the same for birds
@@ -27,8 +27,8 @@ namespace RossQoL.Game.Tames
         public override FeatureScope Scope => FeatureScope.Client;
 
         public override string Description =>
-            "Chicks and hens make no sound: no peeping, clucking, wing flapping, pecking, footsteps, hurt or "
-            + "death. Other creatures keep their own sounds.";
+            "Chicks and hens make no sound: no peeping, clucking, wing flapping, pecking, mating, footsteps, "
+            + "hurt or death. Other creatures keep their own sounds.";
 
         public override IEnumerable<Type> PatchClasses => new[] { typeof(QuietChickensPatch) };
 
