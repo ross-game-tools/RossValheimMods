@@ -36,7 +36,8 @@ namespace RossQoL.Game.Framework
                 new FiresFeedFeature(),
                 new InfiniteFireFuelFeature()),
             new Category("Items", "All item tweaks.",
-                new StackableMeadBasesFeature()),
+                new StackableMeadBasesFeature(),
+                new WisplightCarryFeature()),
             new Category("Portals", "All portal tweaks.",
                 new TamesFollowFeature(),
                 new InstantPortalsFeature()),
@@ -44,7 +45,8 @@ namespace RossQoL.Game.Framework
                 new AutoHarvestFeature(),
                 new AutoFeedFeature()),
             new Category("Progression", "All boss progression tweaks.",
-                new TeleportUnlocksFeature()),
+                new TeleportUnlocksFeature(),
+                new ClearMistFeature()),
             new Category("Startup", "All startup and main menu tweaks.",
                 new ContinueButtonFeature(),
                 new SkipSplashFeature(),
@@ -59,7 +61,8 @@ namespace RossQoL.Game.Framework
             new Category("World", "All world and item tweaks.",
                 new FloatingItemsFeature(),
                 new FastSleepFeature(),
-                new AoeRepairFeature()),
+                new AoeRepairFeature(),
+                new ComfortRangeFeature()),
         };
     }
 }

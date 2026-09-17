@@ -48,6 +48,11 @@
       <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- ParticleSystem, the type of MistEmitter.m_psystem. -->
+    <Reference Include="UnityEngine.ParticleSystemModule">
+      <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\UnityEngine.ParticleSystemModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <!-- GuiUtils and Localize live in assembly_guiutils, not assembly_valheim. -->
     <Reference Include="assembly_guiutils">
       <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\assembly_guiutils.dll</HintPath>

@@ -86,6 +86,7 @@ Server-controlled when connected.
 | `Enabled` | `true` | All item tweaks. |
 | `StackableMeadBases` | `true` | Mead bases and barley wine bases stack instead of taking a slot each. Finished drinks are unchanged. |
 | `MeadBaseStackSize` | `20` | How many bases fit in one slot, 1 to 100. |
+| `WisplightCarry` | `true` | A wisplight in your inventory works exactly as if equipped -- wisp, light and mist -- without using the utility slot. |
 
 Stack sizes are written into saved items, so everyone in a world needs to
 agree on them: this is a server setting, and a player without the mod
@@ -185,6 +186,7 @@ Server-controlled when connected.
 |---|---|---|
 | `Enabled` | `true` | All boss progression tweaks. |
 | `TeleportUnlocks` | `true` | Metal and ore may go through a portal once the boss of its biome is dead. |
+| `ClearMist` | `true` | Killing the Queen clears the mist from the Mistlands. |
 
 Each biome answers for itself: the Elder frees copper, tin and bronze;
 Bonemass frees iron; Moder frees silver; Yagluth frees black metal. Those
@@ -274,6 +276,8 @@ Server-controlled when connected.
 | `SleepSkipSeconds` | `2` (seconds) | How long the night takes to pass while everyone sleeps, 0.1 to 12. Vanilla is 12. |
 | `SleepFadeSeconds` | `0.5` (seconds) | How long the screen takes to fade to black and back when sleeping, 0 to 3. Vanilla is 3. |
 | `AoeRepair` | `true` | Repairing with the hammer also repairs every damaged piece within `RepairRadius` of the one you clicked. |
+| `ComfortRange` | `true` | Furniture counts toward comfort from further away. Server-controlled. |
+| `ComfortRadius` | `20` (metres) | How far from you furniture still counts toward comfort, 5 to 100. Vanilla is 10. |
 | `RepairRadius` | `15` (metres) | How far the hammer's repair reaches, 1 to 50. |
 
 Items get vanilla's own floating behaviour, so they bob, splash and ride

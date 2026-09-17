@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.15.0
+
+- **Items / WisplightCarry:** a wisplight in your inventory works exactly as
+  if it were equipped -- the wisp circling you, its light and the mist it
+  pushes back -- without costing you the utility slot, so it never competes
+  with the Megingjord. It is not an imitation: everything the equipped
+  wisplight does comes from the item's own equip status effect, and that is
+  what this grants.
+
+- **World / ComfortRange:** furniture counts toward comfort from
+  `ComfortRadius` metres away, 20 by default, instead of vanilla's 10. Which
+  pieces count, how duplicates collapse and the need to be under shelter are
+  all unchanged -- vanilla does the same work on a longer list.
+
+- **Progression / ClearMist:** killing the Queen clears the mist from the
+  Mistlands. Emitters stop through vanilla's own switch and the mist already
+  in the air is cleared; nothing is destroyed and nothing is written to the
+  world, so turning it off brings the mist straight back. Wisplights are
+  unchanged and still worth carrying underground.
+
 ## 0.14.0
 
 - **Items / StackableMeadBases:** barley wine bases stack too, not just mead

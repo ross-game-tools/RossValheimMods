@@ -15,6 +15,15 @@ namespace RossQoL.Game.Items
         public static ConfigEntry<float> SleepSkipSeconds;
         public static ConfigEntry<float> SleepFadeSeconds;
         public static ConfigEntry<float> RepairRadius;
+        public static ConfigEntry<float> ComfortRadius;
+
+        internal static void BindComfort(ConfigFile config, string section, FeatureScope scope)
+        {
+            ComfortRadius = config.Bind(section, "ComfortRadius", 20f,
+                ConfigText.Description(
+                    "How far from you, in metres, furniture still counts toward comfort. Vanilla is 10.",
+                    scope, requiresRestart: false, range: new AcceptableValueRange<float>(5f, 100f)));
+        }
 
         internal static void BindRepair(ConfigFile config, string section, FeatureScope scope)
         {
