@@ -5,6 +5,7 @@ using RossQoL.Game.Fires;
 using RossQoL.Game.Interface;
 using RossQoL.Game.Portals;
 using RossQoL.Game.Production;
+using RossQoL.Game.Progression;
 using RossQoL.Game.Startup;
 using RossQoL.Game.Tames;
 using RossQoL.Game.Items;
@@ -25,7 +26,8 @@ namespace RossQoL.Game.Framework
             new Category("Crafting", "All crafting station tweaks.",
                 new CraftingSearchFeature(),
                 new MultiCraftFeature(),
-                new AutoRepairFeature()),
+                new AutoRepairFeature(),
+                new BenchRangeFeature()),
             new Category("Interface", "All HUD and interface tweaks.",
                 new ClockFeature(),
                 new ProductionTimersFeature(),
@@ -41,6 +43,8 @@ namespace RossQoL.Game.Framework
             new Category("Production", "All production tweaks.",
                 new AutoHarvestFeature(),
                 new AutoFeedFeature()),
+            new Category("Progression", "All boss progression tweaks.",
+                new TeleportUnlocksFeature()),
             new Category("Startup", "All startup and main menu tweaks.",
                 new ContinueButtonFeature(),
                 new SkipSplashFeature(),

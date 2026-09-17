@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.14.0
+
+- **Items / StackableMeadBases:** barley wine bases stack too, not just mead
+  bases. They are a fermenter input under another name, and were the one
+  brewing item still taking a slot each.
+
+- **Crafting / BenchRange:** crafting stations reach `BuildRange` metres
+  instead of vanilla's 10, with `BuildRangePerType` for stations that want
+  their own radius and `ExtensionRange` for how far attachments may sit from
+  their station. Switching it off puts every station back to the range its
+  prefab shipped with.
+- **Progression / TeleportUnlocks:** metal and ore may go through a portal
+  once you have killed the boss of the biome it comes from -- the Elder for
+  copper and tin, Bonemass for iron, Moder for silver, Yagluth for black
+  metal. Per biome, not cumulative: a later boss says nothing about an
+  earlier biome. Nothing is written into saved items, so turning it off
+  simply refuses the ore again.
+- The startup compatibility check no longer fills the console with HarmonyX
+  warnings. It asks whether each Valheim member it depends on still exists by
+  trying field, then property, then method, and AccessTools logs every miss --
+  so each method it confirmed cost two warnings, 236 of them on a full load.
+  It now asks through plain reflection, which is quiet. Nothing about the
+  check itself changes: a member that really is missing is still reported as
+  an error naming the feature.
+
 ## 0.13.1
 
 - **Crafting / MultiCraft:** typing an amount now makes that many, instead of

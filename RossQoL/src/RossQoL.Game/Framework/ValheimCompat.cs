@@ -38,21 +38,36 @@ namespace RossQoL.Game.Framework
             return missing;
         }
 
+        /// <summary>
+        /// Plain reflection rather than AccessTools: AccessTools writes a
+        /// warning to the console every time a lookup misses, and this check
+        /// misses on purpose -- it asks "field? property? event? method?" in
+        /// turn, so every method it confirms cost two warnings. Reflection
+        /// returns null quietly.
+        ///
+        /// Walks the base types itself, which is the part AccessTools was
+        /// doing for us: private members are not inherited by GetField.
+        /// </summary>
         private static bool HasMember(Type type, string name)
         {
-            if (AccessTools.Field(type, name) != null) return true;
-            if (AccessTools.Property(type, name) != null) return true;
-            if (type.GetEvent(name, AccessTools.all) != null) return true;
+            for (var t = type; t != null; t = t.BaseType)
+            {
+                if (t.GetField(name, AccessTools.all) != null) return true;
+                if (t.GetProperty(name, AccessTools.all) != null) return true;
+                if (t.GetEvent(name, AccessTools.all) != null) return true;
 
-            try
-            {
-                return AccessTools.Method(type, name) != null;
+                try
+                {
+                    if (t.GetMethod(name, AccessTools.all) != null) return true;
+                }
+                catch (AmbiguousMatchException)
+                {
+                    // Overloaded: it exists, which is all this check asks.
+                    return true;
+                }
             }
-            catch (AmbiguousMatchException)
-            {
-                // Overloaded: it exists, which is all this check asks.
-                return true;
-            }
+
+            return false;
         }
 
         /// <summary>

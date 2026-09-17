@@ -42,6 +42,10 @@ twice alongside this.
 | `RecipeSearch` | `true` | A search box above the crafting recipe list. Typing narrows the list to recipes whose name or type contains the text, ignoring case and spaces. Works on the Craft and Upgrade tabs; clears when the panel closes. |
 | `SearchAutoFocus` | `true` | Puts the cursor in the search box when you open a crafting station, so you can type straight away. Not for the plain inventory, or with a gamepad. |
 | `MultiCraft` | `true` | Adds a number box beside the Craft button; that button then makes as many as the box says, 1 to 100. Stackable items only. Server-controlled. |
+| `BenchRange` | `true` | Crafting stations reach further than vanilla's 10 m. Server-controlled. |
+| `BuildRange` | `40` (metres) | How far from a crafting station you can build, 1 to 100. |
+| `BuildRangePerType` | (empty) | Per-station ranges overriding `BuildRange`, e.g. `piece_workbench:30, forge:15`. |
+| `ExtensionRange` | `10` (metres) | How far an attachment may sit from its station, 1 to 50. Vanilla is 5. Applies to attachments as they load. |
 | `AutoRepair` | `true` | Opening a crafting station repairs everything it is able to repair, in one go. Server-controlled. |
 
 Besides names, you can search by type: `helmet`, `chest`, `legs`, `cape`,
@@ -80,8 +84,8 @@ Server-controlled when connected.
 | Setting | Default | What it does |
 |---|---|---|
 | `Enabled` | `true` | All item tweaks. |
-| `StackableMeadBases` | `true` | Mead bases stack instead of taking a slot each. Finished meads are unchanged. |
-| `MeadBaseStackSize` | `20` | How many mead bases fit in one slot, 1 to 100. |
+| `StackableMeadBases` | `true` | Mead bases and barley wine bases stack instead of taking a slot each. Finished drinks are unchanged. |
+| `MeadBaseStackSize` | `20` | How many bases fit in one slot, 1 to 100. |
 
 Stack sizes are written into saved items, so everyone in a world needs to
 agree on them: this is a server setting, and a player without the mod
@@ -172,6 +176,26 @@ A container is used only if you could open it yourself: not private to
 someone else, not behind a ward you have no access to, and not open. A
 container another player's game is looking after is skipped until they
 leave the area.
+
+## Progression
+
+Server-controlled when connected.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `Enabled` | `true` | All boss progression tweaks. |
+| `TeleportUnlocks` | `true` | Metal and ore may go through a portal once the boss of its biome is dead. |
+
+Each biome answers for itself: the Elder frees copper, tin and bronze;
+Bonemass frees iron; Moder frees silver; Yagluth frees black metal. Those
+four are the whole list, because those are the four biomes whose materials
+vanilla refuses to carry. Killing a later boss says nothing about an
+earlier biome, so a fresh character on an old world still has to beat the
+Elder before carrying copper home.
+
+Anything else vanilla refuses to teleport, it still refuses, and nothing is
+written into your saved items: turn this off and the ore is simply refused
+again.
 
 ## Startup
 

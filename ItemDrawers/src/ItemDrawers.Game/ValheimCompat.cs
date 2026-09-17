@@ -66,7 +66,7 @@ namespace ItemDrawers.Game
 
                 // Field or method: the check does not care which, only that
                 // the name still resolves to something.
-                if (AccessTools.Field(t, member) == null && AccessTools.Method(t, member) == null)
+                if (!HasMember(t, member))
                 {
                     missing.Add($"{type}.{member} -- {why}");
                 }
@@ -88,6 +88,36 @@ namespace ItemDrawers.Game
                 + "depends on, and drawers will not work correctly. This is almost certainly a Valheim "
                 + "update, not a conflict with another mod. Missing:");
             foreach (var m in missing) DrawerPlugin.Log.LogError($"    {m}");
+        }
+
+        /// <summary>
+        /// Plain reflection rather than AccessTools: AccessTools writes a
+        /// warning to the console every time a lookup misses, and this check
+        /// misses on purpose -- it asks "field?" before "method?", so every
+        /// method it confirms used to cost a warning. Reflection is quiet.
+        ///
+        /// Walks the base types itself, which is the part AccessTools was
+        /// doing for us: private members are not inherited by GetField.
+        /// </summary>
+        private static bool HasMember(System.Type type, string member)
+        {
+            for (var t = type; t != null; t = t.BaseType)
+            {
+                if (t.GetField(member, AccessTools.all) != null) return true;
+                if (t.GetProperty(member, AccessTools.all) != null) return true;
+
+                try
+                {
+                    if (t.GetMethod(member, AccessTools.all) != null) return true;
+                }
+                catch (System.Reflection.AmbiguousMatchException)
+                {
+                    // Overloaded: it exists, which is all this check asks.
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

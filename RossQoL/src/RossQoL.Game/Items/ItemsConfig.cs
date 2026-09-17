@@ -16,8 +16,9 @@ namespace RossQoL.Game.Items
         {
             MeadBaseStackSize = config.Bind(section, "MeadBaseStackSize", 20,
                 ConfigText.Description(
-                    "How many mead bases fit in one slot. Vanilla is 1. Unstack them before turning "
-                    + "StackableMeadBases off, or a stack larger than vanilla allows is left in your chest.",
+                    "How many mead bases and barley wine bases fit in one slot. Vanilla is 1. Unstack them "
+                    + "before turning StackableMeadBases off, or a stack larger than vanilla allows is left "
+                    + "in your chest.",
                     scope, requiresRestart: false, range: new AcceptableValueRange<int>(1, 100)));
         }
     }

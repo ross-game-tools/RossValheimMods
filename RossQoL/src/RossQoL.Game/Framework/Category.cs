@@ -37,7 +37,23 @@ namespace RossQoL.Game.Framework
                 feature.Toggle = config.Bind(Section, feature.Key, true,
                     ConfigText.Description(feature.Description, feature.Scope,
                         requiresRestart: false, turningOnRequiresRestart: feature.Scope == FeatureScope.Client));
-                feature.BindSettings(config, Section);
+
+                // One feature's settings must not take the mod down with them.
+                // Binding a setting whose name is already taken in this section
+                // -- the feature's own toggle, most easily -- throws a cast
+                // error, and without this that error escaped Awake and no
+                // feature loaded at all.
+                try
+                {
+                    feature.BindSettings(config, Section);
+                }
+                catch (System.Exception ex)
+                {
+                    RossQoLPlugin.Log.LogError(
+                        $"{feature.Name}: its settings could not be bound, so it stays off and everything "
+                        + $"else loads as normal. This is a bug in the feature, not in your config: {ex}");
+                    feature.Toggle.Value = false;
+                }
             }
         }
     }

@@ -8,10 +8,11 @@ using RossQoL.Game.Framework;
 namespace RossQoL.Game.Items
 {
     /// <summary>
-    /// Mead bases stack, so a run of mead does not cost a chest.
+    /// Brewing inputs stack, so a run of mead does not cost a chest.
     ///
-    /// Vanilla gives every mead base a maximum stack of one, which is what
-    /// makes brewing tedious to store; nothing else about them changes.
+    /// Vanilla gives every mead base -- and the barley wine base, which is
+    /// the same thing under another name -- a maximum stack of one, which is
+    /// what makes brewing tedious to store; nothing else about them changes.
     ///
     /// Synced scope: a stack size is written into saved items, so every
     /// player in a world must agree on it. On a server without the mod, or
@@ -32,9 +33,9 @@ namespace RossQoL.Game.Items
         public override FeatureScope Scope => FeatureScope.Synced;
 
         public override string Description =>
-            "Mead bases stack up to MeadBaseStackSize instead of taking a slot each. Finished meads are "
-            + "unchanged. Unstack them before turning this off, or a stack larger than vanilla allows is left "
-            + "in your chest.";
+            "Mead bases and barley wine bases stack up to MeadBaseStackSize instead of taking a slot each. "
+            + "Finished drinks are unchanged. Unstack them before turning this off, or a stack larger than "
+            + "vanilla allows is left in your chest.";
 
         public override IEnumerable<Type> PatchClasses => new[] { typeof(StackableMeadBasesPatch) };
 
@@ -118,15 +119,19 @@ namespace RossQoL.Game.Items
 
             if (changed > 0)
                 RossQoLPlugin.Log.LogInfo(
-                    $"StackableMeadBases: {changed} mead bases now stack to {(active ? size : 1)}.");
+                    $"StackableMeadBases: {changed} brewing bases now stack to {(active ? size : 1)}.");
         }
 
         /// <summary>
-        /// The mead bases, by the prefab naming vanilla uses: MeadBaseTasty,
-        /// MeadBaseHealthMinor and the rest. A finished mead is "MeadTasty",
-        /// without Base, and is left alone.
+        /// The brewing inputs, by the prefab naming vanilla uses:
+        /// MeadBaseTasty, MeadBaseHealthMinor and the rest, plus
+        /// BarleyWineBase, which is a fermenter input under another name.
+        /// A finished drink is "MeadTasty" or "BarleyWine", without Base, and
+        /// is left alone.
         /// </summary>
         private static bool IsMeadBase(string prefabName) =>
-            prefabName != null && prefabName.StartsWith("MeadBase", StringComparison.Ordinal);
+            prefabName != null
+            && (prefabName.StartsWith("MeadBase", StringComparison.Ordinal)
+                || prefabName.StartsWith("BarleyWineBase", StringComparison.Ordinal));
     }
 }
