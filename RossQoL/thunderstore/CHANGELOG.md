@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.17.2
+
+- **Crafting / CraftFromChests:** every requirement row now reads
+  "have/need" instead of the bare cost -- what your pack and the nearby
+  containers hold together, against what the craft asks for. Vanilla never
+  showed the first number at all, so a craft drawing on chests gave no sign
+  of how close it was. Crafting, upgrading and the build HUD all show it.
+
 ## 0.17.1
 
 - Built and tested against Jotunn 2.30.1, which the dependency now asks for.

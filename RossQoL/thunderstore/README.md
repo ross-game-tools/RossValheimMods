@@ -45,7 +45,7 @@ twice alongside this.
 | `BenchRange` | `true` | Crafting stations reach further than vanilla's 10 m. Server-controlled. |
 | `BuildRange` | `40` (metres) | How far from a crafting station you can build, 1 to 100. |
 | `BuildRangePerType` | (empty) | Per-station ranges overriding `BuildRange`, e.g. `piece_workbench:30, forge:15`. |
-| `CraftFromChests` | `true` | Crafting, upgrading and building may take materials from nearby containers. Your pack is spent first. Server-controlled. |
+| `CraftFromChests` | `true` | Crafting, upgrading and building may take materials from nearby containers. Your pack is spent first. Requirement rows read "have/need", counting pack and containers together. Server-controlled. |
 | `CraftRadius` | `40` (metres) | How far to look for containers to craft from, 1 to 100. |
 | `BuildFromChests` | `true` | The hammer draws on containers too, not just crafting stations. |
 | `ExtensionRange` | `10` (metres) | How far an attachment may sit from its station, 1 to 50. Vanilla is 5. Applies to attachments as they load. |
@@ -318,4 +318,4 @@ seconds end to end instead of 18. The night is skipped by the server, so
 ## Dependencies
 
 - BepInEx 5.4.2350
-- Jotunn 2.30.1
+- Jotunn 2.30.0 or newer
