@@ -248,6 +248,7 @@ Server-controlled when connected.
 | `FeedRadius` | `10` (metres) | How far from a hungry tame to look for food in containers, 1 to 50. Measured in three dimensions. |
 | `SilentBirths` | `true` | Tames give birth without the birth sound. The birth's other effects still play. |
 | `QuietWolves` | `true` | Tamed wolves stop howling, including wolves another player owns. Wild wolves still howl, and other creatures keep their own sounds. |
+| `QuietChickens` | `true` | Chicks and hens make no sound: no peeping, clucking, wing flapping, pecking, footsteps, hurt or death. Birds another player owns are quiet too, and other creatures keep their own sounds. |
 
 A creature told to follow keeps following after you log out and back in,
 as a wolf does, even if `FollowCommand` is turned off in between; tell it

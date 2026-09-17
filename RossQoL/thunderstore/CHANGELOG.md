@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.17.0
+
+- **Tames / QuietChickens:** chicks and hens make no sound at all -- no
+  peeping, clucking, wing flapping, pecking, footsteps, hurt or death. The
+  sound is stopped as this machine plays it, so birds another player owns are
+  as quiet as your own, and every other creature is unchanged.
+
 ## 0.16.0
 
 - **Food / NoFalloff:** a meal gives its full health, stamina and eitr for its
