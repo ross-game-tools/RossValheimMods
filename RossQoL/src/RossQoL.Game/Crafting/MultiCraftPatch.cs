@@ -62,6 +62,13 @@ namespace RossQoL.Game.Crafting
                 // multi-craft a player asked for.
                 if (!_armed) return;
 
+                // Never while a craft is in flight. DoCrafting reads
+                // m_multiCraftAmount when the timer finishes, for both the
+                // items it makes and the materials it spends, so putting the
+                // amount back mid-craft would hand out vanilla's five and
+                // charge for five.
+                if (__instance.m_craftTimer >= 0f) return;
+
                 __instance.m_touchMultiCrafting = false;
                 __instance.m_multiCraftAmount = _vanillaAmount.Value;
                 _armed = false;

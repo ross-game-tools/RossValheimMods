@@ -56,7 +56,10 @@ namespace RossQoL.Game.Crafting
         {
             get
             {
-                if (!s_field || !s_field.gameObject.activeSelf) return MinAmount;
+                // Not gated on the box being visible: vanilla hides the Craft
+                // button while a craft runs, the box goes with it, and the
+                // amount must still read true until that craft finishes.
+                if (!s_field) return MinAmount;
                 if (!int.TryParse(s_field.text, out int typed)) return MinAmount;
 
                 return Mathf.Clamp(typed, MinAmount, MaxAmount);

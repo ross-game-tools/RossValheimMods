@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.13.1
+
+- **Crafting / MultiCraft:** typing an amount now makes that many, instead of
+  five. Vanilla hides the Craft button while a craft runs, the amount box went
+  with it, and the amount was put back to vanilla's five before the craft
+  finished -- and because the finished craft reads that number for both what
+  it makes and what it costs, you were given five and charged for five. The
+  amount now holds from the moment the button is pressed until the craft ends.
+
 ## 0.13.0
 
 - **Production / AutoFeed:** smelters, kilns, blast furnaces, windmills and

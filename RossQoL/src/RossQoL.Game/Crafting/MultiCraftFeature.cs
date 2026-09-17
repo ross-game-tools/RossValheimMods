@@ -44,6 +44,7 @@ namespace RossQoL.Game.Crafting
             new CompatMember("InventoryGui", "m_craftButton", "making room for the box beside it"),
             new CompatMember("InventoryGui", "m_multiCraftAmount", "how many one craft makes"),
             new CompatMember("InventoryGui", "m_touchMultiCrafting", "telling vanilla this craft is a multi-craft"),
+            new CompatMember("InventoryGui", "m_craftTimer", "holding the amount steady while a craft runs"),
             new CompatMember("InventoryGui", "m_selectedRecipe", "telling a stackable recipe from an upgrade"),
             new CompatMember("Hud", "m_buildUi", "finding the build menu's search box to copy its look"),
             new CompatMember("BuildUi", "m_searchField", "copying the build menu's search box"),
