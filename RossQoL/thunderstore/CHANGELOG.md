@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.16.0
+
+- **Food / NoFalloff:** a meal gives its full health, stamina and eitr for its
+  whole duration instead of fading as the timer runs down. Vanilla scales all
+  three by the time remaining, so most of a meal is spent worth less than the
+  tooltip says; now the value holds and then ends.
+- **Food / ExpiryWarning:** a meal says so `WarningSeconds` before it runs
+  out, 60 by default, while there is still time to eat something. Vanilla only
+  tells you once it has already gone.
+
+- **Progression / MiningPower:** rock and ore in a biome whose boss you have
+  killed take `MiningMultiplier` times the damage, 2 by default -- the Black
+  Forest gives up its copper faster once the Elder is down, the swamp its
+  scrap once Bonemass is. The ground decides, not the tool, and trees are
+  unaffected.
+- **Progression / SmeltingYield:** ore from a biome whose boss is dead smelts
+  into `SmeltingMultiplier` bars instead of one, 2 by default, for the same
+  ore and fuel. Only metals tied to a boss are affected; coal and flour are
+  unchanged.
+
+- **Crafting / CraftFromChests:** crafting, upgrading and building may draw
+  materials from containers within `CraftRadius` (40 m) as well as from your
+  pack. Your own inventory is always spent first and only the shortfall comes
+  out of a chest, because the charge is measured after vanilla has taken what
+  it can rather than predicted. Containers you may not open and other
+  players' warded chests are left alone, and a container is only written when
+  this client's ownership of it has settled. `BuildFromChests` covers the
+  hammer as well as the workbench. Recipes that take any one of several
+  ingredients -- mead bases, cooked dishes -- are covered too: they never go
+  through the usual paying path, so the ingredient is sourced from a container
+  and the removal topped up from it.
+
 ## 0.15.0
 
 - **Items / WisplightCarry:** a wisplight in your inventory works exactly as

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using HarmonyLib;
 
@@ -76,11 +77,26 @@ namespace RossQoL.Game.Framework
         /// </summary>
         public static bool RequireMethod(Type type, string method, string featureName)
         {
-            if (AccessTools.Method(type, method) != null) return true;
+            if (HasMethod(type, method)) return true;
 
             RossQoLPlugin.Log.LogError(
                 $"{type.Name}.{method} not found -- skipping that patch; {featureName} will not work. "
                 + "See the compatibility check above.");
+            return false;
+        }
+
+        /// <summary>
+        /// Does this type still have a method by that name, overloads and all?
+        /// Plain reflection rather than AccessTools: AccessTools logs on a
+        /// miss, and asking it for an overloaded name -- Player.HaveRequirements,
+        /// say -- throws rather than answering.
+        /// </summary>
+        private static bool HasMethod(Type type, string name)
+        {
+            for (var t = type; t != null; t = t.BaseType)
+                if (t.GetMethods(AccessTools.all).Any(m => m.Name == name))
+                    return true;
+
             return false;
         }
     }

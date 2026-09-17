@@ -9,6 +9,7 @@ using RossQoL.Game.Progression;
 using RossQoL.Game.Startup;
 using RossQoL.Game.Tames;
 using RossQoL.Game.Items;
+using RossQoL.Game.Meals;
 using RossQoL.Game.Terrain;
 
 namespace RossQoL.Game.Framework
@@ -27,7 +28,8 @@ namespace RossQoL.Game.Framework
                 new CraftingSearchFeature(),
                 new MultiCraftFeature(),
                 new AutoRepairFeature(),
-                new BenchRangeFeature()),
+                new BenchRangeFeature(),
+                new CraftFromChestsFeature()),
             new Category("Interface", "All HUD and interface tweaks.",
                 new ClockFeature(),
                 new ProductionTimersFeature(),
@@ -35,6 +37,9 @@ namespace RossQoL.Game.Framework
             new Category("Fires", "All fire tweaks.",
                 new FiresFeedFeature(),
                 new InfiniteFireFuelFeature()),
+            new Category("Food", "All food tweaks.",
+                new NoFoodFalloffFeature(),
+                new FoodWarningFeature()),
             new Category("Items", "All item tweaks.",
                 new StackableMeadBasesFeature(),
                 new WisplightCarryFeature()),
@@ -46,7 +51,9 @@ namespace RossQoL.Game.Framework
                 new AutoFeedFeature()),
             new Category("Progression", "All boss progression tweaks.",
                 new TeleportUnlocksFeature(),
-                new ClearMistFeature()),
+                new ClearMistFeature(),
+                new MiningPowerFeature(),
+                new SmeltingYieldFeature()),
             new Category("Startup", "All startup and main menu tweaks.",
                 new ContinueButtonFeature(),
                 new SkipSplashFeature(),

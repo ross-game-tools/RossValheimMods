@@ -45,6 +45,9 @@ twice alongside this.
 | `BenchRange` | `true` | Crafting stations reach further than vanilla's 10 m. Server-controlled. |
 | `BuildRange` | `40` (metres) | How far from a crafting station you can build, 1 to 100. |
 | `BuildRangePerType` | (empty) | Per-station ranges overriding `BuildRange`, e.g. `piece_workbench:30, forge:15`. |
+| `CraftFromChests` | `true` | Crafting, upgrading and building may take materials from nearby containers. Your pack is spent first. Server-controlled. |
+| `CraftRadius` | `40` (metres) | How far to look for containers to craft from, 1 to 100. |
+| `BuildFromChests` | `true` | The hammer draws on containers too, not just crafting stations. |
 | `ExtensionRange` | `10` (metres) | How far an attachment may sit from its station, 1 to 50. Vanilla is 5. Applies to attachments as they load. |
 | `AutoRepair` | `true` | Opening a crafting station repairs everything it is able to repair, in one go. Server-controlled. |
 
@@ -76,6 +79,17 @@ reserve of wood is set in one place.
 A fire below maximum burns as it always did, so one that is never filled
 still goes out. Fires that are eternal in vanilla are left exactly as
 they are.
+
+## Food
+
+Server-controlled when connected, except the warning, which is yours.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `Enabled` | `true` | All food tweaks. |
+| `NoFalloff` | `true` | Food gives its full effect for its whole duration instead of fading as the timer runs down. |
+| `ExpiryWarning` | `true` | Warns you before a meal runs out rather than after. |
+| `WarningSeconds` | `60` | How long before a meal runs out to warn you, 5 to 600. |
 
 ## Items
 
@@ -187,6 +201,10 @@ Server-controlled when connected.
 | `Enabled` | `true` | All boss progression tweaks. |
 | `TeleportUnlocks` | `true` | Metal and ore may go through a portal once the boss of its biome is dead. |
 | `ClearMist` | `true` | Killing the Queen clears the mist from the Mistlands. |
+| `MiningPower` | `true` | Rock and ore in a biome whose boss is dead take more damage per swing. Trees are unaffected. |
+| `MiningMultiplier` | `2` | How much harder you hit that rock, 1 to 10. |
+| `SmeltingYield` | `true` | Ore from a biome whose boss is dead smelts into more bars for the same fuel. |
+| `SmeltingMultiplier` | `2` | How many bars one such ore yields, 1 to 10. |
 
 Each biome answers for itself: the Elder frees copper, tin and bronze;
 Bonemass frees iron; Moder frees silver; Yagluth frees black metal. Those
