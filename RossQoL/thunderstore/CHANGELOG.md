@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.18.0
+
+- **Progression / DungeonRespawn:** a dungeon you have not entered for
+  `RespawnDays` (24 by default) is rebuilt as it was first found -- chests
+  stocked, creatures home, ore veins whole -- but only in a biome whose boss
+  is dead. Burial chambers and troll caves wait for the Elder, sunken crypts
+  for Bonemass, frost caves for Moder, infested mines for the Queen. The
+  rebuild uses the dungeon's own seed, which Valheim derives from the world
+  seed and the dungeon's position, so the layout that comes back is the
+  layout that was there.
+- Rebuilding destroys everything in the dungeon, so `ProtectPlayerBuilds`
+  is on by default: a dungeon holding anything you built -- a portal, a
+  stash -- stops respawning instead of being cleared out. A dungeon is also
+  never rebuilt while anyone is near it.
+- Dungeons in a world that predates this feature start their clock the first
+  time they load, so an old save does not rebuild every crypt at once.
+
 ## 0.17.3
 
 - **Tames / QuietChickens:** the mating sound is quiet too. It is named
