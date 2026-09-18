@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.11
+
+- Drawers now sit on the same collision layer as every other build piece.
+  They were left on the default layer, which meant anything that looks for
+  build pieces specifically could not see them. Three things this fixes:
+  other pieces can now snap to a drawer, which never worked despite drawers
+  having had snap points all along; drawers count toward building comfort
+  and foundation checks as they should; and mods that craft from nearby
+  containers, such as Valheim Plus' CraftFromChest, can now find drawers
+  and use what is in them. Thanks to RoeneMS for tracking this one down.
+
 ## 1.0.10
 
 - Drawers no longer feel sluggish on a dedicated server. Taking items out

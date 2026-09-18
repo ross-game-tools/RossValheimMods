@@ -530,6 +530,43 @@ namespace ItemDrawers.Game
             var collider = go.AddComponent<BoxCollider>();
             collider.size = new Vector3(0.66f, 0.66f, 0.66f);
 
+            // Same family as m_persistent below and the Piece/m_icon/
+            // m_enabled/m_usage/m_privacy/m_placeEffect cases: a prefab
+            // authored in the Unity Editor carries its layer as serialized
+            // data, and one built in code gets the bare default instead --
+            // layer 0, "Default", where every vanilla build piece is on
+            // "piece".
+            //
+            // It stayed invisible because the masks used by everyday actions
+            // all happen to include Default as well as piece: Player's
+            // m_placeRayMask, m_removeRayMask, m_interactMask and
+            // s_attackMask. Placing, removing, hovering and hitting a drawer
+            // therefore all worked, and only queries that ask for the piece
+            // layer ALONE missed them. Those are not obscure:
+            //
+            //   Piece.GetSnapPoints(point, radius, ...) finds candidate
+            //   pieces with s_pieceRayMask = GetMask("piece",
+            //   "piece_nonsolid"), so the fourteen snap points AddSnapPoints
+            //   builds just below have never once been reachable -- nothing
+            //   could snap to a drawer.
+            //
+            //   Piece.CheckClusteredBuildPieceStats and
+            //   Player.IsBuiltOnMyFoundation skip drawers the same way, as
+            //   does any mod that reuses the convention -- Valheim Plus'
+            //   CraftFromChest scans with GetMask("piece") and so could not
+            //   see a drawer's contents (issue #9).
+            //
+            // The root is the object that owns the BoxCollider and nothing
+            // else in the hierarchy has one, so the root's layer is all a
+            // physics query can consider. Guarded because NameToLayer
+            // returns -1 for a layer that does not exist, and assigning -1
+            // throws.
+            int pieceLayer = LayerMask.NameToLayer("piece");
+            if (pieceLayer >= 0) go.layer = pieceLayer;
+            else DrawerPlugin.Log.LogWarning(
+                "No 'piece' layer in this Valheim build; drawers stay on the default layer "
+                + "and will not be found by snapping or by nearby-container mods.");
+
             AddSnapPoints(go, proportions);
 
             // ZNetView's own fields (m_persistent, m_type, m_distant,
