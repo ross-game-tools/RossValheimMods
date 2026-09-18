@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.9
+## 1.0.10
 
 - Drawers no longer feel sluggish on a dedicated server. Taking items out
   could stall for up to a second at a time, because the safety wait that
@@ -17,6 +17,9 @@
   previous measurement restarted its clock on every retry, so it
   reported the fastest part of a slow request and hid the delay it
   existed to find.
+
+## 1.0.9
+
 - Built and tested against Jotunn 2.30.1, which the dependency now asks for.
   Nothing else changed.
 
