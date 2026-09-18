@@ -285,10 +285,15 @@ namespace ItemDrawers.Game
                     Line($"withdrawals deferred        : {DrawerDiagnostics.DeferredWithdraws}");
                     Line($"claims held for the player  : {DrawerDiagnostics.ClaimsHeldForPlayer}");
                     Line($"withdraw requests sent       : {DrawerDiagnostics.RequestsSent}");
+                    Line($"  of which retries           : {DrawerDiagnostics.Retries}");
                     Line($"  granted                    : {DrawerDiagnostics.GrantsReceived}");
                     Line($"  gave up                    : {DrawerDiagnostics.GrantsGivenUp}");
                     Line($"  still outstanding          : {DrawerDiagnostics.OutstandingRequests}");
                     Line($"grant latency mean/max ms    : {DrawerDiagnostics.MeanGrantLatencyMs:F0} / {DrawerDiagnostics.MaxGrantLatencyMs:F0}");
+                    Line($"deposit requests sent        : {DrawerDiagnostics.DepositRequestsSent}");
+                    Line($"  of which retries           : {DrawerDiagnostics.DepositRetries}");
+                    Line($"  granted                    : {DrawerDiagnostics.DepositGrantsReceived}");
+                    Line($"deposit latency mean/max ms  : {DrawerDiagnostics.MeanDepositLatencyMs:F0} / {DrawerDiagnostics.MaxDepositLatencyMs:F0}");
                 }, isCheat: false);
         }
     }

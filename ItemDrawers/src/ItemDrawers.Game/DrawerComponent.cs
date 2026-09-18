@@ -848,6 +848,7 @@ namespace ItemDrawers.Game
             foreach (var item in inventory.GetAllItems())
             {
                 if (ItemFacts.PrefabNameOf(item) != current.ItemName) continue;
+
                 matching.Add(item);
                 total += item.m_stack;
             }
@@ -1315,7 +1316,10 @@ namespace ItemDrawers.Game
         internal void SendDepositRequestRpc(long id, long targetOwner, string itemName, int removed)
         {
             if (_view != null && _view.IsValid())
+            {
+                DrawerDiagnostics.DepositSent(id, Time.time);
                 _view.InvokeRPC(targetOwner, RpcReqDeposit, id, itemName, removed);
+            }
         }
 
         /// <summary>
@@ -1360,6 +1364,8 @@ namespace ItemDrawers.Game
         {
             var manager = DrawerManager.Instance;
             if (manager == null || !manager.TryCompleteDeposit(id, out var pending)) return;
+
+            DrawerDiagnostics.DepositGranted(id, Time.time);
 
             if (sender != pending.TargetOwner)
                 DrawerPlugin.Log.LogWarning(
@@ -1748,6 +1754,15 @@ namespace ItemDrawers.Game
         /// <summary>The owner id matching _ownerRevisionSeen.</summary>
         private long _ownerSeen;
 
+        // The drawer's own data clock, tracked exactly like the ownership
+        // one. The write hazard is another peer's absolute Amount still in
+        // flight, which is a DATA event -- so how long the data has been
+        // still is the direct measure of whether anything can be in flight,
+        // where ownership age is only a proxy, and on a server a badly
+        // misleading one. See ViewFlushPolicy.MayWriteAfterOwnerChange.
+        private uint _dataRevisionSeen;
+        private float _dataRevisionSince;
+
         // This peer claimed the drawer to apply its current view change and
         // has not applied it yet. After such a claim is lost to someone
         // else, the claim is repeated only once the other owner has itself
@@ -1767,6 +1782,8 @@ namespace ItemDrawers.Game
             _ownerSeen = _view != null && _view.IsValid() ? _view.GetZDO().GetOwner() : 0L;
             _previousOwner = _ownerSeen;
             _ownerRevisionSince = Time.time;
+            _dataRevisionSeen = _view != null && _view.IsValid() ? _view.GetZDO().DataRevision : 0u;
+            _dataRevisionSince = Time.time;
         }
 
         /// <summary>Seconds since this peer first observed the ZDO's current OwnerRevision.</summary>
@@ -1790,6 +1807,18 @@ namespace ItemDrawers.Game
                 _ownerRevisionSince = Time.time;
             }
             return Time.time - _ownerRevisionSince;
+        }
+
+        /// <summary>Seconds since this peer first observed the ZDO's current DataRevision.</summary>
+        private float DataRevisionAge()
+        {
+            uint revision = _view.GetZDO().DataRevision;
+            if (revision != _dataRevisionSeen)
+            {
+                _dataRevisionSeen = revision;
+                _dataRevisionSince = Time.time;
+            }
+            return Time.time - _dataRevisionSince;
         }
 
         /// <summary>
@@ -1834,7 +1863,8 @@ namespace ItemDrawers.Game
 
             // OwnerRevisionAge() first: it is what refreshes _previousOwner.
             float age = OwnerRevisionAge();
-            return ViewFlushPolicy.MayWriteAfterOwnerChange(age, _previousOwner, ZDOMan.GetSessionID());
+            return ViewFlushPolicy.MayWriteAfterOwnerChange(
+                age, _previousOwner, ZDOMan.GetSessionID(), DataRevisionAge());
         }
 
         /// <summary>

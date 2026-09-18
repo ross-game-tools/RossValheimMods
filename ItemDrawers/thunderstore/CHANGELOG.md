@@ -2,6 +2,21 @@
 
 ## 1.0.9
 
+- Drawers no longer feel sluggish on a dedicated server. Taking items out
+  could stall for up to a second at a time, because the safety wait that
+  stops two players' writes from crossing was counting from the last time
+  the drawer changed hands. Servers hand nearby containers between players
+  constantly as they walk around, so ordinary play kept restarting a wait
+  that was guarding against nothing. It now counts from the last time the
+  drawer's contents actually changed, which is the thing it was always
+  protecting -- the wait still happens when someone really did just write
+  to the drawer, and nowhere else.
+- Diagnostics only: assigning an item to a drawer is now measured too,
+  not just taking one out. A slow request of either kind is timed from
+  when it was first sent and logged when the wait is noticeable. The
+  previous measurement restarted its clock on every retry, so it
+  reported the fastest part of a slow request and hid the delay it
+  existed to find.
 - Built and tested against Jotunn 2.30.1, which the dependency now asks for.
   Nothing else changed.
 

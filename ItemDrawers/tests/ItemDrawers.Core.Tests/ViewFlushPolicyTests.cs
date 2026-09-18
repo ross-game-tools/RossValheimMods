@@ -141,9 +141,11 @@ namespace ItemDrawers.Core.Tests
         public void A_handover_from_another_peer_is_waited_out()
         {
             Assert.False(ViewFlushPolicy.MayWriteAfterOwnerChange(
-                ownerRevisionAge: Settle - 0.01f, previousOwner: 77L, thisPeer: 42L));
+                ownerRevisionAge: Settle - 0.01f, previousOwner: 77L, thisPeer: 42L,
+                dataRevisionAge: 0f));
             Assert.True(ViewFlushPolicy.MayWriteAfterOwnerChange(
-                ownerRevisionAge: Settle, previousOwner: 77L, thisPeer: 42L));
+                ownerRevisionAge: Settle, previousOwner: 77L, thisPeer: 42L,
+                dataRevisionAge: 0f));
         }
 
         [Fact]
@@ -152,7 +154,7 @@ namespace ItemDrawers.Core.Tests
             // Owner 0 means nobody held it, so nobody can have an absolute
             // write already in flight.
             Assert.True(ViewFlushPolicy.MayWriteAfterOwnerChange(
-                ownerRevisionAge: 0f, previousOwner: 0L, thisPeer: 42L));
+                ownerRevisionAge: 0f, previousOwner: 0L, thisPeer: 42L, dataRevisionAge: 0f));
         }
 
         [Fact]
@@ -164,7 +166,7 @@ namespace ItemDrawers.Core.Tests
             // player's next keypress for a second -- with no other player
             // involved at all.
             Assert.True(ViewFlushPolicy.MayWriteAfterOwnerChange(
-                ownerRevisionAge: 0f, previousOwner: 42L, thisPeer: 42L));
+                ownerRevisionAge: 0f, previousOwner: 42L, thisPeer: 42L, dataRevisionAge: 0f));
         }
 
         [Fact]
@@ -172,8 +174,45 @@ namespace ItemDrawers.Core.Tests
         {
             // The narrowing must not weaken the case it exists for.
             for (float age = 0f; age < Settle; age += 0.1f)
-                Assert.False(ViewFlushPolicy.MayWriteAfterOwnerChange(age, previousOwner: 9L, thisPeer: 42L),
+                Assert.False(ViewFlushPolicy.MayWriteAfterOwnerChange(age, previousOwner: 9L, thisPeer: 42L,
+                        dataRevisionAge: 0f),
                     $"a handover at age {age} must still wait");
+        }
+
+        [Fact]
+        public void A_handover_of_a_drawer_nobody_wrote_to_needs_no_wait()
+        {
+            // The server reassigns nearby ZDOs by proximity every couple of
+            // seconds, so walking around a base is a continuous stream of
+            // handovers with no write behind any of them. Keying the wait off
+            // ownership age made every one of those cost the player a second;
+            // keying it off the data clock costs nothing, because still data
+            // means nothing is in flight to race.
+            Assert.True(ViewFlushPolicy.MayWriteAfterOwnerChange(
+                ownerRevisionAge: 0f, previousOwner: 77L, thisPeer: 42L,
+                dataRevisionAge: Settle));
+        }
+
+        [Fact]
+        public void A_handover_right_after_a_write_is_still_waited_out()
+        {
+            // The case the wait exists for, now measured directly: the
+            // previous owner wrote a moment ago, so its absolute Amount may
+            // still be in flight.
+            Assert.False(ViewFlushPolicy.MayWriteAfterOwnerChange(
+                ownerRevisionAge: 0f, previousOwner: 77L, thisPeer: 42L,
+                dataRevisionAge: Settle - 0.01f));
+        }
+
+        [Fact]
+        public void Still_data_never_excuses_a_wait_the_owner_ids_already_allow()
+        {
+            // Ordering check: the cheap identity cases must keep answering
+            // true on their own, whatever the data clock says.
+            Assert.True(ViewFlushPolicy.MayWriteAfterOwnerChange(
+                ownerRevisionAge: 0f, previousOwner: 0L, thisPeer: 42L, dataRevisionAge: 0f));
+            Assert.True(ViewFlushPolicy.MayWriteAfterOwnerChange(
+                ownerRevisionAge: 0f, previousOwner: 42L, thisPeer: 42L, dataRevisionAge: 0f));
         }
     }
 }

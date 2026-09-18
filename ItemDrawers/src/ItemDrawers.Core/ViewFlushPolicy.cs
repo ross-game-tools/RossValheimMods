@@ -66,6 +66,22 @@ namespace ItemDrawers.Core
         ///   previousOwner == this peer  we already held it; a re-claim is
         ///                               not a handover and races nothing.
         ///
+        ///   dataRevisionAge >= SettleSeconds  the drawer's own data has not
+        ///                               changed for longer than a round
+        ///                               trip, so no write from anyone can
+        ///                               still be in flight to race.
+        ///
+        /// That last case is the common one on a dedicated server, and it is
+        /// why waiting on OWNERSHIP age was the wrong measurement. The server
+        /// reassigns nearby ZDOs to whichever peer is closest every couple of
+        /// seconds, so simply walking around a base hands drawers back and
+        /// forth continuously -- and each handover restarted a clock that
+        /// guards against a write nobody made. A logged session showed six
+        /// deferred withdrawals against one actual request, with zero
+        /// refusals and a 115ms round trip: the delay the player felt was
+        /// entirely this wait, on drawers nobody had touched. The hazard is a
+        /// DATA event, so the clock that guards it belongs on DataRevision.
+        ///
         /// Both were refusing the player's own keypress for a second after
         /// this mod's own bookkeeping touched the drawer -- no second player
         /// needed, which is why "Try again" survived fixing the two-peer
@@ -73,10 +89,11 @@ namespace ItemDrawers.Core
         /// the hazard is and drops it where it never was.
         /// </summary>
         public static bool MayWriteAfterOwnerChange(
-            float ownerRevisionAge, long previousOwner, long thisPeer)
+            float ownerRevisionAge, long previousOwner, long thisPeer, float dataRevisionAge)
         {
             if (previousOwner == 0L) return true;
             if (previousOwner == thisPeer) return true;
+            if (dataRevisionAge >= SettleSeconds) return true;
             return ownerRevisionAge >= SettleSeconds;
         }
 

@@ -32,6 +32,9 @@ namespace ItemDrawers.Game
         public static int ClaimsMade;
         public static int RequestsSent;
 
+        /// <summary>Re-sends of a request already in flight, counted separately from first sends.</summary>
+        public static int Retries;
+
         /// <summary>Drawers claimed because nobody owned them, rather than refusing the player.</summary>
         public static int UnownedClaims;
 
@@ -49,9 +52,77 @@ namespace ItemDrawers.Game
         /// <summary>Request id -> send time, so a grant can be timed against its own send.</summary>
         private static readonly Dictionary<long, float> _sentAt = new Dictionary<long, float>();
 
+        // Deposits go through the same request/grant round trip as
+        // withdrawals and were never counted, so "lag assigning an item to a
+        // drawer" was invisible here while taking one out was measured in
+        // detail. Counted separately rather than merged: the two paths differ
+        // -- a deposit has already taken the items off the player before it
+        // sends -- so a delay in one says nothing about the other.
+        public static int DepositRequestsSent;
+        public static int DepositRetries;
+        public static int DepositGrantsReceived;
+
+        private static double _depositLatencyTotalMs;
+        private static double _depositLatencyMaxMs;
+
+        public static double MeanDepositLatencyMs =>
+            DepositGrantsReceived > 0 ? _depositLatencyTotalMs / DepositGrantsReceived : 0.0;
+
+        public static double MaxDepositLatencyMs => _depositLatencyMaxMs;
+
+        public static void DepositSent(long id, float now)
+        {
+            DepositRequestsSent++;
+
+            // Same first-send-wins rule as withdrawals: a retry that reset
+            // the clock would report the fast tail of a slow request.
+            if (_sentAt.ContainsKey(id))
+            {
+                DepositRetries++;
+                return;
+            }
+
+            _sentAt[id] = now;
+        }
+
+        public static void DepositGranted(long id, float now)
+        {
+            DepositGrantsReceived++;
+            if (!_sentAt.TryGetValue(id, out float sent)) return;
+            _sentAt.Remove(id);
+
+            double ms = (now - sent) * 1000.0;
+            _depositLatencyTotalMs += ms;
+            if (ms > _depositLatencyMaxMs) _depositLatencyMaxMs = ms;
+
+            if (ms >= SlowGrantMs && _slowGrantsLogged < SlowGrantLogLimit)
+            {
+                _slowGrantsLogged++;
+                DrawerPlugin.Log.LogInfo(
+                    $"Deposit waited {ms:F0}ms for the owner to answer."
+                    + (_slowGrantsLogged == SlowGrantLogLimit
+                        ? " Further slow grants will not be logged; use rid_diag for totals."
+                        : ""));
+            }
+        }
+
         public static void RequestSent(long id, float now)
         {
             RequestsSent++;
+
+            // FIRST send only. A retry re-sends the same id, and overwriting
+            // the timestamp made the reported latency the time from the last
+            // retry to the grant -- so a request that waited five seconds and
+            // was answered promptly after a retry was reported as a fast
+            // request. The measurement hid exactly the delay it existed to
+            // find, and every latency figure taken before this was a
+            // best-case reading of the requests that never retried.
+            if (_sentAt.ContainsKey(id))
+            {
+                Retries++;
+                return;
+            }
+
             _sentAt[id] = now;
         }
 
@@ -64,6 +135,20 @@ namespace ItemDrawers.Game
             double ms = (now - sent) * 1000.0;
             _grantLatencyTotalMs += ms;
             if (ms > _grantLatencyMaxMs) _grantLatencyMaxMs = ms;
+
+            // A slow grant is what a player feels as lag, and it needs to be
+            // visible without anyone happening to run rid_diag at the right
+            // moment. The threshold is well above a normal round trip on any
+            // server worth playing on, so an ordinary withdrawal never logs.
+            if (ms >= SlowGrantMs && _slowGrantsLogged < SlowGrantLogLimit)
+            {
+                _slowGrantsLogged++;
+                DrawerPlugin.Log.LogInfo(
+                    $"Withdraw waited {ms:F0}ms for the owner to answer."
+                    + (_slowGrantsLogged == SlowGrantLogLimit
+                        ? " Further slow grants will not be logged; use rid_diag for totals."
+                        : ""));
+            }
         }
 
         /// <summary>Dropped so a request that never came back cannot leak an entry.</summary>
@@ -80,6 +165,12 @@ namespace ItemDrawers.Game
         private const int RefusalLogLimit = 15;
 
         private static int _refusalsLogged;
+
+        /// <summary>A grant slower than this is worth a line of its own.</summary>
+        private const double SlowGrantMs = 1000.0;
+
+        private const int SlowGrantLogLimit = 10;
+        private static int _slowGrantsLogged;
 
         /// <summary>
         /// Records why one refusal happened. The three values together name
@@ -109,6 +200,12 @@ namespace ItemDrawers.Game
             OwnershipChanges = 0;
             ClaimsMade = 0;
             RequestsSent = 0;
+            Retries = 0;
+            DepositRequestsSent = 0;
+            DepositRetries = 0;
+            DepositGrantsReceived = 0;
+            _depositLatencyTotalMs = 0.0;
+            _depositLatencyMaxMs = 0.0;
             UnownedClaims = 0;
             DeferredWithdraws = 0;
             ClaimsHeldForPlayer = 0;
@@ -118,6 +215,7 @@ namespace ItemDrawers.Game
             _grantLatencyMaxMs = 0.0;
             _sentAt.Clear();
             _refusalsLogged = 0;
+            _slowGrantsLogged = 0;
         }
     }
 }
