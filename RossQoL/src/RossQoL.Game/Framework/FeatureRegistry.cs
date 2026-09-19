@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using RossQoL.Game.Combat;
 using RossQoL.Game.Crafting;
+using RossQoL.Game.Death;
 using RossQoL.Game.Fires;
 using RossQoL.Game.Interface;
 using RossQoL.Game.Portals;
@@ -30,6 +31,10 @@ namespace RossQoL.Game.Framework
                 new AutoRepairFeature(),
                 new BenchRangeFeature(),
                 new CraftFromChestsFeature()),
+            // Built by the category itself: the shared grave-recording patch
+            // has to ask which of its features are on, and building the list
+            // there keeps that answer and this registry the same array.
+            DeathCategory.Create(),
             new Category("Interface", "All HUD and interface tweaks.",
                 new ClockFeature(),
                 new ProductionTimersFeature(),

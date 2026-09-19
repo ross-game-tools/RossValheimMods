@@ -5,6 +5,7 @@ using BepInEx.Logging;
 using HarmonyLib;
 using Jotunn.Utils;
 using RossQoL.Core.Framework;
+using RossQoL.Game.Death;
 using RossQoL.Game.Framework;
 using UnityEngine;
 
@@ -20,7 +21,7 @@ namespace RossQoL.Game
         // changing it silently resets everyone's settings to defaults.
         public const string PluginGuid = "com.rossdwest.rossqol";
         public const string PluginName = "RossQoL";
-        public const string PluginVersion = "0.18.0";
+        public const string PluginVersion = "0.19.0";
 
         internal static ManualLogSource Log;
         private Harmony _harmony;
@@ -73,6 +74,12 @@ namespace RossQoL.Game
         {
             _hotReload?.Dispose();
             _harmony?.UnpatchSelf();
+
+            // FeatureActivator.AppliedPatchClasses mirrors what UnpatchSelf
+            // just undid; forget it here so a plugin reload in this same
+            // process -- Awake running again -- re-patches every shared
+            // class instead of finding it already marked applied.
+            FeatureActivator.Reset();
         }
     }
 }

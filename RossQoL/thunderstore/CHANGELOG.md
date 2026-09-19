@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.19.0
+
+- **Death / GraveMarker:** a marker sits over your grave while it's in view
+  and slides to the edge of the screen, pointing toward it, when it's not --
+  so finding your way back after a death doesn't mean squinting at the map.
+  A quiet hint line under it names `ClearGraveKey` (hold to dismiss) and,
+  once you have died more than once, `CycleGraveKey` (press to cycle,
+  `PageDown` by default) -- the cycle hint only appears once that key is
+  bound to something. It disappears once the grave is emptied. Vanilla's
+  own death pin on the map is untouched; this is a second, on-screen
+  indicator alongside it, not a replacement for it.
+- **Death / RespawnFood:** respawning after a death hands you a meal instead
+  of an empty belly -- berries early in a run, something more substantial
+  once the world has got further along. `RespawnFoodCount` and
+  `RespawnFoodsByFrontier` control how much and what. Logging in on its own
+  never triggers this, only a death does.
+- **Death / RespawnRested:** respawning after a death also guarantees at
+  least `RestedMinutes` of the Rested buff, so the walk back is not also
+  spent at reduced stamina regeneration. A better Rested you already have
+  from your own house is left alone.
+- **Death / CorpseRun:** a modest buff called "Just Died" that grows with how
+  far your grave still is -- a little more stamina regeneration and a
+  little cheaper running and jumping the farther you have to go, easing off
+  in steps as you close the distance but never all the way to nothing while
+  the grave still stands (`CorpseRunMinStrength` is what you get standing
+  right at it). It always tracks your newest grave, even while
+  `CycleGraveKey` has the on-screen marker pointed at an older one, and it
+  ends the moment you loot the grave, or after `CorpseRunMinutes` of real
+  time if you don't make it back in time (a fresh death always gets its own
+  full `CorpseRunMinutes`, and the clock restarts if you relog). Looting is
+  still the deliberate handoff: emptying the grave hands you straight into
+  Valheim's own, much stronger Corpse Run reward, untouched by this mod, so
+  this buff is only meant to ease the walk there.
+- **Death / SkillLoss:** `SkillLossMultiplier` scales how much skill a death
+  costs against vanilla's usual loss -- 0.5 for half, 0 for none. A soft
+  death (dying again within seconds) still costs nothing, same as vanilla;
+  and vanilla's own "skills lowered" message still appears even when the
+  multiplier removes the loss entirely, since that message is not part of
+  what this setting scales.
+
 ## 0.18.0
 
 - **Progression / DungeonRespawn:** a dungeon you have not entered for

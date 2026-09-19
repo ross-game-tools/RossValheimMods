@@ -61,6 +61,53 @@ While the search box has the cursor, game keys are ignored: E and Tab
 type letters instead of closing the panel. Press Enter or click elsewhere
 to leave the box, or close the panel with Esc.
 
+## Death
+
+Server-controlled when connected, except GraveMarker's own settings, which
+are yours.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `Enabled` | `true` | All death and corpse run tweaks. |
+| `GraveMarker` | `true` | A marker over your grave, sliding to the edge of the screen and pointing at it once it is out of view. Gone once the grave is emptied. |
+| `MinItemsToTrack` | `1` | The fewest items a grave has to hold before it is tracked at all. Server-controlled. |
+| `HideDistance` | `10` (metres) | How close to a grave before its marker hides, so it does not cover the grave itself. |
+| `EdgeMargin` | `60` | How far in from the edge of the screen the marker sits when the grave is off screen. |
+| `ClearGraveKey` | `Delete` | Hold this key to stop tracking the selected grave. |
+| `ClearGraveHoldSeconds` | `1.5` (seconds) | How long `ClearGraveKey` must be held before the selected grave is forgotten. |
+| `CycleGraveKey` | `PageDown` | Press to switch the tracked marker to your next remembered grave. |
+| `SkillLoss` | `true` | Scales how much skill a death costs. |
+| `SkillLossMultiplier` | `1` | How much skill you lose when you die, against vanilla's usual loss, 0 to 2. 1 is the usual loss, 0.5 is half, 0 is none. A soft death still costs nothing. |
+| `RespawnFood` | `true` | Respawning after a death puts a meal in your belly, chosen by how far the world has got. |
+| `RespawnFoodCount` | `1` | How many portions of food you are handed on respawn, 0 to 3. |
+| `RespawnFoodsByFrontier` | (tiered list) | The food handed out on respawn, by how far the world has got. Format is `Tier:Food\|Fallback\|Fallback,Tier:...`. |
+| `RespawnRested` | `true` | Respawning after a death also guarantees at least `RestedMinutes` of Rested. |
+| `RestedMinutes` | `10` (minutes) | Minutes of Rested handed out on respawn. |
+| `CorpseRun` | `true` | A buff called "Just Died" that grows with how far your grave still is: more stamina regeneration and cheaper running and jumping. |
+| `CorpseRunMinDistance` | `50` (metres) | How far your grave has to be before the buff starts climbing past `CorpseRunMinStrength`, its strength at the grave itself. |
+| `CorpseRunFullDistance` | `1000` (metres) | How much further than `CorpseRunMinDistance` for the buff to reach full strength. |
+| `CorpseRunMaxRegenBonus` | `0.55` | The most the buff can add to stamina regeneration. |
+| `CorpseRunMaxDrainReduction` | `0.25` | The most the buff can cut running and jumping stamina cost by. |
+| `CorpseRunMinStrength` | `0.5` | The buff's strength standing right at your own grave, as a fraction of full strength, 0 to 1. The rest is earned back by distance rather than the buff sitting flat until `CorpseRunMinDistance` kicks in. |
+| `CorpseRunMinutes` | `10` | How many real-time minutes the buff can last for a given grave, counting down no matter what you do. A fresh death always gets its own full `CorpseRunMinutes`, and the clock is not saved across a relog. `0` removes the limit. |
+
+`GraveMarker` shows a second, on-screen indicator toward your own graves;
+vanilla's own death pin on the map is untouched and appears exactly as it
+always has. A quiet hint line under the marker names `ClearGraveKey`, the
+key you can hold to dismiss it, and, once you have died more than once and
+`CycleGraveKey` is bound (`PageDown` by default), the key to cycle to your
+next remembered grave -- `CycleGraveKey` only moves that marker, the Just
+Died buff always tracks your newest grave regardless of what the marker is
+pointed at. The buff eases off in steps as
+you close the distance on your grave, but never all the way to nothing
+while the grave still stands, and ends the moment you loot it, or after
+`CorpseRunMinutes` of real time if you don't make it back in time (a fresh
+death starts its own full `CorpseRunMinutes`; that clock is not saved
+across a relog). It is a separate, much milder effect from vanilla's own
+Corpse Run reward, which is still granted in full once the grave is
+emptied -- Just Died is only meant to ease the walk there, not replace that
+payoff.
+
 ## Fires
 
 Server-controlled when connected.
