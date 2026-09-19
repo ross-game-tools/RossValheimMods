@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.23.0
+
+- **World / DecayInBase:** things you drop at home no longer lie there
+  forever. Vanilla exempts anything inside a workbench or ward radius from
+  ever decaying, which is why litter piles up around a base and nowhere
+  else; now it keeps the same one-hour life as a drop anywhere else in the
+  world. Nothing disappears while someone is standing within 25 metres of
+  it.
+- **Crafting / CraftFromChests:** a requirement row with two three-digit
+  numbers no longer loses its last digit -- `150/400` was showing as
+  `150/40`. Vanilla sizes that label for a bare cost, so the longer
+  "have/need" text ran past the end of it; the text now shrinks to fit
+  instead of being cut. Applies to the crafting panel, the upgrade panel
+  and the build HUD.
+
 ## 0.22.0
 
 - **Items / RecallSummons:** recalling your skeletons with the Dead Raiser's

@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using HarmonyLib;
+using RossQoL.Core.Crafting;
 using RossQoL.Game.Framework;
 using TMPro;
 using UnityEngine;
@@ -31,6 +33,34 @@ namespace RossQoL.Game.Crafting
         private static bool Prepare() =>
             ValheimCompat.RequireMethod(typeof(InventoryGui), nameof(InventoryGui.SetupRequirement), CraftFromChestsFeature.FeatureName);
 
+        // Vanilla only ever writes a bare count into this label --
+        // `component3.text = num2.ToString();` in InventoryGui.SetupRequirement
+        // -- so the element was never proven to hold more than a handful of
+        // digits. "have/need" can run to seven characters (three digits, a
+        // slash, three digits), and at that length the row visibly loses its
+        // last character: the box clips or truncates a string it was never
+        // sized for. Rather than trust an element's authored width -- which
+        // isn't in the assembly to inspect and isn't ours to resize without
+        // risking the icon and name beside it -- the label is left to shrink
+        // its own font to whatever this string needs, the same way TMP text
+        // is told to fit a box anywhere else in the UI. The base size is
+        // cached per label so repeated frames shrink from the original size,
+        // not from whatever size the previous frame left it at.
+        private static readonly Dictionary<TMP_Text, float> BaseFontSize = new Dictionary<TMP_Text, float>();
+
+        private static void FitWithoutClipping(TMP_Text amount)
+        {
+            if (!BaseFontSize.TryGetValue(amount, out float baseSize))
+            {
+                baseSize = amount.fontSize;
+                BaseFontSize[amount] = baseSize;
+            }
+
+            amount.enableAutoSizing = true;
+            amount.fontSizeMax = baseSize;
+            amount.fontSizeMin = 1f;
+        }
+
         private static void Postfix(
             Transform elementRoot, Piece.Requirement req, Player player, bool craft, int quality,
             int craftMultiplier, bool __result)
@@ -54,7 +84,8 @@ namespace RossQoL.Game.Crafting
 
                 int have = craft ? BestTier(player, req) : AnyQuality(player, req);
 
-                amount.text = have + "/" + need;
+                amount.text = RequirementAmountFormat.Format(have, need);
+                FitWithoutClipping(amount);
 
                 // Vanilla's red was about the pack alone. Only the covered case
                 // is overruled; a row the chests cannot cover keeps flashing.

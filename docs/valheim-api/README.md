@@ -33,6 +33,11 @@ One file per subsystem:
   `Character.InInterior` is the wrong way to ask whether a terrain sample
   means anything where you are standing (`Character.UnderWorldCheck` vs
   `ZoneSystem.GetGroundHeight`/`GetSolidHeight`/`IsBlocked`).
+- `dropped-items.md` (read at 1.0.15) — `ItemDrop`'s auto-destroy clock
+  (`TimedDestruction`, owner-only, every 10s via `SlowUpdate`), the
+  permanent `IsInsideBase()` exemption that leaves base litter
+  undecaying, and the age/player-range/tar/piece conditions any fix
+  must reproduce exactly.
 - `teleport-unlocks.md` (read at 1.0.14) — which prefabs vanilla sets
   `m_teleportable = false` on, verified from a live game: the full
   blocked count, the three prefab names `TeleportUnlocks` needed, and

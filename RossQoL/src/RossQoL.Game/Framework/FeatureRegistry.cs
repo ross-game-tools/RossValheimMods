@@ -79,7 +79,8 @@ namespace RossQoL.Game.Framework
                 new FastSleepFeature(),
                 new AoeRepairFeature(),
                 new ComfortRangeFeature(),
-                new NoWeatheringFeature()),
+                new NoWeatheringFeature(),
+                new DecayInBaseFeature()),
         };
     }
 }
