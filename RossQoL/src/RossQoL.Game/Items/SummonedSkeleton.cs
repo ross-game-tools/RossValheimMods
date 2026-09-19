@@ -24,7 +24,17 @@ namespace RossQoL.Game.Items
         {
             if (character == null) return false;
 
-            var go = character.gameObject;
+            return Is(character.gameObject);
+        }
+
+        /// <summary>
+        /// The same test taken straight from the object, for callers that hold
+        /// a component other than the Character -- a Tameable, say. Both
+        /// components live on the one creature object, so this is the same
+        /// question asked from a different handle, not a second rule.
+        /// </summary>
+        public static bool Is(UnityEngine.GameObject go)
+        {
             if (go == null) return false;
 
             string name = go.name;

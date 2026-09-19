@@ -172,6 +172,18 @@ your chest.
 | `PanCamera` | `true` | Hold `PanKey` to look around with the mouse without turning your character. |
 | `PanKey` | `LeftAlt` | The key to hold for panning. |
 | `PanMaxPitch` | `70` (degrees) | How far up or down panning can look, 10 to 89. |
+| `Notifications` | `true` | Top-left notifications stack instead of each one wiping out the last. Up to five lines at a time, each with its own icon, fading on its own. |
+| `NotificationsShowSkillGain` | `true` | Show skill progress towards the next level, e.g. `Woodcutting +11%`. Off keeps pickups and level-ups and drops only these lines. |
+
+Vanilla shows one top-left message at a time and folds a repeat into it
+only when that repeat is the very next message to arrive, so picking up
+wood with anything happening in between splits it into separate
+showings. With notifications on, each line is found by what it is about:
+picking up more wood updates the wood line in place, `Wood x12` becoming
+`Wood x20`, no matter what arrived in between. Skill gains accumulate the
+same way, so forty swings are one line counting up rather than forty
+lines, and a level-up still reads as a level-up. Messages across the
+middle of the screen are untouched.
 
 Production countdowns are in real minutes and seconds, and read the same
 for everyone, not just the player the producer belongs to. They follow
@@ -312,6 +324,7 @@ Server-controlled when connected.
 |---|---|---|
 | `Enabled` | `true` | All tame tweaks. |
 | `FollowCommand` | `true` | Every tamed creature can be told to follow you or stay, like a wolf: press Use on it to switch. Creatures vanilla already lets you command are unchanged. |
+| `NoSummonCommands` | `true` | Raised skeletons cannot be petted or told to stay, so they always follow you and always count against how many you may have at once. Tamed creatures are unaffected. |
 | `FeedFromContainers` | `true` | A hungry tame with no food on the ground near it eats one item it likes from a container within `FeedRadius`. Only creatures that are already tame. |
 | `FeedRadius` | `10` (metres) | How far from a hungry tame to look for food in containers, 1 to 50. Measured in three dimensions. |
 | `SilentBirths` | `true` | Tames give birth without the birth sound. The birth's other effects still play. |
@@ -322,6 +335,13 @@ A creature told to follow keeps following after you log out and back in,
 as a wolf does, even if `FollowCommand` is turned off in between; tell it
 to stay first. With Portals/TamesFollow, following tames come through
 portals and dungeon doors with you.
+
+A raised skeleton is not one of those creatures. Vanilla only counts a
+summon against your limit while it is following you, so a skeleton parked
+somewhere stopped counting and the next cast raised one more than the
+limit allows. With `NoSummonCommands` on, pressing Use on a raised
+skeleton does nothing at all -- no petting, no stay, no renaming -- and
+the hover text no longer offers any of it.
 
 A hungry tame looks for food on the ground first, as usual, and only then
 in the nearest container holding something it eats. It eats one item each

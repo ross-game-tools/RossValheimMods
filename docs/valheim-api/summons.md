@@ -760,6 +760,156 @@ Ruled out along the way, worth not re-deriving:
   `m_queuedAttackTimer` whenever a secondary attack is queued, so a
   secondary that returns false never falls through to the primary.
 
+## The summon cap, and why a parked skeleton escapes it (read 1.0.15)
+
+Traced while closing the "tell a skeleton to stay and raise more than the
+cap" exploit. Everything below is quoted from a fresh single-type
+`ilspycmd -t Tameable` / `-t SpawnAbility` dump of 1.0.15.
+
+### Where the cap number comes from
+
+`ZDOVars.s_maxInstances` is written **once, at spawn**, by
+`SpawnAbility.Spawn()`, and only inside the `m_levelUpSettings` block:
+
+```csharp
+int num2 = (m_setMaxInstancesFromWeaponLevel ? m_weapon.m_quality : levelUpSettings.m_maxSpawns);
+if (num2 > 0 && (bool)component)
+    component.GetZDO().Set(ZDOVars.s_maxInstances, num2);
+```
+
+So the cap is **per-summon, stamped on the creature's own ZDO**, and its
+value is either the staff's upgrade quality or the `m_maxSpawns` of the
+highest `LevelUpSettings` entry the caster's Blood Magic skill reaches.
+Both are serialized prefab data — **not in the DLL**. Note `m_levelUpSettings`
+being empty means the field is never written and the cap never runs at all.
+(This is distinct from `SpawnAbility.m_maxSpawned` (default 3), which is a
+proximity check via `SpawnSystem.GetNrOfInstances` performed *before*
+spawning and has nothing to do with `Tameable`'s cap.)
+
+### When the cap runs
+
+Only from the **"start following"** branch of `RPC_Command`, at its very end:
+
+```csharp
+else
+{
+    m_monsterAI.ResetPatrolPoint();
+    m_monsterAI.SetFollowTarget(player.gameObject);
+    if (m_nview.IsOwner())
+        m_nview.GetZDO().Set(ZDOVars.s_follow, player.GetPlayerName());
+    ...
+    int @int = m_nview.GetZDO().GetInt(ZDOVars.s_maxInstances);
+    if (@int > 0)
+        UnsummonMaxInstances(@int);
+}
+```
+
+Nothing else calls `UnsummonMaxInstances`. There is no periodic sweep: the
+count happens **at the instant a creature begins following**, and never
+again.
+
+### How it counts
+
+`UnsummonMaxInstances(int maxInstances)` — owner-only — reads the name of
+the player this creature is now following, then:
+
+```csharp
+foreach (Character item in allCharacters)
+{
+    if (!(item.m_name == m_character.m_name)) continue;
+    ... obj2 = zDO.GetString(ZDOVars.s_follow) ...
+    if ((string)obj2 == text)      // text == the follow target player's name
+    {
+        MonsterAI component3 = item.GetComponent<MonsterAI>();
+        if ((object)component3 != null) list.Add(component3);
+    }
+}
+list.Sort((a, b) => b.GetTimeSinceSpawned().CompareTo(a.GetTimeSinceSpawned()));
+int num = list.Count - maxInstances;
+for (int i = 0; i < num; i++)
+    list[i].GetComponent<Tameable>()?.UnSummon();
+```
+
+Two conditions, both required: **same `Character.m_name`** and **same
+`ZDOVars.s_follow` string**. The oldest excess (largest
+`GetTimeSinceSpawned`) is unsummoned.
+
+### The exploit, exactly
+
+The "stay" branch of `RPC_Command` does `m_nview.GetZDO().Set(ZDOVars.s_follow, "")`.
+A skeleton told to stay therefore has an **empty** follow string, which can
+never equal the summoner's name, so it is not added to `list` and does not
+count. Raise three, tell them all to stay, raise three more — each new cast
+counts only the skeletons still following, and the parked ones live on. The
+cap is not a population limit; it is a "how many are following me right now"
+limit.
+
+### Why commanding works at all when `m_commandable` is false
+
+A runtime dump of `Skeleton_Friendly` showed `Tameable.m_commandable = False`,
+and vanilla's `Interact` does gate on it:
+
+```csharp
+if (Time.time - m_lastPetTime > 1f)
+{
+    m_lastPetTime = Time.time;
+    m_petEffect.Create(...);
+    if (m_commandable)
+    {
+        Command(user);
+        Game.instance.IncrementPlayerStat(PlayerStatType.TamedCommand);
+        goto IL_010e;          // commanded
+    }
+    Game.instance.IncrementPlayerStat(PlayerStatType.TamedPetting);
+    ...                        // petted, message shown
+}
+```
+
+**The dump was not misread and vanilla is not the culprit — RossQoL is.**
+`Tames/FollowCommand` (`FollowCommandPatch`) prefixes `Tameable.Interact`
+and sets `m_commandable = true` for the length of the call on any tame that
+has a `MonsterAI` and passes `Tameable.IsTamed()`. `Tameable.IsTamed()` is
+
+```csharp
+if (!m_character || !m_character.IsTamed()) return m_startsTamed;
+return true;
+```
+
+and `Skeleton_Friendly` ships `m_startsTamed` true, so a raised skeleton
+passes and gets commanded. That is the whole mechanism: **the exploit exists
+only with `FollowCommand` on**, and it is the interaction, not the cap, that
+is ours to withdraw.
+
+Worth noting for any future feature: `Tameable.Command` itself
+(`m_nview.InvokeRPC("Command", ...)`) has **no `m_commandable` gate** — the
+flag only ever guards `Interact`. So the spawn-time follow
+(`SpawnAbility.m_commandOnSpawn`) and `UpdateSavedFollowTarget`'s
+reload recovery both go straight through `Command`, and a block placed there
+would leave summons that follow nobody. `Interact` is the only correct place.
+
+### What removing the interaction costs
+
+`Interact`'s tamed branch offers exactly three things, and a summon loses all
+three: the pet effect and message, the follow/stay toggle (only via
+`FollowCommand`), and — on the `alt` path — `SetName()`, vanilla's rename.
+Nothing else reaches `Tameable.Interact`. "Stay" has no effect beyond
+clearing the follow target and calling `MonsterAI.SetPatrolPoint()`, so what
+is genuinely lost is the ability to park a summon as a stationary guard; that
+is the exploit itself, not a separate feature. Renaming a creature with a
+`m_unsummonDistance` leash and a few minutes to live was judged not worth a
+half-working prompt.
+
+`Tameable.GetHoverText`'s tamed branch appends two prompt lines
+(`"\n[<color=yellow><b>$KEY_Use</b></color>] $hud_pet"` and the `$hud_rename`
+line, which is the gamepad `$KEY_AltKeys` variant when
+`ZInput.IsNonClassicFunctionality() && ZInput.IsGamepadActive()`), so a
+feature that blocks `Interact` must rewrite the hover text or the prompt
+advertises something that no longer happens. RossQoL's
+`Tames/NoSummonCommands` does both: a prefix on `Interact` returning false,
+and a postfix on `GetHoverText` rebuilding just the name and
+`" ( $hud_tame, " + GetStatusString() + " )"`. Both methods are long and
+branchy — neither is an inlining candidate, unlike `UpdateSummon`/`UnSummon`.
+
 ## Placing a creature inside a dungeon interior (read 1.0.15)
 
 An interior is instantiated at its zone's centre plus **5000 on Y**

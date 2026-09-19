@@ -66,6 +66,11 @@
       <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\UnityEngine.UI.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- CanvasRenderer, whose alpha a cloned HUD element inherits from its donor. -->
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\UnityEngine.UIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <!-- CSteamID, for reading the host id out of a Steam join. -->
     <Reference Include="com.rlabrecque.steamworks.net">
       <HintPath>$(VALHEIM_INSTALL)\valheim_Data\Managed\com.rlabrecque.steamworks.net.dll</HintPath>

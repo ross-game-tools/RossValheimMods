@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.24.0
+
+- **Tames / NoSummonCommands:** raised skeletons can no longer be petted or
+  told to stay. Vanilla only counts a summon towards your limit while it is
+  following you, so parking skeletons around the place let you raise more
+  than the limit allows; now they always follow you and always count.
+  Pressing Use on one does nothing, and the hover text no longer offers it.
+  Tamed creatures are untouched -- petting a wolf and telling a boar to stay
+  work exactly as before.
+- **Interface / Notifications:** top-left notifications now stack instead of
+  each one wiping out the last. Up to five lines at a time, each with its own
+  icon and its own fade. Picking up more of something updates the line it
+  already has -- `Wood x12` becomes `Wood x20` -- however many other messages
+  arrive in between, which is where vanilla's own stacking gives up. Skill
+  gains get a line vanilla has never shown at all: how much closer that swing
+  took the skill to its next level, counting up as you keep going
+  (`Woodcutting +6%` becoming `+11%`) rather than one line per swing. Level-ups
+  still read as level-ups. Turn `NotificationsShowSkillGain` off to keep
+  pickups and level-ups without the progress lines. Messages across the middle
+  of the screen are untouched.
+
 ## 0.23.0
 
 - **World / DecayInBase:** things you drop at home no longer lie there

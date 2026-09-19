@@ -11,8 +11,10 @@ One file per subsystem:
   — quoted bodies are unchanged but line numbers may have drifted) —
   what the Dead Raiser's summoned skeletons actually are (`Tameable` +
   `MonsterAI`, no separate summon component), how ownership/follow/
-  lifetime work, and how much of `Portals/TamesFollow` generalises to
-  them.
+  lifetime work, how much of `Portals/TamesFollow` generalises to
+  them, and (read at 1.0.15) how the summon cap actually counts — same
+  `Character.m_name` plus same `ZDOVars.s_follow`, only at the instant one
+  starts following — plus where `m_commandable` does and does not gate.
 - `death-and-respawn.md` (read at 1.0.14) — death/respawn flow, status
   effects, food, skill loss, HUD projection, per-character/per-world
   persistence.
@@ -42,6 +44,15 @@ One file per subsystem:
   `m_teleportable = false` on, verified from a live game: the full
   blocked count, the three prefab names `TeleportUnlocks` needed, and
   what was checked and confirmed *not* blocked.
+- `notifications.md` (read at 1.0.15) — how `MessageHud` shows top-left
+  messages (one `TMP_Text`/`Image` pair drained from a `Queue<MsgData>`,
+  not a pooled list), the fade timings (code constants), who raises an
+  item-pickup message (`Character.ShowPickupMessage`, called from
+  `Humanoid.Pickup`) and a skill-up message (`Skills.RaiseSkill`), what
+  the game knows at the moment skill XP is gained
+  (`Skills.Skill.Raise`/`Game.m_skillGainRate`), and why a stacking,
+  update-in-place notification list has to suppress vanilla's path
+  rather than take over its single display slot.
 
 ## Convention
 
