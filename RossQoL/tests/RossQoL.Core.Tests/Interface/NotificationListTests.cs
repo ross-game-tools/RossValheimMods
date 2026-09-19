@@ -48,13 +48,13 @@ namespace RossQoL.Core.Tests.Interface
             // anything arriving between two Wood pickups splits them.
             var list = NewList();
             list.Add("Wood", "Wood", NotificationStyle.Count, 12f, now: 0f);
-            list.Add("Woodcutting", "Woodcutting", NotificationStyle.Percent, 6f, now: 0.2f);
+            list.AddProgress("Woodcutting", "Woodcutting", 6f, 6f, now: 0.2f);
 
             list.Add("Wood", "Wood", NotificationStyle.Count, 8f, now: 0.4f);
 
             Assert.Equal(2, list.Count);
             Assert.Equal("Wood x20", list.Entries[0].Text);
-            Assert.Equal("Woodcutting +6%", list.Entries[1].Text);
+            Assert.Equal("Woodcutting +6 (6%)", list.Entries[1].Text);
         }
 
         [Fact]
@@ -83,32 +83,42 @@ namespace RossQoL.Core.Tests.Interface
         }
 
         [Fact]
-        public void A_skill_gain_accumulates_as_a_percentage()
+        public void A_skill_gain_grows_both_of_its_numbers_together()
         {
             var list = NewList();
-            list.Add("Woodcutting", "Woodcutting", NotificationStyle.Percent, 6f, now: 0f);
+            list.AddProgress("Woodcutting", "Woodcutting", 6f, 1.5f, now: 0f);
 
-            list.Add("Woodcutting", "Woodcutting", NotificationStyle.Percent, 5f, now: 0.5f);
+            list.AddProgress("Woodcutting", "Woodcutting", 5f, 1.5f, now: 0.5f);
 
-            Assert.Equal("Woodcutting +11%", list.Entries[0].Text);
+            Assert.Equal("Woodcutting +11 (3%)", list.Entries[0].Text);
         }
 
         [Fact]
-        public void A_gain_too_small_to_round_up_still_says_one_percent()
+        public void A_gain_worth_less_than_a_percent_says_so_rather_than_zero()
         {
             var list = NewList();
 
-            list.Add("Sneak", "Sneak", NotificationStyle.Percent, 0.2f, now: 0f);
+            list.AddProgress("Sneak", "Sneak", 2f, 0.2f, now: 0f);
 
-            Assert.Equal("Sneak +1%", list.Entries[0].Text);
+            Assert.Equal("Sneak +2 (<1%)", list.Entries[0].Text);
+        }
+
+        [Fact]
+        public void A_fractional_gain_keeps_one_decimal_place()
+        {
+            var list = NewList();
+
+            list.AddProgress("Running", "Running", 0.25f, 0.1f, now: 0f);
+
+            Assert.Equal("Running +0.3 (<1%)", list.Entries[0].Text);
         }
 
         [Fact]
         public void A_line_changing_style_starts_its_total_again()
         {
-            // A skill that levels up has no meaningful percentage left over.
+            // A skill that levels up has no meaningful progress left over.
             var list = NewList();
-            list.Add("Woodcutting", "Woodcutting", NotificationStyle.Percent, 87f, now: 0f);
+            list.AddProgress("Woodcutting", "Woodcutting", 87f, 87f, now: 0f);
 
             list.Add("Woodcutting", "Woodcutting: 12", NotificationStyle.Plain, 0f, now: 1f);
 
@@ -184,7 +194,7 @@ namespace RossQoL.Core.Tests.Interface
         public void A_line_can_be_taken_off_early()
         {
             var list = NewList();
-            list.Add("Woodcutting", "Woodcutting", NotificationStyle.Percent, 40f, now: 0f);
+            list.AddProgress("Woodcutting", "Woodcutting", 40f, 40f, now: 0f);
 
             Assert.True(list.Remove("Woodcutting"));
             Assert.False(list.Remove("Woodcutting"));
@@ -217,10 +227,10 @@ namespace RossQoL.Core.Tests.Interface
         {
             var list = NewList();
             for (int i = 0; i < 40; i++)
-                list.Add("Woodcutting", "Woodcutting", NotificationStyle.Percent, 0.5f, now: i * 0.1f);
+                list.AddProgress("Woodcutting", "Woodcutting", 1f, 0.5f, now: i * 0.1f);
 
             Assert.Equal(1, list.Count);
-            Assert.Equal("Woodcutting +20%", list.Entries[0].Text);
+            Assert.Equal("Woodcutting +40 (20%)", list.Entries[0].Text);
         }
     }
 }

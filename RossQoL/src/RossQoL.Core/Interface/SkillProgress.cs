@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace RossQoL.Core.Interface
 {
@@ -15,6 +16,12 @@ namespace RossQoL.Core.Interface
     {
         /// <summary>Valheim's highest skill level; there is no progress past it.</summary>
         public const float MaxLevel = 100f;
+
+        /// <summary>The smallest raw gain one decimal place can state.</summary>
+        private const float SmallestValue = 0.1f;
+
+        /// <summary>The smallest share whole percent can state.</summary>
+        private const float SmallestPercent = 1f;
 
         /// <summary>
         /// How much accumulated progress the game wants before the level after
@@ -39,6 +46,48 @@ namespace RossQoL.Core.Interface
             if (requirement <= 0f) return 0f;
 
             return gain / requirement * 100f;
+        }
+
+        /// <summary>
+        /// How a skill gain reads on screen: what the game actually added,
+        /// then what share of the next level that is, e.g. "+12 (3%)".
+        ///
+        /// The raw figure is the game's own internal progress unit rather
+        /// than anything Valheim shows a player, so its scale is arbitrary --
+        /// but it is consistent within a skill, which makes it worth seeing
+        /// next to the share it works out to. One decimal place at most: a
+        /// single action adds around one unit and the smallest actions around
+        /// a tenth, so that is the whole useful range, and a whole number
+        /// loses its pointless ".0".
+        /// </summary>
+        public static string FormatGain(float gain, float percent) =>
+            "+" + FormatValue(gain) + " (" + FormatPercent(percent) + ")";
+
+        /// <summary>
+        /// The raw gain to one decimal place. Anything real but smaller than
+        /// that says so rather than rounding down to a flat "0", which would
+        /// read as "that did nothing".
+        /// </summary>
+        public static string FormatValue(float gain)
+        {
+            if (gain <= 0f) return "0";
+            if (gain < SmallestValue) return "<0.1";
+
+            return Math.Round(gain, 1, MidpointRounding.AwayFromZero)
+                .ToString("0.#", CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// The share of a level in whole percent. A real gain that rounds to
+        /// nothing reads as "&lt;1%" for the same reason.
+        /// </summary>
+        public static string FormatPercent(float percent)
+        {
+            if (percent <= 0f) return "0%";
+            if (percent < SmallestPercent) return "<1%";
+
+            return ((int)Math.Round(percent, MidpointRounding.AwayFromZero))
+                .ToString(CultureInfo.InvariantCulture) + "%";
         }
     }
 }

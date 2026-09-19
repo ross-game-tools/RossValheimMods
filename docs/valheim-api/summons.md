@@ -910,6 +910,123 @@ and a postfix on `GetHoverText` rebuilding just the name and
 `" ( $hud_tame, " + GetStatusString() + " )"`. Both methods are long and
 branchy — neither is an inlining candidate, unlike `UpdateSummon`/`UnSummon`.
 
+## Re-verifying the cap's selection step, and its IL (read 1.0.15)
+
+Re-read while making the cap despawn the worst-wounded summon rather than
+the oldest (`Tames/CullWoundedSummons`). Fresh single-type dumps,
+`ilspycmd -t Tameable` for the C# and `ilspycmd -il -t Tameable` for the
+IL, against the same installed `assembly_valheim.dll`.
+
+**The quote above under "How it counts" is still accurate at 1.0.15.** The
+sort line is verbatim what ships:
+
+```csharp
+list.Sort((BaseAI a, BaseAI b) => b.GetTimeSinceSpawned().CompareTo(a.GetTimeSinceSpawned()));
+```
+
+`UnsummonMaxInstances` is at `Tameable.cs:641-707` in this dump, which is
+the same range the earlier note recorded — the line numbers had not
+drifted.
+
+Three things the earlier note left out or slightly misstated, all of which
+matter to anything rewriting this method:
+
+- **The list is `List<BaseAI>`, not `List<MonsterAI>`.** The elements are
+  `MonsterAI`s (`item.GetComponent<MonsterAI>()` is what gets added), but
+  the declared local is `List<BaseAI>`, so the sort is
+  `List<BaseAI>.Sort(Comparison<BaseAI>)` and `GetTimeSinceSpawned` is
+  resolved on `BaseAI`, not `MonsterAI`. Any transpiler matching that
+  `Sort` call has to name the `BaseAI` instantiation or it will not match.
+- **The method does one more thing after despawning**, which the earlier
+  excerpt cut off:
+
+  ```csharp
+  if (num > 0 && (bool)Player.m_localPlayer)
+      Player.m_localPlayer.Message(MessageHud.MessageType.Center, m_maxSummonReached);
+  ```
+
+  So reimplementing the method wholesale means owning that message too
+  (`m_maxSummonReached` is a serialized string field — asset data, not in
+  the DLL). Replacing only the sort avoids it entirely.
+- **`GetTimeSinceSpawned` returns a `TimeSpan`, not a float**
+  (`BaseAI.cs:403`), and returns `TimeSpan.Zero` when the `ZNetView` is
+  missing or invalid — so an un-networked creature reads as freshly
+  spawned, i.e. last in vanilla's despawn order.
+
+### Inlining: `UnsummonMaxInstances` is safe to patch, its helpers are not
+
+Measured rather than assumed, from the IL dump's method header:
+
+```
+instance void UnsummonMaxInstances (int32 maxInstances) cil managed
+{
+    // Header size: 12
+    // Code size: 365 (0x16d)
+```
+
+365 bytes, with a `foreach` over `Character.GetAllCharacters()`, a cached
+closure delegate and a `for` loop. Mono's inliner takes only tiny bodies
+(its `INLINE_LENGTH_LIMIT` is on the order of 20 IL bytes), so this is
+about eighteen times past the threshold and is reached reliably. It is
+also called from exactly one place, the "start following" branch of
+`RPC_Command` (`IL_0112: call instance void Tameable::UnsummonMaxInstances(int32)`).
+
+The helpers it calls are the opposite and must never be patched:
+`BaseAI.GetTimeSinceSpawned`, `Character.GetHealth`
+(`return m_nview.GetZDO()?.GetFloat(ZDOVars.s_health, GetMaxHealth()) ?? GetMaxHealth();`),
+`Character.GetMaxHealth` and `Character.GetHealthPercentage`
+(`return GetHealth() / GetMaxHealth();`) are all one- or two-line bodies
+and are exactly the shape Mono inlines silently past a Harmony patch.
+Calling them is fine; patching them is not.
+
+### The selection step is replaceable on its own
+
+The sort compiles to a plain call with the list and the comparison on the
+stack and nothing left behind:
+
+```
+IL_00ed: ldloc.3                       // List<BaseAI>
+IL_00ee: ldsfld  Comparison`1<BaseAI> Tameable/'<>c'::'<>9__36_0'
+         ... cached-delegate creation ...
+IL_010d: callvirt instance void List`1<BaseAI>::Sort(Comparison`1<!0>)
+IL_0112: ldloc.3
+```
+
+so swapping that one `callvirt` for a `call` to a static
+`(List<BaseAI>, Comparison<BaseAI>) -> void` of our own is stack-neutral
+and leaves every other instruction vanilla's. That is what
+`Tames/CullWoundedSummonsPatch` does; it keeps vanilla's own comparison as
+the argument and runs it unchanged when the feature is off or its own
+ordering throws.
+
+### Health, for ordering purposes
+
+`Character.GetHealth()` and `Character.GetMaxHealth()` are both public.
+`GetMaxHealth` reads `ZDOVars.s_maxHealth` off the ZDO, falling back to
+`GetMaxHealthBase()` (`m_health`, multiplied by
+`Game.m_worldLevel * Game.instance.m_worldLevelEnemyHPMultiplier` for any
+non-player when the world level is raised). A star level therefore shows
+up as a larger max, which is why a wounded-first rule has to compare the
+fraction and not the raw number. `GetHealth` falls back to `GetMaxHealth()`
+when there is no ZDO or no stored health, so a creature with no health
+recorded reads as full rather than as dead.
+
+### Still not verifiable from the DLL
+
+- Whether the Dead Raiser can ever raise a **starred** skeleton. The
+  `SpawnAbility.m_levelUpSettings` entries that would set a level are
+  serialized prefab data. The reported answer is no, which makes the
+  fraction rule and a raw-health rule pick the same creature in practice
+  today; the fraction is the one that stays correct if that changes.
+- The cap's actual number for any given staff — still
+  `m_setMaxInstancesFromWeaponLevel` / `LevelUpSettings.m_maxSpawns`, both
+  asset data, as recorded above.
+- Whether a summon's health ever differs from full in a way the ZDO has
+  not yet replicated to the machine running the cap. The cap is owner-only
+  and the owner is the summoning client (established above), and that is
+  the machine the skeletons were fighting on, so the health it reads is
+  its own — but this was not confirmed against a live capture.
+
 ## Factions, `m_tamed`, and who a summon counts as an enemy (read 1.0.15)
 
 Traced while investigating a report (later retracted) that tamed wolves

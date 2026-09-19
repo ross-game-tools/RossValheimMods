@@ -47,5 +47,52 @@ namespace RossQoL.Core.Tests.Interface
         {
             Assert.Equal(SkillProgress.NextLevelRequirement(0f), SkillProgress.NextLevelRequirement(-5f));
         }
+
+        [Fact]
+        public void A_gain_reads_as_the_value_then_the_share_of_a_level()
+        {
+            Assert.Equal("+12 (3%)", SkillProgress.FormatGain(12f, 3f));
+        }
+
+        [Theory]
+        // A whole number does not carry a pointless ".0".
+        [InlineData(1f, "1")]
+        [InlineData(12f, "12")]
+        [InlineData(0.3f, "0.3")]
+        // One decimal place and no more, whatever the float really is.
+        [InlineData(0.25f, "0.3")]
+        [InlineData(12.549f, "12.5")]
+        [InlineData(1.0000001f, "1")]
+        // Real, but smaller than one decimal place can say.
+        [InlineData(0.099f, "<0.1")]
+        [InlineData(0.04f, "<0.1")]
+        [InlineData(0.0001f, "<0.1")]
+        [InlineData(0.1f, "0.1")]
+        [InlineData(0f, "0")]
+        public void The_raw_value_never_prints_a_long_float(float gain, string expected)
+        {
+            Assert.Equal(expected, SkillProgress.FormatValue(gain));
+        }
+
+        [Theory]
+        [InlineData(3f, "3%")]
+        [InlineData(0.6f, "<1%")]
+        // The boundary itself: rounding to a whole 1 is not "less than one".
+        [InlineData(0.5f, "<1%")]
+        [InlineData(0.999f, "<1%")]
+        [InlineData(1f, "1%")]
+        [InlineData(0f, "0%")]
+        public void A_share_that_rounds_to_nothing_says_less_than_one(float percent, string expected)
+        {
+            Assert.Equal(expected, SkillProgress.FormatPercent(percent));
+        }
+
+        [Fact]
+        public void A_tiny_real_gain_reads_as_something_rather_than_nothing()
+        {
+            // Both halves would otherwise round to zero and say a swing did
+            // nothing, which is the opposite of what happened.
+            Assert.Equal("+<0.1 (<1%)", SkillProgress.FormatGain(0.02f, 0.01f));
+        }
     }
 }

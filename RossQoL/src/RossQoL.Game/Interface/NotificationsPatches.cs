@@ -269,11 +269,11 @@ namespace RossQoL.Game.Interface
             if (setting != null && !setting.Value) return;
 
             float gained = skill.m_accumulator - before.Accumulator;
-            float percent = SkillProgress.PercentOfLevel(gained, skill.m_level);
-            if (percent <= 0f) return;
+            if (gained <= 0f) return;
 
+            float percent = SkillProgress.PercentOfLevel(gained, skill.m_level);
             var icon = skill.m_info == null ? null : skill.m_info.m_icon;
-            NotificationHud.Push(key, LabelFor(type), NotificationStyle.Percent, percent, icon);
+            NotificationHud.PushProgress(key, LabelFor(type), gained, percent, icon);
         }
 
         private static string KeyFor(Skills.SkillType type) => "skill:" + type;

@@ -70,6 +70,7 @@ namespace RossQoL.Game.Framework
             new Category("Tames", "All tame tweaks.",
                 new FollowCommandFeature(),
                 new NoSummonCommandsFeature(),
+                new CullWoundedSummonsFeature(),
                 new FeedFromContainersFeature(),
                 new SilentBirthsFeature(),
                 new QuietWolvesFeature(),

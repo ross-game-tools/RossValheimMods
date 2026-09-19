@@ -14,7 +14,11 @@ One file per subsystem:
   lifetime work, how much of `Portals/TamesFollow` generalises to
   them, and (read at 1.0.15) how the summon cap actually counts — same
   `Character.m_name` plus same `ZDOVars.s_follow`, only at the instant one
-  starts following — plus where `m_commandable` does and does not gate.
+  starts following — plus where `m_commandable` does and does not gate,
+  and (re-verified at 1.0.15) the cap's selection step down to its IL: it
+  sorts a `List<BaseAI>` oldest-first, `UnsummonMaxInstances` is 365 IL
+  bytes and so safely patchable, and every health/age helper it calls is
+  an inlining candidate that must not be.
 - `death-and-respawn.md` (read at 1.0.14) — death/respawn flow, status
   effects, food, skill loss, HUD projection, per-character/per-world
   persistence.

@@ -13,7 +13,8 @@ namespace RossQoL.Game.Interface
         {
             ShowSkillGain = config.Bind(section, "NotificationsShowSkillGain", true,
                 ConfigText.Description(
-                    "Show how much progress a skill gained towards its next level, e.g. \"Woodcutting +11%\". "
+                    "Show what a skill gained and how far towards its next level that is, "
+                    + "e.g. \"Woodcutting +12 (3%)\". "
                     + "Off keeps item pickups and level-ups and drops only these lines.",
                     scope, requiresRestart: false));
         }

@@ -120,6 +120,21 @@ namespace RossQoL.Game.Interface
             _instance._icons[key] = icon;
         }
 
+        /// <summary>
+        /// Puts a skill gain on the list: what the game added and the share of
+        /// the next level it works out to, both growing on the skill's own
+        /// line while the player keeps earning.
+        /// </summary>
+        internal static void PushProgress(string key, string label, float gain, float percent, Sprite icon)
+        {
+            if (!Ready || key == null) return;
+
+            float now = Time.unscaledTime;
+            _instance._list.Prune(now);
+            _instance._list.AddProgress(key, label, gain, percent, now);
+            _instance._icons[key] = icon;
+        }
+
         /// <summary>Takes a line off early, e.g. a skill's progress once it has levelled.</summary>
         internal static void Drop(string key)
         {

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.25.0
+
+- **Interface / Notifications:** a skill line now shows what the game actually
+  added as well as the share of the next level it works out to --
+  `Woodcutting +12 (3%)` rather than just `+6%` -- with both numbers growing
+  in place while you keep earning. A gain worth less than one percent of a
+  level reads as `<1%` instead of rounding down to `0%`, which made it look
+  like nothing had happened.
+- **Tames / CullWoundedSummons:** when raising a new skeleton puts you over
+  your summon limit, the skeleton that disappears is now the most badly
+  wounded one rather than the one you raised longest ago. Two summons hurt
+  equally fall back to the oldest, as vanilla does, so the same cast always
+  takes the same one. How many you may have at once, what counts towards the
+  limit and when the limit is checked are all unchanged. Turn it off for
+  vanilla's oldest-first order.
+
 ## 0.24.0
 
 - **Tames / NoSummonCommands:** raised skeletons can no longer be petted or

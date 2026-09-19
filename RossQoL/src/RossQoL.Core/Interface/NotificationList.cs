@@ -13,8 +13,11 @@ namespace RossQoL.Core.Interface
         /// <summary>A count of things, e.g. "Wood x20". A total of one is left unsaid.</summary>
         Count,
 
-        /// <summary>Progress in whole percent, e.g. "Woodcutting +11%".</summary>
-        Percent,
+        /// <summary>
+        /// A skill gain: what the game added and the share of the next level
+        /// it works out to, e.g. "Woodcutting +12 (3%)".
+        /// </summary>
+        Progress,
     }
 
     /// <summary>
@@ -23,12 +26,14 @@ namespace RossQoL.Core.Interface
     /// </summary>
     public sealed class Notification
     {
-        internal Notification(string key, string label, NotificationStyle style, float amount, float now)
+        internal Notification(
+            string key, string label, NotificationStyle style, float amount, float share, float now)
         {
             Key = key;
             Label = label;
             Style = style;
             Amount = amount;
+            Share = share;
             RefreshedAt = now;
         }
 
@@ -42,6 +47,13 @@ namespace RossQoL.Core.Interface
 
         /// <summary>The running total, in the units its style reads in.</summary>
         public float Amount { get; internal set; }
+
+        /// <summary>
+        /// The second running total a <see cref="NotificationStyle.Progress"/>
+        /// line carries: the share of a level, in whole-percent units, that
+        /// <see cref="Amount"/> adds up to. Unused by the other styles.
+        /// </summary>
+        public float Share { get; internal set; }
 
         /// <summary>When this line last had something folded into it; its dwell starts here.</summary>
         public float RefreshedAt { get; internal set; }
@@ -61,15 +73,8 @@ namespace RossQoL.Core.Interface
                             : Label;
                     }
 
-                    case NotificationStyle.Percent:
-                    {
-                        // A real but tiny gain rounds to zero, and "+0%" reads
-                        // as "nothing happened" when something did. The
-                        // smallest thing worth saying is one percent.
-                        int percent = (int)Math.Round(Amount, MidpointRounding.AwayFromZero);
-                        if (percent < 1 && Amount > 0f) percent = 1;
-                        return Label + " +" + percent.ToString(CultureInfo.InvariantCulture) + "%";
-                    }
+                    case NotificationStyle.Progress:
+                        return Label + " " + SkillProgress.FormatGain(Amount, Share);
 
                     default:
                         return Label;
@@ -140,15 +145,29 @@ namespace RossQoL.Core.Interface
         /// starts counting towards the next level from nothing, and a running
         /// percentage means nothing once the line has become a level-up.
         /// </summary>
-        public Notification Add(string key, string label, NotificationStyle style, float amount, float now)
+        public Notification Add(string key, string label, NotificationStyle style, float amount, float now) =>
+            Fold(key, label, style, amount, 0f, now);
+
+        /// <summary>
+        /// Folds in a skill gain, which is two numbers rather than one: what
+        /// the game added and the share of the next level that is. Both grow
+        /// together on the line the skill already has.
+        /// </summary>
+        public Notification AddProgress(string key, string label, float gain, float percent, float now) =>
+            Fold(key, label, NotificationStyle.Progress, gain, percent, now);
+
+        private Notification Fold(
+            string key, string label, NotificationStyle style, float amount, float share, float now)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
 
             var existing = Find(key);
             if (existing != null)
             {
+                bool keeps = existing.Style == style;
                 existing.Label = label;
-                existing.Amount = existing.Style == style ? existing.Amount + amount : amount;
+                existing.Amount = keeps ? existing.Amount + amount : amount;
+                existing.Share = keeps ? existing.Share + share : share;
                 existing.Style = style;
                 existing.RefreshedAt = now;
                 return existing;
@@ -156,7 +175,7 @@ namespace RossQoL.Core.Interface
 
             if (_entries.Count >= Capacity) _entries.RemoveAt(0);
 
-            var entry = new Notification(key, label, style, amount, now);
+            var entry = new Notification(key, label, style, amount, share, now);
             _entries.Add(entry);
             return entry;
         }

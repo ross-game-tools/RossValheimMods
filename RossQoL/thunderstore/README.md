@@ -173,7 +173,7 @@ your chest.
 | `PanKey` | `LeftAlt` | The key to hold for panning. |
 | `PanMaxPitch` | `70` (degrees) | How far up or down panning can look, 10 to 89. |
 | `Notifications` | `true` | Top-left notifications stack instead of each one wiping out the last. Up to five lines at a time, each with its own icon, fading on its own. |
-| `NotificationsShowSkillGain` | `true` | Show skill progress towards the next level, e.g. `Woodcutting +11%`. Off keeps pickups and level-ups and drops only these lines. |
+| `NotificationsShowSkillGain` | `true` | Show what a skill gained and how far towards the next level that is, e.g. `Woodcutting +12 (3%)`. Off keeps pickups and level-ups and drops only these lines. |
 
 Vanilla shows one top-left message at a time and folds a repeat into it
 only when that repeat is the very next message to arrive, so picking up
@@ -184,6 +184,12 @@ picking up more wood updates the wood line in place, `Wood x12` becoming
 same way, so forty swings are one line counting up rather than forty
 lines, and a level-up still reads as a level-up. Messages across the
 middle of the screen are untouched.
+
+A skill line shows what the game added and the share of the next level
+it works out to, both growing as you keep going: `Woodcutting +12 (3%)`.
+The share is progress towards the next level, so the same gain is worth
+less of a level the higher the skill is. A gain worth less than one
+percent reads as `<1%` rather than rounding down to nothing.
 
 Production countdowns are in real minutes and seconds, and read the same
 for everyone, not just the player the producer belongs to. They follow
@@ -325,6 +331,7 @@ Server-controlled when connected.
 | `Enabled` | `true` | All tame tweaks. |
 | `FollowCommand` | `true` | Every tamed creature can be told to follow you or stay, like a wolf: press Use on it to switch. Creatures vanilla already lets you command are unchanged. |
 | `NoSummonCommands` | `true` | Raised skeletons cannot be petted or told to stay, so they always follow you and always count against how many you may have at once. Tamed creatures are unaffected. |
+| `CullWoundedSummons` | `true` | When raising a new skeleton puts you over your summon limit, the one that disappears is the most badly wounded rather than the oldest. Equally hurt summons fall back to the oldest, as vanilla does. How many you may have at once is unchanged. |
 | `FeedFromContainers` | `true` | A hungry tame with no food on the ground near it eats one item it likes from a container within `FeedRadius`. Only creatures that are already tame. |
 | `FeedRadius` | `10` (metres) | How far from a hungry tame to look for food in containers, 1 to 50. Measured in three dimensions. |
 | `SilentBirths` | `true` | Tames give birth without the birth sound. The birth's other effects still play. |
@@ -342,6 +349,17 @@ somewhere stopped counting and the next cast raised one more than the
 limit allows. With `NoSummonCommands` on, pressing Use on a raised
 skeleton does nothing at all -- no petting, no stay, no renaming -- and
 the hover text no longer offers any of it.
+
+Raising one more skeleton than the limit allows still costs you a
+skeleton. With `CullWoundedSummons` on, the one you lose is whichever is
+furthest from full health rather than whichever you raised first, so a
+skeleton chewed down to a sliver is replaced and the fresh ones fighting
+beside you are kept. Health counts as a share of the creature's own
+maximum, not as a number, so a tougher summon is not thrown away for
+having more to lose. Summons hurt the same amount fall back to the
+oldest, exactly as vanilla picks. Nothing else about the limit moves:
+the same creatures count, the check still happens only as a summon
+starts following you, and the same number survives it.
 
 A hungry tame looks for food on the ground first, as usual, and only then
 in the nearest container holding something it eats. It eats one item each
