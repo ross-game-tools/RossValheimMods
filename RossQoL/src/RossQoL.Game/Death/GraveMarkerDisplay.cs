@@ -98,8 +98,13 @@ namespace RossQoL.Game.Death
             var camera = Utils.GetMainCamera();
             if (camera == null) { SetVisible(false); return; }
 
-            var target = new Vector3(grave.Value.X, grave.Value.Y, grave.Value.Z);
-            float distance = Vector3.Distance(Player.m_localPlayer.transform.position, target);
+            // The grave's own spot while the player can reach it, the dungeon
+            // entrance while they cannot -- a tombstone in a crypt is recorded
+            // 5000m up, so aimed at from the surface it would point at empty
+            // sky and read a distance in kilometres.
+            var playerAt = Player.m_localPlayer.transform.position;
+            var target = GraveAimPoint.For(grave.Value, playerAt);
+            float distance = Vector3.Distance(playerAt, target);
 
             HandleKeys(grave.Value);
 

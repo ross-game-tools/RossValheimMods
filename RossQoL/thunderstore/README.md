@@ -98,7 +98,10 @@ key you can hold to dismiss it, and, once you have died more than once and
 `CycleGraveKey` is bound (`PageDown` by default), the key to cycle to your
 next remembered grave -- `CycleGraveKey` only moves that marker, the Just
 Died buff always tracks your newest grave regardless of what the marker is
-pointed at. The buff eases off in steps as
+pointed at. If you died inside a dungeon, both the marker and the buff aim
+at the dungeon's entrance for as long as you are outside it, and switch to
+the grave itself once you are back underground -- so the distance you are
+shown is always the distance you actually have to cover. The buff eases off in steps as
 you close the distance on your grave, but never all the way to nothing
 while the grave still stands, and ends the moment you loot it, or after
 `CorpseRunMinutes` of real time if you don't make it back in time (a fresh
@@ -180,7 +183,7 @@ produce is reflected.
 | Setting | Default | What it does |
 |---|---|---|
 | `Enabled` | `true` | All portal tweaks. |
-| `TamesFollow` | `true` | Tames following you come through portals with you. |
+| `TamesFollow` | `true` | Tames following you come through portals with you, and through dungeon doors too, in both directions. |
 | `TameFollowRadius` | `20` (metres) | How close a following tame must be to come along. Measured in three dimensions. `0` brings nothing. |
 | `TameSearchDistance` | `6` (metres) | How far from your arrival point to look for a clear spot for each tame, before placing it at your own position. Lower it for tight portal huts. |
 | `InstantPortals` | `true` | Portals skip the fixed wait: you arrive as soon as the destination has loaded, instantly when it already is. Other teleports are unchanged. |
@@ -190,6 +193,13 @@ Ridden creatures (a saddled lox, for example) are not brought along.
 Skeletons raised by the Dead Raiser count as creatures following you, so
 they come through with your tames, under the same `TameFollowRadius` and
 `TameSearchDistance`.
+
+Dungeon doors work the same way: walk your wolves or skeletons into a
+crypt, a cave or a mine and they arrive inside with you, and they come
+back out with you again. The same settings apply — there is no separate
+switch — and summons are held safe for the journey, which matters more
+here than at a portal, since a dungeon interior sits far enough from its
+own doorway that a summon left behind would be dismissed.
 
 With `InstantPortals`, a portal to somewhere already loaded, such as the
 other end of a portal hub, is instant. A far portal still shows the
@@ -260,7 +270,7 @@ Server-controlled when connected.
 | `MiningMultiplier` | `2` | How much harder you hit that rock, 1 to 10. |
 | `SmeltingYield` | `true` | Ore from a biome whose boss is dead smelts into more bars for the same fuel. |
 | `SmeltingMultiplier` | `2` | How many bars one such ore yields, 1 to 10. |
-| `DungeonRespawn` | `true` | Dungeons in a biome whose boss is dead come back as first found, `RespawnDays` after your last visit: burial chambers and troll caves (Elder), sunken crypts (Bonemass), frost caves (Moder), infested mines (Queen). Rebuilt from the dungeon's own seed, so the layout is unchanged. Server-controlled. |
+| `DungeonRespawn` | `true` | Dungeons whose own boss is dead come back as first found, `RespawnDays` after your last visit: burial chambers and troll caves (Elder), sunken crypts (Bonemass), frost caves (Moder), infested mines (Queen). Which boss a dungeon waits for is read from the dungeon's own type, not from the ground under its entrance, so a dungeon near a biome border still answers for itself; anything unrecognised is left alone. Rebuilt from the dungeon's own seed, so the layout is unchanged. Surface camps and villages are never touched. Server-controlled. |
 | `RespawnDays` | `24` (in-game days) | Days after your last visit before a dungeon is rebuilt, 1 to 1000. |
 | `ProtectPlayerBuilds` | `true` | A dungeon holding anything you built stops respawning, rather than being cleared out. A rebuild destroys everything inside, a portal or stash included. |
 
@@ -311,7 +321,7 @@ Server-controlled when connected.
 A creature told to follow keeps following after you log out and back in,
 as a wolf does, even if `FollowCommand` is turned off in between; tell it
 to stay first. With Portals/TamesFollow, following tames come through
-portals with you.
+portals and dungeon doors with you.
 
 A hungry tame looks for food on the ground first, as usual, and only then
 in the nearest container holding something it eats. It eats one item each

@@ -708,3 +708,101 @@ server-specific. `TameMoveOutcome` (`RossQoL.Core.Portals`) is the
 permanent piece that survives the diagnostic: `PortalTamesManager`
 logs a warning for any arrival that isn't `Moved`, at the ordinary log
 level, with no config flag required.
+
+## Replaying an attack animation re-fires the last attack (read 1.0.15)
+
+Traced while fixing a duplication bug: RossQoL's `Items/RecallSummons`
+plays the Dead Raiser's own `"staff_summon"` animation for its recall
+cast, and that raised a second skeleton for free.
+
+The chain, all from `assembly_valheim` 1.0.15:
+
+- `Humanoid.m_currentAttack` is assigned in `Humanoid.StartAttack`
+  (`Humanoid.cs:310`) and cleared in exactly two places: the top of
+  `StartAttack` itself (`Humanoid.cs:299-303`) and `UnequipItem`
+  (`Humanoid.cs:1296-1300`). **It is never cleared when an attack
+  finishes.** After a swing ends, `Attack.Update` calls `Stop()`
+  (`Attack.cs:556-559`), which only sets `m_attackDone` -- the character
+  keeps holding that `Attack` object indefinitely.
+- Attack animation clips carry an animation event that reaches
+  `CharacterAnimEvent.Hit()` / `OnAttackTrigger()`
+  (`CharacterAnimEvent.cs:244-252`) then `Humanoid.OnAttackTrigger`
+  (`Humanoid.cs:553-560`). That guard checks only `m_currentAttack !=
+  null` and `GetCurrentWeapon() != null`. **It does not check
+  `IsDone()`.**
+- `Attack.OnAttackTrigger` (`Attack.cs:607`) has no `m_attackDone`
+  early-return of its own (unlike `Attack.Update`, `Attack.cs:516-520`)
+  and switches straight to `ProjectileAttackTriggered`
+  (`Attack.cs:775`), then `FireProjectileBurst`, then the staff's summon
+  projectile and its `SpawnAbility`.
+- Eitr, stamina and health are spent in `Attack.Update`
+  (`Attack.cs:531-537`), behind that `m_attackDone` early-return, or in
+  `FireProjectileBurst` only when `m_perBurstResourceUsage` is set.
+  So the re-fire is free.
+
+**Rule: triggering an attack animation on a character outside
+`Humanoid.StartAttack` re-fires whatever attack that character last
+started.** Any feature that does this must retire `m_currentAttack`
+first, the way `StartAttack` does (park it in `m_previousAttack`, which
+feeds the next attack's chain level, then null it), and must refuse to
+do so while the held attack is not `IsDone()` -- clearing an in-flight
+attack swallows the payload its cost has already been paid for.
+
+Ruled out along the way, worth not re-deriving:
+
+- `EffectList.Create` (`EffectList.cs:37`) only `Instantiate`s each
+  listed prefab; it never calls `IProjectile.Setup`, so it cannot start
+  a `SpawnAbility` coroutine except via `SpawnAbility.Awake`'s
+  `m_spawnOnAwake` (`SpawnAbility.cs:108-114`) -- and vanilla's own
+  primary attack plays the same `m_startEffect` list while raising
+  exactly one skeleton, which settles it.
+- `Player.PlayerAttackInput` (`Player.cs:1805-1843`) zeroes
+  `m_queuedAttackTimer` whenever a secondary attack is queued, so a
+  secondary that returns false never falls through to the primary.
+
+## Placing a creature inside a dungeon interior (read 1.0.15)
+
+An interior is instantiated at its zone's centre plus **5000 on Y**
+(`Location.cs:60`), and `Character.InInterior(Vector3)` is exactly
+`position.y > 3000f` (`Character.cs:4371-4374`) — that IS vanilla's own
+test, and the right one to branch on.
+
+Every world-column query is written for the overworld and behaves badly
+up there. What each one actually does:
+
+- `ZoneSystem.IsBlocked(p)` (`ZoneSystem.cs:2728`) — `p.y += 2000f`, then
+  raycast **down 10000 m** over "Default", "static_solid",
+  "Default_small", "piece". For a point inside an interior that column
+  runs from about y=7000 to about y=-3000: it contains the interior's own
+  ceiling **and the whole overworld below it**. It answers "blocked" for
+  essentially everywhere inside a dungeon. **Do not use it in an
+  interior.**
+- `ZoneSystem.GetGroundHeight(p)` (`ZoneSystem.cs:2734`) — origin forced
+  to **y=6000**, down 10000 m, terrain layer only. For an interior
+  position it returns the **overworld** terrain height. This is the trap
+  the naive "correct the height" fix falls into.
+- `ZoneSystem.GetSolidHeight(p, out h, heightMargin)`
+  (`ZoneSystem.cs:2768`) — `p.y += heightMargin`, down **2000 m**. With a
+  small margin this is interior-safe: from y≈5000 the ray spans roughly
+  5002..3002 and cannot reach the overworld at all. It returns false (not
+  a bogus height) when it finds nothing, so "did it find a floor" is a
+  usable validity test at any Y.
+
+What happens to a creature that ends up below a dungeon floor:
+`Character.UnderWorldCheck` (`Character.cs:883-903`) only rescues a
+character once it is below `GetGroundHeight - 1`, i.e. below the
+**overworld** terrain — five kilometres from an owner still inside the
+dungeon. That is far past `Tameable.m_unsummonDistance`, so
+`Tameable.UpdateSummon` (`Tameable.cs:629-637`, a plain 3D
+`Vector3.Distance` to the live follow target, checked every frame on the
+ZDO's owner) calls `UnSummon` → `RPC_UnSummon` → `ZNetScene.Destroy`
+(`Tameable.cs:709-723`). **A summon that leaves a dungeon interior by any
+route is destroyed, not merely displaced.**
+
+RossQoL's placement rule (`RossQoL.Core.Portals.PlacementFooting`, applied
+everywhere now, not only inside interiors): ask `GetSolidHeight` with a
+small margin whether there is floor at the candidate within ~1.5 m of the
+player's own height, refuse a candidate whose floor is under the terrain
+surface when the player's own position is not, and treat "no floor found"
+as unusable so the search falls back to the player's own position. See
+`dungeons.md` §7 for why the interior-only version was not enough.

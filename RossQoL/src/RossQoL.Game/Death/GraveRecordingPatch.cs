@@ -47,6 +47,8 @@ namespace RossQoL.Game.Death
             new CompatMember("Game", "GetPlayerProfile", "matching a tombstone to its owner"),
             new CompatMember("PlayerProfile", "GetPlayerID", "matching a tombstone to its owner"),
             new CompatMember("EnvMan", "GetCurrentDay", "stamping a grave with the day it was made"),
+            new CompatMember("Character", "InInterior", "telling a grave inside a dungeon from one on the surface"),
+            new CompatMember("Teleport", "m_targetPoint", "following a dungeon's inner door back out to its entrance"),
         };
 
         private static void Postfix(Player __instance)
@@ -85,8 +87,19 @@ namespace RossQoL.Game.Death
                 var at = grave.transform.position;
                 int day = EnvMan.instance != null ? EnvMan.instance.GetCurrentDay() : 0;
 
-                DeathState.Record(new GraveRecord(
-                    DeathState.WorldId, at.x, at.y, at.z, day, items, id.UserID, id.ID));
+                // A dungeon entrance is worth writing down HERE and nowhere
+                // else: the interior is loaded and the player is standing in
+                // it, which is the one moment its door is reachable. Asked for
+                // later, from the surface, the dungeon is usually not streamed
+                // in at all -- and "not streamed in" is exactly the case the
+                // marker exists for.
+                DeathState.Record(
+                    Character.InInterior(at) && TryFindEntrance(at, out var entrance)
+                        ? new GraveRecord(
+                            DeathState.WorldId, at.x, at.y, at.z, day, items, id.UserID, id.ID,
+                            entrance.x, entrance.y, entrance.z)
+                        : new GraveRecord(
+                            DeathState.WorldId, at.x, at.y, at.z, day, items, id.UserID, id.ID));
 
                 // We are looking straight at the tombstone: that is the
                 // strongest sighting there is, and taking it here is what
@@ -126,6 +139,53 @@ namespace RossQoL.Game.Death
             }
 
             return nearest;
+        }
+
+        /// <summary>
+        /// Finds the surface door of the dungeon a grave is inside.
+        ///
+        /// A dungeon door is a <c>Teleport</c>, one on each side of the pair,
+        /// each wired to the other through <c>m_targetPoint</c> -- there is no
+        /// separate "exit" type (docs/valheim-api/dungeons.md §5). So the inner
+        /// door is the one standing in interior space whose partner is not, and
+        /// the partner's own transform position is where the player came in.
+        /// Vanilla's <c>GetTeleportPoint()</c> offset is private and not worth
+        /// reaching for: it moves the point about a metre, which is nothing at
+        /// the ranges a marker is read at.
+        ///
+        /// Nearest to the grave, so a location carrying more than one pair
+        /// names the door for the part of the dungeon the player died in.
+        /// </summary>
+        private static bool TryFindEntrance(Vector3 grave, out Vector3 entrance)
+        {
+            entrance = Vector3.zero;
+            float nearestDistance = float.MaxValue;
+
+            foreach (var door in UnityEngine.Object.FindObjectsByType<Teleport>(FindObjectsSortMode.None))
+            {
+                // Explicit Unity-aware null checks, not `?.`: a destroyed
+                // component still passes a reference-null test.
+                if (door == null) continue;
+
+                var partner = door.m_targetPoint;
+                if (partner == null) continue;
+
+                // The inside half of the pair, leading out. A buildable portal
+                // is a TeleportWorld, a different type entirely, so nothing
+                // else can be caught by this.
+                if (!Character.InInterior(door.transform.position)) continue;
+
+                var outside = partner.transform.position;
+                if (Character.InInterior(outside)) continue;
+
+                float distance = Vector3.Distance(door.transform.position, grave);
+                if (distance >= nearestDistance) continue;
+
+                nearestDistance = distance;
+                entrance = outside;
+            }
+
+            return nearestDistance < float.MaxValue;
         }
     }
 }

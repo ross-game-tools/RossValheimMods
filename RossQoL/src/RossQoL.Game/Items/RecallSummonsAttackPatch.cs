@@ -81,6 +81,11 @@ namespace RossQoL.Game.Items
             var runner = RecallCastRunner.Instance;
             if (runner != null && runner.IsPending) return false;
 
+            // Before anything else, and before the cooldown is consumed: the
+            // cast animation cannot safely play while the staff is still
+            // holding an attack. See ReleaseFinishedAttack.
+            if (!ReleaseFinishedAttack(player)) return false;
+
             float cooldown = RecallSummonsConfig.RecallCooldownSeconds?.Value ?? 8f;
             float now = Time.time;
             if (!RecallCooldown.CanFire(_lastRecallTime, now, cooldown)) return false;
@@ -112,6 +117,71 @@ namespace RossQoL.Game.Items
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Retires the attack the staff is still holding from its last swing,
+        /// so replaying the attack animation cannot fire that attack's payload
+        /// a second time. Answers false -- meaning "do not recall at all" --
+        /// while an attack is still running.
+        ///
+        /// This is the whole reason the recall used to raise a free skeleton.
+        /// <c>Humanoid.m_currentAttack</c> is only ever cleared when a NEW
+        /// attack starts or the weapon is unequipped (<c>Humanoid.StartAttack</c>,
+        /// <c>Humanoid.UnequipItem</c>) -- never when an attack merely
+        /// finishes. So after one normal 100-eitr summon the staff is still
+        /// holding that primary <c>Attack</c>, fully formed, with the
+        /// skeleton-raising <c>m_attackProjectile</c> on it. The recall never
+        /// calls vanilla's <c>StartAttack</c> (that is the point of the prefix
+        /// above), so nothing clears it -- and then
+        /// <c>ZSyncAnimation.SetTrigger("staff_summon")</c> replays the very
+        /// animation whose clip carries vanilla's attack event. That event
+        /// runs <c>CharacterAnimEvent.Hit</c> -&gt;
+        /// <c>Humanoid.OnAttackTrigger</c>, which checks only that an attack
+        /// is held, not that it is still running, and calls
+        /// <c>Attack.OnAttackTrigger</c> on it. That method has no
+        /// "finished?" guard of its own (unlike <c>Attack.Update</c>, which
+        /// returns immediately once <c>m_attackDone</c> is set -- which is
+        /// exactly why the extra skeleton was free: eitr is spent in
+        /// <c>Update</c>, not in <c>OnAttackTrigger</c>). It reaches
+        /// <c>ProjectileAttackTriggered</c> and fires the staff's summon
+        /// projectile again. Read from the decompiled 1.0.15 source.
+        ///
+        /// Retiring the held attack the way vanilla's own
+        /// <c>Humanoid.StartAttack</c> does -- moving it to
+        /// <c>m_previousAttack</c> and nulling <c>m_currentAttack</c> --
+        /// leaves <c>OnAttackTrigger</c> with nothing to fire. Moving it to
+        /// <c>m_previousAttack</c> rather than just dropping it matters: that
+        /// field feeds the next attack's chain level, so keeping vanilla's own
+        /// bookkeeping is what leaves the primary attack behaving identically.
+        /// <c>Attack.Stop</c> is not called because it returns immediately on
+        /// an attack that is already done, and an attack that is not done is
+        /// refused here instead.
+        ///
+        /// An attack still in flight is refused rather than retired: its cost
+        /// has already been paid in <c>Attack.Update</c>, and clearing it
+        /// mid-swing would swallow the skeleton the player just paid 100 eitr
+        /// for. Vanilla refuses a new attack in that state too
+        /// (<c>Humanoid.StartAttack</c> opens with an <c>InAttack()</c>
+        /// check), so this matches what a real secondary attack would do.
+        /// </summary>
+        private static bool ReleaseFinishedAttack(Player player)
+        {
+            var current = player.m_currentAttack;
+
+            switch (RecallAttackHandover.Decide(current != null, current != null && current.IsDone()))
+            {
+                case RecallAttackAction.Refuse:
+                    return false;
+
+                case RecallAttackAction.RetireThenPlay:
+                    player.m_previousAttack = current;
+                    player.m_currentAttack = null;
+                    return true;
+
+                default:
+                    return true;
+            }
         }
 
         /// <summary>
@@ -197,6 +267,12 @@ namespace RossQoL.Game.Items
         /// (<c>m_nview.InvokeRPC(ZNetView.Everybody, "SetTrigger", name)</c>),
         /// so this replicates to other clients exactly like a real attack's
         /// animation does, with no separate sync code needed here.
+        ///
+        /// Playing an attack animation outside an attack is only safe because
+        /// <see cref="ReleaseFinishedAttack"/> has already run: the clip
+        /// carries vanilla's attack event, which fires whatever attack the
+        /// character is still holding. Read that method before changing the
+        /// order of anything here.
         /// </summary>
         private static void PlayCastAnimation(Player player)
         {

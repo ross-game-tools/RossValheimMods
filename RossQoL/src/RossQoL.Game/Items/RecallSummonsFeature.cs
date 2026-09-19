@@ -71,6 +71,13 @@ namespace RossQoL.Game.Items
             new CompatMember("Game", "IsShuttingDown", "cancelling a pending cast if the player is logging out"),
             new CompatMember("Character", "GetZAnim", "reaching the player's animation sync component to play the cast"),
             new CompatMember("ZSyncAnimation", "SetTrigger", "playing the recall's cast animation the same way vanilla plays any attack"),
+            new CompatMember("Humanoid", "m_currentAttack", "the attack the staff is still holding from its last swing, which the cast animation would otherwise fire again"),
+            new CompatMember("Humanoid", "m_previousAttack", "where vanilla parks a retired attack, so the primary attack's chain level is unaffected"),
+            new CompatMember("Attack", "IsDone", "telling a finished attack from one still swinging"),
+            new CompatMember("Character", "InInterior", "telling a dungeon interior from the overworld, which the arrival search has to ask differently"),
+            new CompatMember("ZoneSystem", "IsBlocked", "whether a spot a skeleton is being recalled to is obstructed, outdoors"),
+            new CompatMember("ZoneSystem", "GetSolidHeight", "the floor under a recall spot, and whether there is one at all at the height you are standing at"),
+            new CompatMember("ZoneSystem", "GetGroundHeight", "the terrain surface over a recall spot, which vanilla would lift a skeleton up to"),
         };
 
         public override void BindSettings(ConfigFile config, string section) =>

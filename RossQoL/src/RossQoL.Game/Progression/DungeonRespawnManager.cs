@@ -57,7 +57,15 @@ namespace RossQoL.Game.Progression
             var nview = generator.GetComponent<ZNetView>();
             if (nview == null || !nview.IsValid()) return;
 
+            // A surface camp -- a goblin village, a farm -- is built by this
+            // same component, and tearing one down and building it again is
+            // not what this feature is for. Only real interiors are ours.
+            if (generator.m_algorithm != DungeonGenerator.Algorithm.Dungeon) return;
+
             if (!DungeonSite.Resolve(generator, out var site)) return;
+
+            // Asked from the dungeon's own identity, not the ground under it.
+            bool cleared = DungeonUnlock.IsCleared(site.DeclaredBiomes, site.Themes, HasKey);
 
             // Standing in it counts as a visit, and a visit resets the clock.
             // Measured against the dungeon's own volume, the same box its
@@ -85,7 +93,7 @@ namespace RossQoL.Game.Progression
             }
 
             if (!DungeonRespawnMath.IsDue(lastVisit, today, span)) return;
-            if (!DungeonBosses.IsCleared(site.Biome, HasKey)) return;
+            if (!cleared) return;
 
             // Not an error when it is not safe: a player inside, or a build to
             // protect. Left for the next sweep, and the stamp is untouched so
@@ -101,7 +109,7 @@ namespace RossQoL.Game.Progression
 
             if (!DungeonRespawnMath.IsDue(ReadVisitDay(nview), today, span)) return;
 
-            if (DungeonReset.Run(generator, site.Biome))
+            if (DungeonReset.Run(generator, site.Label))
                 Stamp(nview, today);
         }
 
@@ -114,36 +122,67 @@ namespace RossQoL.Game.Progression
     }
 
     /// <summary>
-    /// What a dungeon needs to be judged: the biome it belongs to, and how far
-    /// its interior reaches.
+    /// What a dungeon is, as the dungeon itself says it.
     ///
-    /// Neither can be read off the generator itself. A DungeonGenerator is a
-    /// root object of its own -- not a child of the Location that placed it --
-    /// and it sits 5000 m above the ground, where asking for the biome would
-    /// answer for empty sky. Both answers come from the surface, via the
-    /// location that owns the generator's zone: vanilla's own Location lookup
-    /// when the location object is loaded, and ZoneSystem's record of what it
-    /// placed in that zone when it is not.
+    /// A DungeonGenerator is a root object of its own -- not a child of the
+    /// Location that placed it -- so its identity comes from the location that
+    /// owns its zone: vanilla's own Location lookup when the location object is
+    /// loaded, and ZoneSystem's record of what it placed in that zone when it
+    /// is not. Both carry the biome the world generator placed the dungeon
+    /// FOR, which is the thing that decides which boss it waits for.
+    ///
+    /// The terrain biome under the entrance is kept too, but only for the log.
+    /// It used to be what the gate was decided on, and it is the wrong
+    /// question: it answers for whatever ground is there, one sample, at a
+    /// point chosen for convenience -- while the dungeon's own declared biome
+    /// travels with it and cannot drift. A gate that opens by mistake destroys
+    /// everything a player left inside, so the deciding value must be the one
+    /// that cannot be somewhere else's answer.
     /// </summary>
     internal readonly struct DungeonSite
     {
-        private DungeonSite(string biome) => Biome = biome;
+        private DungeonSite(string declaredBiomes, string themes, string terrainBiome, string locationName)
+        {
+            DeclaredBiomes = declaredBiomes;
+            Themes = themes;
+            TerrainBiome = terrainBiome;
+            LocationName = locationName;
+        }
 
-        /// <summary>The biome at the dungeon's entrance, named as Heightmap.Biome spells it.</summary>
-        public string Biome { get; }
+        /// <summary>The biomes the dungeon was placed for, named as Heightmap.Biome spells them.</summary>
+        public string DeclaredBiomes { get; }
+
+        /// <summary>The dungeon's own themes, named as Room.Theme spells them.</summary>
+        public string Themes { get; }
+
+        /// <summary>The biome of the ground sampled at the entrance. For the log only.</summary>
+        public string TerrainBiome { get; }
+
+        /// <summary>The location prefab that placed this dungeon, when one is loaded.</summary>
+        public string LocationName { get; }
+
+        /// <summary>What to call this dungeon in a log line.</summary>
+        public string Label => string.IsNullOrEmpty(DeclaredBiomes) ? TerrainBiome : DeclaredBiomes;
 
         public static bool Resolve(DungeonGenerator generator, out DungeonSite site)
         {
             site = default;
             if (generator == null || ZoneSystem.instance == null) return false;
 
+            string themes = FlagNames.Of(generator.m_themes);
             var zone = ZoneSystem.GetZone(generator.transform.position);
 
-            // The location object itself, when this client has it loaded.
+            // The location object itself, when this client has it loaded. On a
+            // dedicated server this is the path that runs: m_locationInstances
+            // is the server's own record and a joining client has none.
             var location = Location.GetZoneLocation(zone);
             if (location != null && location.m_hasInterior)
             {
-                site = new DungeonSite(Heightmap.FindBiome(location.transform.position).ToString());
+                site = new DungeonSite(
+                    FlagNames.Of(location.m_biome),
+                    themes,
+                    Heightmap.FindBiome(location.transform.position).ToString(),
+                    location.gameObject.name);
                 return true;
             }
 
@@ -152,8 +191,45 @@ namespace RossQoL.Game.Progression
             if (!ZoneSystem.instance.m_locationInstances.TryGetValue(zone, out var instance)) return false;
             if (instance.m_location == null || instance.m_location.m_interiorRadius <= 0f) return false;
 
-            site = new DungeonSite(Heightmap.FindBiome(instance.m_position).ToString());
+            site = new DungeonSite(
+                FlagNames.Of(instance.m_location.m_biome),
+                themes,
+                Heightmap.FindBiome(instance.m_position).ToString(),
+                instance.m_location.m_prefabName);
             return true;
+        }
+    }
+
+    /// <summary>
+    /// The names of the bits set in one of Valheim's bit-mask enums.
+    ///
+    /// ToString() will not do it: neither Heightmap.Biome nor Room.Theme is
+    /// declared [Flags], although both are edited as bit masks, so a value with
+    /// two bits set prints as a number. Aggregate members (Biome.All, Land) are
+    /// skipped by taking single bits only, which is what the callers mean.
+    /// </summary>
+    internal static class FlagNames
+    {
+        public static string Of(Enum flags)
+        {
+            if (flags == null) return "";
+
+            var type = flags.GetType();
+            long bits = Convert.ToInt64(flags);
+            if (bits == 0L) return "";
+
+            var names = new List<string>();
+            foreach (var value in Enum.GetValues(type))
+            {
+                long bit = Convert.ToInt64(value);
+                if (bit == 0L || (bit & (bit - 1L)) != 0L) continue;
+                if ((bits & bit) != bit) continue;
+
+                string name = Enum.GetName(type, value);
+                if (!string.IsNullOrEmpty(name)) names.Add(name);
+            }
+
+            return string.Join(", ", names.ToArray());
         }
     }
 }

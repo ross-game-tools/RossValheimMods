@@ -7,7 +7,8 @@ namespace RossQoL.Game.Portals
 {
     /// <summary>
     /// The only ticking object in this mod. Holds the pending capture and
-    /// performs the arrival placement.
+    /// performs the arrival placement, for every teleport alike -- a portal or
+    /// a dungeon door, in either direction. See TeleportPatch.
     /// </summary>
     internal class PortalTamesManager : MonoBehaviour
     {
@@ -130,14 +131,16 @@ namespace RossQoL.Game.Portals
 
             // Hold vanilla's unsummon rules off these creatures for the
             // duration of the hop. A portal jump is further than a summon's
-            // m_unsummonDistance allows, and the ClaimOwnership above is what
+            // m_unsummonDistance allows, and a dungeon door is further still --
+            // an interior sits 5000 m above its entrance, against an unsummon
+            // distance of 150 -- and the ClaimOwnership above is what
             // makes THIS client the one that runs the check -- so without this
             // the capture itself guarantees the summon's destruction. Released
             // on every path below that ends the capture. See
             // SummonUnsummonGuard.
             SummonUnsummonGuard.Guard(ids);
 
-            RossQoLPlugin.Log.LogInfo($"Portal: bringing {ids.Count} tame(s).");
+            RossQoLPlugin.Log.LogInfo($"TamesFollow: bringing {ids.Count} tame(s).");
         }
 
         private void Update()
@@ -158,7 +161,7 @@ namespace RossQoL.Game.Portals
             if (Time.time - _pending.CapturedAt > PendingExpirySeconds)
             {
                 RossQoLPlugin.Log.LogWarning(
-                    $"Portal: arrival never registered within {PendingExpirySeconds:F0}s; "
+                    $"TamesFollow: arrival never registered within {PendingExpirySeconds:F0}s; "
                     + $"leaving {_pending.Tames.Count} tame(s) where they are.");
                 _pending = null;
                 _wasTeleporting = false;
@@ -217,10 +220,10 @@ namespace RossQoL.Game.Portals
                 if (TameMoveOutcomes.Arrived(outcome)) moved++;
                 else
                     RossQoLPlugin.Log.LogWarning(
-                        $"Portal: tame {_pending.Tames[i]} did not arrive ({outcome}).");
+                        $"TamesFollow: tame {_pending.Tames[i]} did not arrive ({outcome}).");
             }
 
-            RossQoLPlugin.Log.LogInfo($"Portal: {moved} of {_pending.Tames.Count} tame(s) arrived.");
+            RossQoLPlugin.Log.LogInfo($"TamesFollow: {moved} of {_pending.Tames.Count} tame(s) arrived.");
         }
 
         /// <summary>
@@ -261,7 +264,107 @@ namespace RossQoL.Game.Portals
             if (zones == null) return true;
 
             var world = ToVector3(point);
-            return !zones.IsBlocked(world);
+
+            // Outdoors the block check is still worth asking -- it is what
+            // keeps a creature out of a boulder or a building -- but inside an
+            // instanced interior it answers "blocked" for everywhere, so it is
+            // skipped there. Nothing about correctness rests on getting that
+            // call right any more: if InInterior answers wrongly, IsBlocked
+            // merely rejects candidates, and a rejected candidate falls back
+            // to the player's own position, which is known-good. See
+            // StandingRoom.
+            if (!Character.InInterior(world) && zones.IsBlocked(world)) return false;
+
+            return StandingRoom(zones, world);
+        }
+
+        /// <summary>
+        /// The real test: is there floor here, at about the height the player
+        /// is standing at, and would the game leave a creature standing on it
+        /// alone? Asked for every candidate, indoors and out.
+        ///
+        /// It began as the replacement for <c>ZoneSystem.IsBlocked</c> inside
+        /// an interior, because that call is meaningless there.
+        ///
+        /// <c>IsBlocked</c> is <c>p.y += 2000f; Physics.Raycast(p, down,
+        /// 10000f, m_blockRayMask)</c> -- a ten-kilometre column starting two
+        /// kilometres overhead, over "Default", "static_solid",
+        /// "Default_small" and "piece" (decompiled 1.0.15,
+        /// <c>ZoneSystem.cs:2728</c>). A dungeon interior is instantiated at
+        /// its zone's centre plus 5000 on Y (<c>Location.cs:60</c>), so for a
+        /// point inside one that column runs from about y=7000 down to about
+        /// y=-3000: it contains the interior's own ceiling and the entire
+        /// overworld underneath. Every candidate therefore reports blocked,
+        /// <c>ArrivalPlacement</c> falls through to its fallback for all of
+        /// them, and every creature is put down on the player's exact
+        /// position -- a pile of overlapping rigidbodies, which is how one
+        /// gets squeezed through the dungeon shell. Once outside it, vanilla's
+        /// own <c>Character.UnderWorldCheck</c> is no help: it compares
+        /// against <c>ZoneSystem.GetGroundHeight</c>, which probes the terrain
+        /// layer from a fixed y=6000 and so returns the OVERWORLD height for
+        /// an interior position. A creature falling out of a dungeon is only
+        /// "rescued" once it is below the overworld terrain -- five kilometres
+        /// from its owner, which is far past <c>Tameable.m_unsummonDistance</c>,
+        /// so <c>Tameable.UpdateSummon</c> destroys it
+        /// (<c>Tameable.cs:629-637</c>).
+        ///
+        /// Asking whether there is floor here at about the height the player
+        /// is standing at answers the real question at any Y. A candidate's Y
+        /// is the player's own height (Core leaves it alone; see
+        /// <c>ArrivalPlacement.Rotate</c>), and the probe starts only
+        /// <see cref="GroundSnapMarginMetres"/> above that, so the top of a
+        /// wall reads as roughly that margin above the player and is rejected,
+        /// a pit reads far below and is rejected, and a probe that finds
+        /// nothing at all is rejected too -- which is the fail-safe: the
+        /// fallback is the player's own position, a spot a body is already
+        /// standing on.
+        ///
+        /// The outdoor question is no safer than the interior one, which is
+        /// why this now runs everywhere. <c>m_blockRayMask</c> excludes
+        /// "terrain" (<c>ZoneSystem.cs:677</c>), so a candidate buried inside
+        /// a hillside or hanging over a drop is not "blocked" at all, and the
+        /// height correction that follows can only search DOWNWARD
+        /// (<c>GetSolidHeight</c> raycasts 2000 m down from
+        /// <c>p.y + heightMargin</c>, <c>ZoneSystem.cs:2768</c>) -- so a
+        /// candidate accepted on the old rule could be put down far below the
+        /// player, or left at the player's height inside solid rock. Either
+        /// way <c>Character.UnderWorldCheck</c> then lifts it to the terrain
+        /// surface at that x/z within five seconds: part-way down an entrance
+        /// shaft, that is the ground outside the entrance. Hence the second
+        /// half of <see cref="PlacementFooting.IsAcceptable"/>.
+        /// </summary>
+        private static bool StandingRoom(ZoneSystem zones, Vector3 point)
+        {
+            bool floorFound = zones.GetSolidHeight(point, out float floor, GroundSnapMarginMetres);
+            bool terrainFound = zones.GetGroundHeight(point, out float terrain);
+
+            return PlacementFooting.IsAcceptable(
+                floorFound, floor, point.y, PlacementFooting.SameFloorToleranceMetres,
+                terrainFound, terrain, PlayerIsUnderTerrain(zones),
+                PlacementFooting.UnderTerrainMarginMetres);
+        }
+
+        /// <summary>
+        /// Whether the player themselves is below the terrain surface by
+        /// vanilla's own margin -- an instanced interior five kilometres up
+        /// never is, a cave or a dungeon built into the world at ordinary
+        /// altitude is. When they are, the terrain sample says nothing useful
+        /// about anywhere near them, so the under-terrain half of the rule is
+        /// stood down rather than rejecting every candidate.
+        ///
+        /// No local player is treated as "not under terrain", i.e. the strict
+        /// reading: a candidate must then survive the terrain test on its own.
+        /// </summary>
+        private static bool PlayerIsUnderTerrain(ZoneSystem zones)
+        {
+            var player = Player.m_localPlayer;
+            if (player == null) return false;
+
+            var at = player.transform.position;
+            bool terrainFound = zones.GetGroundHeight(at, out float terrain);
+
+            return PlacementFooting.IsUnderTerrain(
+                at.y, terrainFound, terrain, PlacementFooting.UnderTerrainMarginMetres);
         }
 
         /// <summary>

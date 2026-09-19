@@ -22,6 +22,17 @@ One file per subsystem:
 - `wear-and-tear.md` (read at 1.0.14) — `WearNTear` weathering vs
   structural decay: what causes it, ownership/ZDO writes, and how to
   suppress only the weather component.
+- `dungeons.md` (read at 1.0.15) — where dungeon interiors live in world
+  space, why `Heightmap.FindBiome` is a poor way to ask which biome a
+  dungeon belongs to, what identity a dungeon carries instead
+  (`Location.m_biome`, `ZoneLocation.m_biome`, `DungeonGenerator
+  .m_themes` / `m_algorithm`, `Room.Theme`), and what a dungeon door is
+  (`Teleport`, and why `Player.TeleportTo` is the one place every
+  teleport in the game passes through), and why an instanced interior is
+  per-location asset data rather than a fact about dungeons — so
+  `Character.InInterior` is the wrong way to ask whether a terrain sample
+  means anything where you are standing (`Character.UnderWorldCheck` vs
+  `ZoneSystem.GetGroundHeight`/`GetSolidHeight`/`IsBlocked`).
 - `teleport-unlocks.md` (read at 1.0.14) — which prefabs vanilla sets
   `m_teleportable = false` on, verified from a live game: the full
   blocked count, the three prefab names `TeleportUnlocks` needed, and

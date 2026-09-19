@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.22.0
+
+- **Items / RecallSummons:** recalling your skeletons with the Dead Raiser's
+  secondary attack no longer raises an extra skeleton for free. The recall
+  now only moves the skeletons you already have, as it was meant to. A recall
+  pressed in the middle of a swing is ignored rather than cutting the swing
+  short, so a summon you have paid eitr for always arrives.
+- **Items / RecallSummons, Portals / TamesFollow:** recalling your skeletons
+  inside a dungeon no longer dumps every one of them on the exact spot you
+  are standing on, which could squeeze one out through the wall and lose it.
+  They now spread out around you underground the same way they do above it.
+  A creature is also never put down at a height you are not at: on a
+  staircase down into a mine, in a cave, or anywhere else the ground above
+  is not the ground you are standing on, it lands beside you instead of
+  being shuffled out to the surface. Out in the open they still follow the
+  slope and land on the hillside with you.
+- **Portals / TamesFollow:** your tames and skeletons now come through dungeon
+  doors with you, and back out again, the same way they come through a portal.
+  Walk your wolves into a crypt and they are beside you when you arrive. No new
+  setting: it uses the same `TameFollowRadius` and `TameSearchDistance`, and
+  summons are held safe for the crossing, which matters here because a dungeon
+  interior is far enough from its own doorway that one left behind would
+  otherwise be dismissed.
+- **Death / GraveMarker, Death / CorpseRun:** die in a crypt and the marker
+  now points at the dungeon's entrance instead of at the sky. A dungeon
+  interior sits five kilometres above the surface, so a grave inside one used
+  to read as a couple of thousand metres straight up, which told you nothing
+  about how to get back to it and kept the Just Died buff pegged at full
+  strength the whole way. The marker and the buff now both aim at the door
+  you went in by while you are outside, and at the grave itself once you are
+  back underground. Graves you are already carrying are unaffected and still
+  work exactly as before.
+- **Progression / DungeonRespawn:** which boss a dungeon waits for is now
+  decided from the dungeon's own type rather than from the ground beneath its
+  entrance, so a dungeon sitting near a biome border still answers for itself.
+  A dungeon this cannot identify is left alone rather than guessed at, and
+  surface camps and villages are never touched.
+
 ## 0.21.0
 
 - **Progression / TeleportUnlocks:** dragon eggs may go through a portal once

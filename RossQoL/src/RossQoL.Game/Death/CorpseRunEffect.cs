@@ -143,7 +143,12 @@ namespace RossQoL.Game.Death
                 return;
             }
 
-            var target = new Vector3(grave.Value.X, grave.Value.Y, grave.Value.Z);
+            // The same target the on-screen marker aims at: for a grave inside
+            // a dungeon that is the entrance while the player is still outside.
+            // Scaling on the raw grave position would peg the buff at full
+            // strength for the whole run back, because an interior is recorded
+            // 5000m above the surface.
+            var target = GraveAimPoint.For(grave.Value, player.transform.position);
             float distance = Vector3.Distance(player.transform.position, target);
             float ramped = CorpseRunStrength.For(
                 distance,
