@@ -1,3 +1,4 @@
+using RossQoL.Core.Portals;
 using UnityEngine;
 
 namespace RossQoL.Game.Portals
@@ -13,17 +14,38 @@ namespace RossQoL.Game.Portals
     /// </summary>
     internal static class TameMover
     {
-        public static bool TryMove(ZDOID id, Vector3 destination)
+        /// <summary>
+        /// Convenience wrapper for callers that only care whether the creature
+        /// arrived. <see cref="Move"/> is the one that says why it did not.
+        /// </summary>
+        public static bool TryMove(ZDOID id, Vector3 destination) =>
+            TameMoveOutcomes.Arrived(Move(id, destination));
+
+        /// <summary>
+        /// Moves one creature, and names which step failed if it did not move.
+        ///
+        /// The outcome is not decoration: "0 of 1 arrived" was indistinguishable
+        /// between a creature that had been destroyed and one this client could
+        /// not claim, which are opposite problems with opposite fixes.
+        /// </summary>
+        public static TameMoveOutcome Move(ZDOID id, Vector3 destination)
         {
-            if (id == ZDOID.None) return false;
+            if (id == ZDOID.None)
+                return TameMoveOutcomes.Classify(false, false, false, false);
 
             var man = ZDOMan.instance;
-            if (man == null) return false;
+            if (man == null)
+                return TameMoveOutcomes.Classify(true, false, false, false);
 
-            // Null means the creature no longer exists -- killed while the
-            // player was in transit, most likely. Nothing to move.
+            // Null means the creature no longer exists -- its ZDO has been
+            // destroyed. Killed while the player was in transit, or despawned
+            // by the game: vanilla's summon-unsummon path (Tameable.UnSummon ->
+            // RPC_UnSummon -> ZNetScene.Destroy -> ZDOMan.DestroyZDO) is the
+            // known way for a captured summon to vanish mid-hop, which is what
+            // SummonUnsummonGuard exists to prevent.
             var zdo = man.GetZDO(id);
-            if (zdo == null) return false;
+            if (zdo == null)
+                return TameMoveOutcomes.Classify(true, true, false, false);
 
             // Re-assert ownership immediately before the write, with nothing
             // in between. The claim taken at departure is NOT enough:
@@ -37,7 +59,8 @@ namespace RossQoL.Game.Portals
             // what makes this possible at all: the creature objects were
             // destroyed when their zone unloaded.
             zdo.SetOwner(ZDOMan.GetSessionID());
-            if (!zdo.IsOwner()) return false;
+            if (!zdo.IsOwner())
+                return TameMoveOutcomes.Classify(true, true, true, false);
 
             zdo.SetPosition(destination);
 
@@ -93,7 +116,7 @@ namespace RossQoL.Game.Portals
                 }
             }
 
-            return true;
+            return TameMoveOutcome.Moved;
         }
     }
 }

@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.21.0
+
+- **Progression / TeleportUnlocks:** dragon eggs may go through a portal once
+  Moder is dead, and mechanical springs and Dvergr extractors once the Queen
+  is dead. Same rule as ore and metal: vanilla's own refusal stands until
+  then.
+- **Portals / TamesFollow:** skeletons raised by the Dead Raiser now come
+  through portals with you, like any other creature following you. They use
+  the same `TameFollowRadius` and `TameSearchDistance` as your tames, rather
+  than settings of their own.
+- **Items / RecallSummons:** the Dead Raiser staff's secondary attack (middle
+  click) now calls every skeleton it raised, and that is still following
+  you, back to your side, spread out around you instead of piling on top of
+  each other. Plays the staff's own summoning-cast animation and sound, and
+  takes a brief half-second to complete, so it feels like you're casting a
+  spell rather than teleporting your skeletons instantly (`RecallCastSeconds`,
+  default 0.5 seconds). Costs no eitr, stamina or health, and is on a
+  cooldown set by `RecallCooldownSeconds` (default 8 seconds). Vanilla
+  previously did nothing with this staff's secondary attack.
+
 ## 0.20.0
 
 - **Production / SafeRefinery:** the Eitr Refinery no longer spits the

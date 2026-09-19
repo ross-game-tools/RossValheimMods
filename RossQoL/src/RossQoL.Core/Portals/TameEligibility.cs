@@ -15,7 +15,16 @@ namespace RossQoL.Core.Portals
             // tamed population across the world.
             if (radius <= 0f) return false;
 
-            if (!candidate.IsTamed) return false;
+            // A summon is exempt from the tamed test, not from the following
+            // test. Vanilla can silently fail to record a summon as tamed (see
+            // TameCandidate.IsSummon), so requiring it here is what kept raised
+            // skeletons from coming through portals. Nothing is loosened by the
+            // exemption: a creature only ever follows a player because
+            // Tameable.Command was called on it, and the sole routes to that are
+            // petting an already-tamed creature and a staff raising a summon --
+            // so "following me" already means "mine", and a wild creature can
+            // never satisfy the test below.
+            if (!candidate.IsTamed && !candidate.IsSummon) return false;
             if (!candidate.IsFollowingPlayer) return false;
             if (candidate.IsBusy) return false;
 

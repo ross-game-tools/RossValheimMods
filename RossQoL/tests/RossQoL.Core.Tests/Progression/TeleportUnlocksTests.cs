@@ -49,10 +49,31 @@ namespace RossQoL.Core.Tests.Progression
         {
             var all = Killed(
                 TeleportUnlocks.Elder, TeleportUnlocks.Bonemass,
-                TeleportUnlocks.Moder, TeleportUnlocks.Yagluth);
+                TeleportUnlocks.Moder, TeleportUnlocks.Yagluth, TeleportUnlocks.Queen);
 
             foreach (string item in TeleportUnlocks.KnownItems)
                 Assert.True(TeleportUnlocks.IsUnlocked(item, all), item + " should be unlocked");
+        }
+
+        [Fact]
+        public void Dragon_eggs_wait_for_moder()
+        {
+            Assert.Equal(TeleportUnlocks.Moder, TeleportUnlocks.KeyFor("DragonEgg"));
+            Assert.True(TeleportUnlocks.IsUnlocked("DragonEgg", Killed(TeleportUnlocks.Moder)));
+            Assert.False(TeleportUnlocks.IsUnlocked("DragonEgg", Killed()));
+        }
+
+        [Fact]
+        public void Mechanical_spring_and_dvergr_extractor_wait_for_the_queen()
+        {
+            Assert.Equal(TeleportUnlocks.Queen, TeleportUnlocks.KeyFor("MechanicalSpring"));
+            Assert.Equal(TeleportUnlocks.Queen, TeleportUnlocks.KeyFor("DvergrNeedle"));
+
+            Assert.True(TeleportUnlocks.IsUnlocked("MechanicalSpring", Killed(TeleportUnlocks.Queen)));
+            Assert.True(TeleportUnlocks.IsUnlocked("DvergrNeedle", Killed(TeleportUnlocks.Queen)));
+
+            Assert.False(TeleportUnlocks.IsUnlocked("MechanicalSpring", Killed(TeleportUnlocks.Moder)));
+            Assert.False(TeleportUnlocks.IsUnlocked("DvergrNeedle", Killed(TeleportUnlocks.Yagluth)));
         }
 
         [Fact]
@@ -63,20 +84,30 @@ namespace RossQoL.Core.Tests.Progression
         }
 
         [Fact]
-        public void Mistlands_and_ashlands_materials_are_not_listed()
+        public void Ashlands_materials_are_not_listed()
         {
-            // Nothing they hold is teleport-blocked, so there is nothing to
-            // unlock and no guess about their boss keys to get wrong.
-            Assert.Null(TeleportUnlocks.KeyFor("BlackMarble"));
+            // Nothing it holds is teleport-blocked, so there is nothing to
+            // unlock and no guess about its boss key to get wrong.
             Assert.Null(TeleportUnlocks.KeyFor("FlametalOre"));
+        }
+
+        [Fact]
+        public void Mistlands_materials_that_are_not_actually_blocked_stay_unlisted()
+        {
+            // BlackMarble and SoftTissue are ordinary Mistlands materials
+            // that were never teleport-blocked in the first place; Sap was
+            // specifically checked and confirmed teleportable, so it is not
+            // in the table even though it looks similar to what is.
+            Assert.Null(TeleportUnlocks.KeyFor("BlackMarble"));
             Assert.Null(TeleportUnlocks.KeyFor("SoftTissue"));
+            Assert.Null(TeleportUnlocks.KeyFor("Sap"));
         }
 
         [Fact]
         public void An_item_nothing_unlocks_stays_vanilla()
         {
-            Assert.Null(TeleportUnlocks.KeyFor("DragonEgg"));
-            Assert.False(TeleportUnlocks.IsUnlocked("DragonEgg", Killed(TeleportUnlocks.Moder)));
+            Assert.Null(TeleportUnlocks.KeyFor("PowderedDragonEgg"));
+            Assert.False(TeleportUnlocks.IsUnlocked("PowderedDragonEgg", Killed(TeleportUnlocks.Moder)));
         }
 
         [Fact]

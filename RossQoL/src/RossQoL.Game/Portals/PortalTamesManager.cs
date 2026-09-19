@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using RossQoL.Core.Portals;
+using RossQoL.Game.Items;
 using UnityEngine;
 
 namespace RossQoL.Game.Portals
@@ -35,6 +36,17 @@ namespace RossQoL.Game.Portals
         private void OnDestroy()
         {
             if (Instance == this) Instance = null;
+
+            // The last way out. Every other release happens in Update, which
+            // stops running the moment this component goes away -- leaving the
+            // world mid-hop, or switching the feature off, would otherwise
+            // strand ZDOIDs in a static set that outlives the world they came
+            // from. A stranded id would exempt whatever creature later matched
+            // it from vanilla's unsummon rules forever, which is a worse bug
+            // than the one the guard fixes.
+            _pending = null;
+            _wasTeleporting = false;
+            SummonUnsummonGuard.ReleaseAll();
         }
 
         /// <summary>
@@ -71,15 +83,21 @@ namespace RossQoL.Game.Portals
                 // nearest) follows this player only as far as the ZDO's saved
                 // follow name, which the owner writes and every client has.
                 var ai = character.GetComponent<MonsterAI>();
+                string savedFollow = view.GetZDO().GetString(ZDOVars.s_follow);
                 bool followingMe = ai != null
                     && (ai.GetFollowTarget() == player.gameObject
-                        || view.GetZDO().GetString(ZDOVars.s_follow) == player.GetPlayerName());
+                        || savedFollow == player.GetPlayerName());
 
                 candidates.Add(new TameCandidate(
                     position: ToVec3(character.transform.position),
                     isTamed: character.IsTamed(),
                     isFollowingPlayer: followingMe,
-                    isBusy: character.IsAttached() || IsMounted(view)));
+                    isBusy: character.IsAttached() || IsMounted(view),
+
+                    // A raised skeleton cannot be trusted to report itself as
+                    // tamed -- vanilla can drop that write entirely -- so it is
+                    // recognised by prefab instead. See TameCandidate.IsSummon.
+                    isSummon: SummonedSkeleton.Is(character)));
                 views.Add(view);
             }
 
@@ -89,6 +107,7 @@ namespace RossQoL.Game.Portals
             if (chosen.Count == 0)
             {
                 _pending = null;
+                SummonUnsummonGuard.ReleaseAll();
                 return;
             }
 
@@ -109,6 +128,15 @@ namespace RossQoL.Game.Portals
             _pending = new PendingArrival(ids, Time.time);
             _wasTeleporting = true;
 
+            // Hold vanilla's unsummon rules off these creatures for the
+            // duration of the hop. A portal jump is further than a summon's
+            // m_unsummonDistance allows, and the ClaimOwnership above is what
+            // makes THIS client the one that runs the check -- so without this
+            // the capture itself guarantees the summon's destruction. Released
+            // on every path below that ends the capture. See
+            // SummonUnsummonGuard.
+            SummonUnsummonGuard.Guard(ids);
+
             RossQoLPlugin.Log.LogInfo($"Portal: bringing {ids.Count} tame(s).");
         }
 
@@ -123,6 +151,7 @@ namespace RossQoL.Game.Portals
                 // nothing has been moved, and the tames are untouched.
                 _pending = null;
                 _wasTeleporting = false;
+                SummonUnsummonGuard.ReleaseAll();
                 return;
             }
 
@@ -133,6 +162,11 @@ namespace RossQoL.Game.Portals
                     + $"leaving {_pending.Tames.Count} tame(s) where they are.");
                 _pending = null;
                 _wasTeleporting = false;
+
+                // Vanilla's own rules resume here. A guarded summon that never
+                // arrived is now unsummoned where it stands, which is what
+                // would have happened without this mod -- just 30s later.
+                SummonUnsummonGuard.ReleaseAll();
                 return;
             }
 
@@ -145,6 +179,10 @@ namespace RossQoL.Game.Portals
             {
                 PlaceArrivals(player);
                 _pending = null;
+
+                // The creatures are beside the player again, so the distance
+                // rule this guard was holding off no longer wants to fire.
+                SummonUnsummonGuard.ReleaseAll();
             }
 
             _wasTeleporting = teleporting;
@@ -172,15 +210,14 @@ namespace RossQoL.Game.Portals
                 // therefore known-good. Snapping it can only make it worse
                 // (e.g. finding a solid a couple of metres below a raised
                 // floor). Only searched candidates need their Y corrected.
-                if (spots[i].Equals(ToVec3(arrival)))
-                {
-                    if (TameMover.TryMove(_pending.Tames[i], target)) moved++;
-                    continue;
-                }
+                if (!spots[i].Equals(ToVec3(arrival)))
+                    target.y = GroundHeight(target);
 
-                target.y = GroundHeight(target);
-
-                if (TameMover.TryMove(_pending.Tames[i], target)) moved++;
+                var outcome = TameMover.Move(_pending.Tames[i], target);
+                if (TameMoveOutcomes.Arrived(outcome)) moved++;
+                else
+                    RossQoLPlugin.Log.LogWarning(
+                        $"Portal: tame {_pending.Tames[i]} did not arrive ({outcome}).");
             }
 
             RossQoLPlugin.Log.LogInfo($"Portal: {moved} of {_pending.Tames.Count} tame(s) arrived.");
@@ -213,8 +250,12 @@ namespace RossQoL.Game.Portals
         /// Whether a creature could stand at this point. Backed by the real
         /// world here; the tests supply their own predicate, which is what
         /// makes the wall case assertable without a running game.
+        ///
+        /// Internal rather than private: RecallSummonsManager places arriving
+        /// skeletons with the exact same world query rather than a second
+        /// copy of it.
         /// </summary>
-        private static bool IsFree(Vec3 point)
+        internal static bool IsFree(Vec3 point)
         {
             var zones = ZoneSystem.instance;
             if (zones == null) return true;
@@ -243,7 +284,7 @@ namespace RossQoL.Game.Portals
         /// </summary>
         private const int GroundSnapMarginMetres = 2;
 
-        private static float GroundHeight(Vector3 point)
+        internal static float GroundHeight(Vector3 point)
         {
             var zones = ZoneSystem.instance;
             if (zones == null) return point.y;

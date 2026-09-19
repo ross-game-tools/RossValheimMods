@@ -148,6 +148,9 @@ Server-controlled when connected.
 | `StackableMeadBases` | `true` | Mead bases and barley wine bases stack instead of taking a slot each. Finished drinks are unchanged. |
 | `MeadBaseStackSize` | `20` | How many bases fit in one slot, 1 to 100. |
 | `WisplightCarry` | `true` | A wisplight in your inventory works exactly as if equipped -- wisp, light and mist -- without using the utility slot. |
+| `RecallSummons` | `true` | The Dead Raiser's secondary attack calls every skeleton it raised, and that is still following you, back to your side. Plays the staff's own cast animation and sound, with a brief cast time before your skeletons arrive. Costs no eitr, stamina or health. |
+| `RecallCooldownSeconds` | `8` (seconds) | How long between uses of the recall attack, 0 to 60. `0` allows it every time. |
+| `RecallCastSeconds` | `0.5` (seconds) | How long the recall takes to complete once the cast animation and sound start, 0 to 3. `0` makes it instant. |
 
 Stack sizes are written into saved items, so everyone in a world needs to
 agree on them: this is a server setting, and a player without the mod
@@ -183,6 +186,10 @@ produce is reflected.
 | `InstantPortals` | `true` | Portals skip the fixed wait: you arrive as soon as the destination has loaded, instantly when it already is. Other teleports are unchanged. |
 
 Ridden creatures (a saddled lox, for example) are not brought along.
+
+Skeletons raised by the Dead Raiser count as creatures following you, so
+they come through with your tames, under the same `TameFollowRadius` and
+`TameSearchDistance`.
 
 With `InstantPortals`, a portal to somewhere already loaded, such as the
 other end of a portal hub, is instant. A far portal still shows the
@@ -247,7 +254,7 @@ Server-controlled when connected.
 | Setting | Default | What it does |
 |---|---|---|
 | `Enabled` | `true` | All boss progression tweaks. |
-| `TeleportUnlocks` | `true` | Metal and ore may go through a portal once the boss of its biome is dead. |
+| `TeleportUnlocks` | `true` | Metal, ore, dragon eggs, the mechanical spring and the Dvergr extractor may go through a portal once the boss of their biome is dead. |
 | `ClearMist` | `true` | Killing the Queen clears the mist from the Mistlands. |
 | `MiningPower` | `true` | Rock and ore in a biome whose boss is dead take more damage per swing. Trees are unaffected. |
 | `MiningMultiplier` | `2` | How much harder you hit that rock, 1 to 10. |
@@ -258,11 +265,11 @@ Server-controlled when connected.
 | `ProtectPlayerBuilds` | `true` | A dungeon holding anything you built stops respawning, rather than being cleared out. A rebuild destroys everything inside, a portal or stash included. |
 
 Each biome answers for itself: the Elder frees copper, tin and bronze;
-Bonemass frees iron; Moder frees silver; Yagluth frees black metal. Those
-four are the whole list, because those are the four biomes whose materials
-vanilla refuses to carry. Killing a later boss says nothing about an
-earlier biome, so a fresh character on an old world still has to beat the
-Elder before carrying copper home.
+Bonemass frees iron; Moder frees silver and dragon eggs; Yagluth frees
+black metal; the Queen frees the mechanical spring and the Dvergr
+extractor. Killing a later boss says nothing about an earlier biome, so a
+fresh character on an old world still has to beat the Elder before
+carrying copper home.
 
 Anything else vanilla refuses to teleport, it still refuses, and nothing is
 written into your saved items: turn this off and the ore is simply refused

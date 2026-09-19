@@ -13,9 +13,15 @@ namespace RossQoL.Core.Progression
     /// biome's metal, because the point is that a biome opens up once you
     /// have beaten it, not that progress is a ladder.
     ///
-    /// Four bosses, because those are the four biomes whose materials vanilla
-    /// refuses to carry: Mistlands and Ashlands have nothing teleport-blocked
-    /// to free.
+    /// This is not every biome: it is every item a runtime dump of
+    /// ObjectDB confirmed `m_teleportable == false` on, matched to the
+    /// boss that ought to free it. Mountain ore and the Mountain's dragon
+    /// eggs both wait for Moder; the Plains' black metal waits for
+    /// Yagluth; the Mistlands' mechanical spring and Dvergr extractor
+    /// wait for the Queen. Ashlands has nothing blocked to free. Do not
+    /// assume a biome is exhaustively covered just because one of its
+    /// items is listed here -- add an item only once it has been
+    /// confirmed blocked the same way.
     ///
     /// Names are prefab names, matched however they are spelled. An item that
     /// is not listed is not unlocked by anything: vanilla's own rule stands.
@@ -27,6 +33,9 @@ namespace RossQoL.Core.Progression
         public const string Bonemass = "defeated_bonemass";
         public const string Moder = "defeated_dragon";
         public const string Yagluth = "defeated_goblinking";
+
+        /// <summary>The Mistlands boss's key. Same value as DungeonBosses.Queen/WorldFrontier.Queen.</summary>
+        public const string Queen = "defeated_queen";
 
         private static readonly Dictionary<string, string> Unlocks =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -47,14 +56,21 @@ namespace RossQoL.Core.Progression
                 // Mountain: Moder.
                 { "SilverOre", Moder },
                 { "Silver", Moder },
+                { "DragonEgg", Moder },
 
                 // Plains: Yagluth.
                 { "BlackMetalScrap", Yagluth },
                 { "BlackMetal", Yagluth },
 
-                // Mistlands and Ashlands are not listed: nothing they hold is
-                // teleport-blocked in the first place, so there is nothing to
-                // unlock.
+                // Mistlands: the Queen.
+                { "MechanicalSpring", Queen },
+                // Prefab name for the carried item displayed as "Dvergr
+                // Extractor" -- it places a sap extractor, but the prefab
+                // itself kept its earlier working name.
+                { "DvergrNeedle", Queen },
+
+                // Ashlands is not listed: nothing it holds is teleport-blocked
+                // in the first place, so there is nothing to unlock.
             };
 
         /// <summary>The global key that frees an item, or null when nothing does.</summary>

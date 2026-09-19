@@ -3,17 +3,29 @@
 Verified notes on vanilla Valheim internals, for writing patches against.
 One file per subsystem:
 
-- `containers.md` — how `Container` persists inventory to its ZDO,
-  whether a non-owner's write sticks, and what `ZNetView
+- `containers.md` (read at 1.0.14) — how `Container` persists inventory
+  to its ZDO, whether a non-owner's write sticks, and what `ZNetView
   .ClaimOwnership()` / `ZDO.SetOwner()` actually guarantee.
-- `death-and-respawn.md` — death/respawn flow, status effects, food,
-  skill loss, HUD projection, per-character/per-world persistence.
-- `eitr-refinery.md` — what damages the player near a Mistlands Eitr
-  Refinery (`EffectArea`/`Aoe`), and whether a fix is client- or
-  owner-side.
-- `wear-and-tear.md` — `WearNTear` weathering vs structural decay:
-  what causes it, ownership/ZDO writes, and how to suppress only the
-  weather component.
+- `summons.md` (read at 1.0.14; its final section, "Why a
+  correctly-selected summon never arrives at a portal", read at 1.0.15
+  — quoted bodies are unchanged but line numbers may have drifted) —
+  what the Dead Raiser's summoned skeletons actually are (`Tameable` +
+  `MonsterAI`, no separate summon component), how ownership/follow/
+  lifetime work, and how much of `Portals/TamesFollow` generalises to
+  them.
+- `death-and-respawn.md` (read at 1.0.14) — death/respawn flow, status
+  effects, food, skill loss, HUD projection, per-character/per-world
+  persistence.
+- `eitr-refinery.md` (read at 1.0.14) — what damages the player near a
+  Mistlands Eitr Refinery (`EffectArea`/`Aoe`), and whether a fix is
+  client- or owner-side.
+- `wear-and-tear.md` (read at 1.0.14) — `WearNTear` weathering vs
+  structural decay: what causes it, ownership/ZDO writes, and how to
+  suppress only the weather component.
+- `teleport-unlocks.md` (read at 1.0.14) — which prefabs vanilla sets
+  `m_teleportable = false` on, verified from a live game: the full
+  blocked count, the three prefab names `TeleportUnlocks` needed, and
+  what was checked and confirmed *not* blocked.
 
 ## Convention
 

@@ -91,6 +91,52 @@ namespace RossQoL.Core.Tests.Portals
         }
 
         [Fact]
+        public void A_summon_qualifies_even_though_it_does_not_report_itself_as_tamed()
+        {
+            // The bug this rule exists for: a raised skeleton follows its
+            // summoner, but vanilla can drop the write that records it as
+            // tamed, so IsTamed reads false forever. Requiring it excluded
+            // every summon from portals. See TameCandidate.IsSummon.
+            var summon = new TameCandidate(
+                new Vec3(5f, 0f, 0f), isTamed: false, isFollowingPlayer: true, isBusy: false, isSummon: true);
+            Assert.True(TameEligibility.Qualifies(summon, Player, Radius));
+        }
+
+        [Fact]
+        public void A_summon_that_is_not_following_me_still_does_not_qualify()
+        {
+            // The exemption is from the tamed test only. A summon someone else
+            // raised, or one told to stay, is not coming along.
+            var summon = new TameCandidate(
+                new Vec3(5f, 0f, 0f), isTamed: false, isFollowingPlayer: false, isBusy: false, isSummon: true);
+            Assert.False(TameEligibility.Qualifies(summon, Player, Radius));
+        }
+
+        [Fact]
+        public void A_summon_obeys_the_same_radius_and_busy_rules_as_any_tame()
+        {
+            // Summons deliberately share TamesFollow's radius rather than
+            // getting settings of their own.
+            var far = new TameCandidate(
+                new Vec3(Radius + 1f, 0f, 0f), isTamed: false, isFollowingPlayer: true, isBusy: false, isSummon: true);
+            Assert.False(TameEligibility.Qualifies(far, Player, Radius));
+
+            var busy = new TameCandidate(
+                new Vec3(5f, 0f, 0f), isTamed: false, isFollowingPlayer: true, isBusy: true, isSummon: true);
+            Assert.False(TameEligibility.Qualifies(busy, Player, Radius));
+        }
+
+        [Fact]
+        public void A_creature_that_is_neither_tamed_nor_a_summon_never_qualifies()
+        {
+            // Pins that the summon exemption did not quietly drop the tamed
+            // test for everything else.
+            var wild = new TameCandidate(
+                new Vec3(5f, 0f, 0f), isTamed: false, isFollowingPlayer: true, isBusy: false, isSummon: false);
+            Assert.False(TameEligibility.Qualifies(wild, Player, Radius));
+        }
+
+        [Fact]
         public void A_zero_or_negative_radius_selects_nothing()
         {
             // Guards a config edit of 0 or -1 from being read as "no limit".
