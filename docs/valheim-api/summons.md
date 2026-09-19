@@ -910,6 +910,108 @@ and a postfix on `GetHoverText` rebuilding just the name and
 `" ( $hud_tame, " + GetStatusString() + " )"`. Both methods are long and
 branchy — neither is an inlining candidate, unlike `UpdateSummon`/`UnSummon`.
 
+## Factions, `m_tamed`, and who a summon counts as an enemy (read 1.0.15)
+
+Traced while investigating a report (later retracted) that tamed wolves
+attacked raised skeletons. No code was changed; the facts below are
+worth keeping because they settle how a summon is classified for target
+acquisition.
+
+### The faction enum
+
+`Character.Faction` (`Character.cs:8-24`), in declaration order:
+`Players, AnimalsVeg, ForestMonsters, Undead, Demon, MountainMonsters,
+SeaMonsters, PlainsMonsters, Boss, MistlandsMonsters, Dverger,
+PlayerSpawned, TrainingDummy, DeepNorth`. The field is
+`public Faction m_faction = Character.Faction.AnimalsVeg;`
+(`Character.cs:83`) with `GetFaction()` a bare `return m_faction`
+(`Character.cs:800`). **Which value `Skeleton_Friendly` and `Wolf`
+actually ship is serialized prefab data and is NOT in the DLL** — the
+initialiser above is only the compile-time default. To read them, dump
+`character.GetFaction()` on a live raised skeleton and on a live tamed
+wolf. Note `PlayerSpawned` exists as a distinct faction and is the
+obvious candidate for a summon, but that is inference, not verified.
+
+### `BaseAI.IsEnemy` — the whole rule
+
+`public static bool IsEnemy(Character a, Character b)`
+(`BaseAI.cs:1195-1292`), quoted in the order it tests:
+
+```csharp
+if (a == b) return false;
+if (!a || !b) return false;
+string group = a.GetGroup();
+if (group.Length > 0 && group == b.GetGroup()) return false;
+Character.Faction faction = a.GetFaction();
+Character.Faction faction2 = b.GetFaction();
+bool flag  = a.IsTamed();
+bool flag2 = b.IsTamed();
+bool flag3 = (bool)a.GetBaseAI() && a.GetBaseAI().IsAggravated();
+bool flag4 = (bool)b.GetBaseAI() && b.GetBaseAI().IsAggravated();
+if (flag || flag2)
+{
+    if ((flag && flag2)
+        || (flag  && faction2 == Character.Faction.Players)
+        || (flag2 && faction  == Character.Faction.Players)
+        || (flag  && faction2 == Character.Faction.Dverger && !flag4)
+        || (flag2 && faction  == Character.Faction.Dverger && !flag3))
+        return false;
+    return true;
+}
+...                       // aggravated rules, then faction == faction2,
+                          // then the per-faction switch
+```
+
+Three things follow, all load-bearing:
+
+1. **`m_tamed` short-circuits faction entirely.** The moment either
+   party is tamed, the faction switch at the bottom is never reached;
+   the only outcomes are the five exemptions above. So for any pair
+   involving a tame, faction matters only as `Players` or `Dverger`.
+2. **Two tamed creatures are never enemies, whatever their factions.**
+   `(flag && flag2) → return false` is unconditional. A tamed wolf and a
+   raised skeleton that both read as tamed cannot target each other —
+   the skeleton staying `Undead`/`PlayerSpawned` is irrelevant.
+3. **It is symmetric in outcome but not in form.** Every clause comes in
+   an a/b pair, so `IsEnemy(x, y) == IsEnemy(y, x)` for the tamed branch:
+   if one side would attack, so would the other. There is no one-sided
+   "wolf hates skeleton" state to fix.
+
+Therefore: if a player's tame ever did attack his own summon, the only
+mechanism inside `IsEnemy` is **the summon's `IsTamed()` reading false
+on whichever machine runs the attacker's AI** — the known-fragile flag
+documented at length above (`RPC_SetTamed` writes only under
+`m_nview.IsOwner()`; the non-owner refresh in `IsTamed(float)` is itself
+gated on `!GetZDO().IsOwner()` and rate-limited to once a second via
+`m_lastTamedCheck`, `Character.cs:4333-4345`). With `flag2` false and
+the skeleton's faction not `Players`, the tamed branch falls straight to
+`return true` in both directions.
+
+`GetGroup()` is the other escape hatch: a non-empty `m_group` string
+shared by both prefabs makes them non-enemies before faction or tamedness
+is even read. `m_group`'s value per prefab is asset data, not in the DLL.
+
+### Where it is consulted, and what is safe to patch
+
+`BaseAI.FindEnemy()` (`BaseAI.cs:1397-1420`) walks
+`Character.GetAllCharacters()` and skips anything `IsEnemy(m_character,
+item)` rejects, then applies `IsDead`/`m_aiSkipTarget`/`IsSleeping`/
+`CanSenseTarget`. The static `IsEnemy` is also the gate for the *friend*
+queries (`HaveFriendsInRange`, `HaveHurtFriendInRange`,
+`FindNearestFriend` — `BaseAI.cs:1355`, `1373`, `1589`) and for
+`FindClosestEnemy`/`FindClosestCreature` (`BaseAI.cs:1610-1642`). So
+forcing a pair to "not enemies" also makes them count as friends to each
+other, which is exactly what vanilla already does for two tames.
+
+Inlining: the instance overload `public bool IsEnemy(Character other)`
+(`BaseAI.cs:1190-1193`) is a one-line delegation and **is** an inlining
+candidate — patching it would be silently bypassed. The static
+`IsEnemy(Character, Character)` is ~100 lines with a fourteen-case
+switch and is far past any inliner threshold, and the instance overload
+calls it, so a patch there covers both. `FindEnemy` is likewise large
+and safe. That is the hook to use if a summon/tame targeting rule is
+ever actually needed.
+
 ## Placing a creature inside a dungeon interior (read 1.0.15)
 
 An interior is instantiated at its zone's centre plus **5000 on Y**
