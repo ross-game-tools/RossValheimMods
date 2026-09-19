@@ -43,6 +43,7 @@ namespace RossQoL.Game.Crafting
             typeof(CraftRequirementsPatch),
             typeof(BuildRequirementsPatch),
             typeof(ConsumeFromChestsPatch),
+            typeof(CraftScopePatch),
             typeof(SingleIngredientSourcePatch),
             typeof(SingleIngredientRemovePatch),
             typeof(RequirementDisplayPatch),
@@ -67,6 +68,13 @@ namespace RossQoL.Game.Crafting
             new CompatMember("Player", "RequiredCraftingStation", "keeping the bench and its level required"),
             new CompatMember("CraftingStation", "HaveBuildStationInRange", "keeping a bench required to build"),
             new CompatMember("CraftingStation", "m_upgrader", "telling an upgrader's requirements from a station's"),
+            new CompatMember("Container", "m_nview", "reaching a container's networking before writing it"),
+            new CompatMember("ZNetView", "IsValid", "ignoring a container whose networking is not up yet"),
+            new CompatMember("ZNetView", "GetZDO", "checking a container has stored state to be written"),
+            new CompatMember("ZNetView", "ClaimOwnership", "taking charge of a container before taking from it"),
+            new CompatMember("ZNetView", "IsOwner", "confirming that claim stuck before anything is written"),
+            new CompatMember("InventoryGui", "DoCrafting", "knowing a craft is being made, not merely displayed"),
+            new CompatMember("InventoryGui", "m_selectedRecipe", "naming the craft in a log line when payment falls short"),
         };
 
         public override void BindSettings(ConfigFile config, string section) =>

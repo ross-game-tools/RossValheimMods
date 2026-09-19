@@ -1,314 +1,286 @@
 # Eitr Refinery damage
 
-What this covers: what mechanism can hurt a player standing near a
-Mistlands Eitr Refinery (`eitrrefinery` prefab), and whether a mod that
-suppresses it needs to run on the owner or the victim.
+What this covers: what mechanism hurts a player standing near a
+Mistlands Eitr Refinery (`eitrrefinery` prefab), and whether a fix
+belongs on the victim's client or the refinery's owner.
 
-Produced on 2026-09-18 by decompiling `assembly_valheim.dll` with
-ilspycmd 8.2 (`8.2.0.7535-95108c96`). Game version from the assembly:
-`Version.CurrentVersion = new GameVersion(1, 0, 14)`.
+**Resolved 2026-09-18, game version 1.0.14** (`Version.CurrentVersion =
+new GameVersion(1, 0, 14)`), by a runtime dump of the live
+`eitrrefinery` prefab hierarchy (`ZNetScene.GetPrefab("eitrrefinery")`)
+followed by decompiling `assembly_valheim.dll` with ilspycmd 8.2
+(`8.2.0.7535-95108c96`). This supersedes every earlier theory in this
+file's history (`EffectArea`+`SE_Smoke`, a generic `Aoe`, and a
+speculative literal-`Projectile` guess prompted by another mod's
+listing text) — all of that was written without having seen the actual
+prefab hierarchy. The runtime dump settles it directly:
 
-## What is NOT in the DLLs (read this first)
+- Root: `Piece`, `ZNetView`, `Smelter`, `WearNTear`, `LODGroup`.
+- `_enabled/Radiator (2)` and `_enabled/Radiator (3)` — each a
+  `Radiator` + `BoxCollider`. `_enabled` is the subtree the refinery
+  activates while running.
+- The only `EffectArea` on the prefab is on `PlayerBase`
+  (`type=PlayerBase`, `isHeatType=False`, `playerOnly=False`, no status
+  effect, `statusEffectHash=0`) — the player-base marker, not a hazard.
+  **`EffectArea` is ruled out.**
+- No `Aoe` component anywhere on the prefab. **`Aoe` is ruled out** as
+  a *standing* hazard on the refinery itself (see below for how `Aoe`
+  still enters the picture, once removed, via the spawned projectile).
+- `Smelter` itself carries **no damage code of any kind** — confirmed
+  by full decompilation of `Smelter.cs` (712 lines: `UpdateSmelter`,
+  `Awake`, RPCs). Its effect lists (`m_oreAddedEffects`,
+  `m_fuelAddedEffects`, `m_produceEffects`) are cosmetic VFX/SFX only.
 
-There is **no C# type named `Refinery` or `EitrRefinery`**, and the
-string `"eitrrefinery"`/`"refinery"` appears **nowhere** in
-`assembly_valheim.dll`. `grep -rli refinery` across a full `-p` dump of
-every type returns zero files. The Eitr Refinery is a `Smelter` prefab
-(decompiled in full below — 712 lines, no damage code of any kind: no
-`Damage(`, no `Aoe`, no status effect) wired up entirely from serialized
-Unity prefab data — which GameObjects/components are children of
-`eitrrefinery.prefab`, and what values they carry, is not recoverable
-from the assemblies. **Which of the two mechanisms below (or both) the
-prefab actually uses could not be verified from decompiled code alone**
-— it requires either reading the prefab asset (AssetStudio/AssetRipper
-against `resources.assets`, not ilspycmd) or observing it at runtime.
+## What `Radiator` actually does
 
-What decompiling `Smelter` in full does establish: the refinery's core
-loop (`Smelter.UpdateSmelter`, `Awake`, RPCs) carries zero hit-dealing
-code. Whatever hurts the player is a **separate component** attached to
-the prefab, built from one of two generic, reusable, non-Mistlands-
-specific building blocks that exist in the assembly for exactly this
-purpose (environmental damage zones):
-
-## Mechanism A — `EffectArea` (trigger volume + status effect)
-
-`EffectArea` (own file) is a `MonoBehaviour` : `IMonoUpdater`, a generic
-trigger volume that applies a status effect to characters standing in
-it — this is the same building block that makes a campfire keep you
-`WarmCozyArea`-flagged, or a `Burning`-flagged floor hurt you. Relevant
-in full:
+Full decompiled source (`Radiator.cs`, `assembly_valheim.dll`):
 
 ```csharp
-private void OnTriggerEnter(Collider other)
+public class Radiator : MonoBehaviour
 {
-    m_collisions++;
-    if (m_isHeatType || m_statusEffectHash != 0)
+    public GameObject m_projectile;
+    public Collider m_emitFrom;
+    public float m_rateMin = 2f;
+    public float m_rateMax = 5f;
+    public float m_velocity = 10f;
+    public float m_offset = 0.1f;
+    private ZNetView m_nview;
+
+    private void Start()
     {
-        Character component = other.GetComponent<Character>();
-        if ((bool)component && component.IsOwner() && (!m_playerOnly || component.IsPlayer())
-            && !m_collidedWithCharacter.Contains(component))
-        {
-            m_collidedWithCharacter.Add(component);
-        }
+        m_nview = GetComponentInParent<ZNetView>();
     }
-}
 
-public void CustomFixedUpdate(float deltaTime)
-{
-    if (m_collisions <= 0 || m_collidedWithCharacter.Count == 0 || ZNet.instance == null) return;
-    foreach (Character item in m_collidedWithCharacter)
+    private void OnEnable()
     {
-        if (m_statusEffectHash != 0)
-        {
-            item.GetSEMan().AddStatusEffect(m_statusEffectHash, resetTime: true, 0, 0f, -1);
-        }
-        if (m_isHeatType) { item.OnNearFire(base.transform.position); }
+        StartCoroutine("UpdateLoop");
     }
-}
-```
 
-The gating condition `component.IsOwner()` in `OnTriggerEnter` means
-**only the character's own owning client** ever adds itself to
-`m_collidedWithCharacter` — a player always owns their own `Character`,
-so this is **the victim's own client tracking and buffing itself**, not
-the refinery owner reaching out to hit someone.
-
-If the applied status effect is (or resembles) `SE_Smoke`:
-
-```csharp
-public class SE_Smoke : StatusEffect
-{
-    public HitData.DamageTypes m_damage;
-    public float m_damageInterval = 1f;
-    public override void UpdateStatusEffect(float dt)
+    private IEnumerator UpdateLoop()
     {
-        base.UpdateStatusEffect(dt);
-        m_timer += dt;
-        if (m_timer > m_damageInterval)
+        while (true)
         {
-            m_timer = 0f;
-            HitData hitData = new HitData { m_point = m_character.GetCenterPoint(), m_damage = m_damage,
-                m_hitType = HitData.HitType.Smoke };
-            m_character.ApplyDamage(hitData, showDamageText: true, triggerEffects: false);
+            yield return new WaitForSeconds(Random.Range(m_rateMin, m_rateMax));
+            if (m_nview.IsValid() && m_nview.IsOwner())
+            {
+                Vector3 onUnitSphere = Random.onUnitSphere;
+                Vector3 position = base.transform.position;
+                if (onUnitSphere.y < 0f)
+                {
+                    onUnitSphere.y = 0f - onUnitSphere.y;
+                }
+                if ((bool)m_emitFrom)
+                {
+                    position = m_emitFrom.ClosestPoint(m_emitFrom.transform.position + onUnitSphere * 1000f) + onUnitSphere * m_offset;
+                }
+                Object.Instantiate(m_projectile, position, Quaternion.LookRotation(onUnitSphere, Vector3.up))
+                    .GetComponent<Projectile>().Setup(null, onUnitSphere * m_velocity, 0f, null, null, null);
+            }
         }
     }
 }
 ```
 
-`StatusEffect.UpdateStatusEffect` runs as part of `SEMan`'s per-frame
-update on the character that owns the status effect — i.e. **the
-victim's own client**, calling `Character.ApplyDamage` directly, no RPC.
-`m_damage` (a `HitData.DamageTypes`) and `m_damageInterval` are fields
-on the `StatusEffect` **ScriptableObject asset** — real numeric values
-are prefab/asset data, not in the DLL.
+**Radiator does not damage anyone directly.** It has no `Damage(`,
+`ApplyDamage`, or status-effect call anywhere in its own code. It is a
+periodic *spawner*: on a random interval between `m_rateMin` and
+`m_rateMax` seconds, it instantiates a real, literal `m_projectile`
+prefab (a `GameObject` carrying its own `Projectile` component — this
+confirms the earlier speculative "damaging projectile" theory, this
+time from decompiled code, not a mod's marketing text) at a random
+point on the unit sphere around itself (or on the surface of
+`m_emitFrom`, offset by `m_offset`), fired outward at `m_velocity`
+units/sec via `Projectile.Setup(owner: null, velocity, ...)`. The
+projectile then flies, ray-casts each `FixedUpdate`
+(`Projectile.FixedUpdate`), and on hitting a `Character` calls
+`destructible.Damage(hitData)` (`Projectile.OnHit`, or `Projectile.DoAOE`
+if the spawned projectile's own `m_aoe > 0`) using the **projectile
+prefab's own** `m_damage`/`m_hitType`/`m_aoe`/etc. fields — none of
+which live on `Radiator`.
 
-**Conclusion for Mechanism A: 100% client-side on the victim.** The
-refinery owner is not involved at all; each nearby player's own client
-decides to add the effect and deals the damage to itself.
+So the actual damage-dealing code lives in `Projectile.cs`, decompiled
+in full this session (901 lines). `Radiator` is purely the trigger that
+decides *when* and *in what direction* to fire one.
 
-## Mechanism B — `Aoe` (periodic damage sphere)
+## 1. Direct damage vs. status effect
 
-`Aoe` (own file, 774 lines) is the general damage-dealing hit-sphere
-component. If the refinery instead uses one (e.g. its vent is a
-child GameObject carrying an `Aoe`), ownership is different:
+Neither, directly — see above. It's the spawned `Projectile` instance
+that deals damage, via `Character.Damage(hitData)`/`IDestructible.Damage`,
+constructed in `Projectile.OnHit`/`Projectile.DoAOE`. `hitData.m_hitType`
+falls back to `HitData.HitType.EnemyHit` when `m_owner` isn't a `Player`
+(`Setup` is called with `owner: null`, so `m_owner` is null — every
+Eitr Refinery hit is typed `EnemyHit`, not e.g. `Smoke` or `Fire`; the
+concrete `HitData.DamageTypes` numbers are the spawned projectile
+prefab's own asset data, not in the DLL — see "What configures it"
+below).
 
-```csharp
-public void CustomFixedUpdate(float fixedDeltaTime)
-{
-    if (m_nview != null && !m_nview.IsOwner()) return;   // <-- owner-gated
-    ...
-    if (m_hitInterval > 0f && !m_useTriggers)
-    {
-        m_hitTimer -= fixedDeltaTime;
-        if (m_hitTimer <= 0f) { m_hitTimer = m_hitInterval; Initiate(); }
-    }
-    ...
-}
-```
+## 2. Who applies it — ownership
 
-`Awake()`: `m_nview = GetComponentInParent<ZNetView>();` — an `Aoe`
-childed under the refinery's `Smelter`/`Piece` hierarchy inherits the
-**refinery's own `ZNetView`**, so `m_nview.IsOwner()` here means the
-**refinery's ZDO owner**, not the victim. `Initiate() -> CheckHits() ->
-FindHits()` (a `Physics.OverlapSphereNonAlloc`) `-> OnHit() ->
-component.Damage(hitData)`, and for a `Character` target,
-`Character.Damage` round-trips through an RPC to the target's own
-owner to actually apply it (not verified in this pass — out of scope,
-`Character.cs` was not decompiled this session). Either way, **the
-decision of when/whether to hit is owner-authoritative** here, unlike
-Mechanism A.
+`Radiator.Start()`: `m_nview = GetComponentInParent<ZNetView>();` — the
+**refinery's own `ZNetView`** (walking up from `_enabled/Radiator (2)`
+through `_enabled` to the prefab root, which carries the `ZNetView`),
+not the victim's. The coroutine only fires
+`if (m_nview.IsValid() && m_nview.IsOwner())` — so **only the client
+that currently owns the refinery's ZDO** ever spawns a projectile.
 
-**Conclusion for Mechanism B: driven by whoever currently owns the
-refinery's ZDO**, not the victim.
+The spawned `Projectile` then gets its *own*, separate `ZNetView`
+(`Projectile.Awake`: `m_nview = GetComponent<ZNetView>();`, not
+`GetComponentInParent`). Per Unity/ZDO convention a freshly
+`Instantiate`d networked object belongs to whichever client created it
+— the refinery's owner. `Projectile.FixedUpdate` gates its own flight
+and hit-detection the same way: `if (!m_nview.IsOwner()) return;`. So
+the refinery's owner client also flies the projectile and decides when
+it hits, calling `Damage(hitData)` directly (no RPC for the hit
+decision itself — `RPC_OnHit` only exists to stop the emitter VFX and
+is invoked by the hitting client after the fact).
 
-## Which client a fix belongs on
+**Conclusion: owner-authoritative, not victim-authoritative.** A
+client-side-only suppression protects nobody but whichever player
+currently owns the refinery's ZDO. To protect every player, the fix
+must run on whichever client(s) end up owning `eitrrefinery` ZDOs — in
+practice, every player needs the mod (the same `EveryoneMustHaveMod`
+pattern RossQoL already uses), not a genuine server simulation. **This
+is `FeatureScope.Synced`, not `FeatureScope.Client`.**
 
-- If Mechanism A: a client-side patch is sufficient and self-contained
-  — the fix only needs to run on the machine of the player who'd
-  otherwise take damage, exactly like the existing SoftDeath/status-
-  effect patterns already in this repo.
-- If Mechanism B: suppressing it client-side-only protects nobody but
-  the refinery's current ZDO owner; for it to protect every player it
-  must run on whichever client(s) end up owning eitrrefinery ZDOs — in
-  practice this means **every player needs the mod** (same
-  `EveryoneMustHaveMod` pattern RossQoL already uses), not a genuine
-  server simulation.
+## 3. What configures it — fields and where they live
 
-Given the trigger-volume design is the standard vanilla idiom for
-"standing near X hurts you" (used for fire, ash, cold, etc. — see
-`wear-and-tear.md` for the same idiom reused for Ashlands/lava wear),
-**Mechanism A is the more likely candidate**, but this is inference from
-vanilla's usual patterns, not verified against the actual prefab.
+All six fields are `public` on `Radiator`, settable per-prefab from the
+Unity inspector:
 
-## Candidate hook points, in order of preference
+| Field | Code default | Meaning |
+|---|---|---|
+| `m_projectile` | `null` | Projectile prefab to spawn. Asset reference — **must** be set per-instance in the prefab, since a null value would throw on `Instantiate`. |
+| `m_emitFrom` | `null` | Optional collider to emit from the surface of, instead of this transform's origin. Asset reference. |
+| `m_rateMin` | `2f` | Minimum seconds between spawns. Code default; may be overridden. |
+| `m_rateMax` | `5f` | Maximum seconds between spawns. Code default; may be overridden. |
+| `m_velocity` | `10f` | Launch speed, units/sec. Code default; may be overridden. |
+| `m_offset` | `0.1f` | Distance to offset the spawn point along the emit normal. Code default; may be overridden. |
 
-1. **Prefix on `EffectArea.CustomFixedUpdate`**, filtering by instance
-   (e.g. `base.gameObject.name` or a cached "is this the refinery's
-   hazard area" check done once in a postfix on `Awake`). Trade-off:
-   `EffectArea` is reused by many hazards (`Burning`, `Heat`,
-   `WarmCozyArea`, any other `m_statusEffect` volume) — an unfiltered
-   patch on this method is **too broad**; it must gate on the specific
-   instance, which in turn requires identifying that instance (parent
-   prefab name / `ZNetView` prefab hash), itself something to confirm
-   at runtime since it's asset data. **Recommended**, once the specific
-   instance can be identified.
-2. **Postfix on `EffectArea.Awake` that nulls `m_statusEffectHash` when
-   the instance belongs to `eitrrefinery`** (leave `m_isHeatType`/
-   `OnNearFire` alone if the refinery is also meant to still radiate
-   warmth). This is a one-time state mutation rather than a per-frame
-   patch — cheaper and can't be silently bypassed the way patching a
-   tiny method can. `Awake` and `CustomFixedUpdate` are both called via
-   Unity's message system / an interface-dispatched list
-   (`MonoUpdaters`/`Instances`), not direct compiled call sites, so
-   Mono inlining is **not** a risk for either.
-3. If Mechanism B applies instead: **prefix on `Aoe.Initiate()` or
-   `Aoe.CheckHits()`**, filtered the same way by parent prefab identity.
-   Same blast-radius caveat — `Aoe` backs a very large fraction of the
-   game's combat and hazard effects (arrows, AOE attacks, traps,
-   `MovementDamage`'s run-damage object — see `Awake()` in
-   `MovementDamage.cs`), so an unfiltered patch is out of the question.
-4. **Do not** patch `Character.ApplyDamage`/`Character.Damage`
-   generically and filter by `HitData.HitType` or proximity — both are
-   central chokepoints for all damage in the game (player combat,
-   fall damage, drowning, everything); a bug in a proximity/hit-type
-   filter here has a much larger blast radius than either component-
-   level option above.
-5. **Do not** try to patch `Smelter` itself — confirmed above to carry
-   no damage logic; there is nothing to intercept there.
+The refinery has **two** `Radiator` instances (`Radiator (2)` and
+`Radiator (3)`), which strongly implies at least `m_emitFrom` (and
+possibly `m_projectile`) differ between them (e.g. two separate vents).
+None of `Radiator`'s own field *values* as shipped on the refinery are
+recoverable from the DLL — field initializers above are compile-time
+defaults only. **The real damage numbers are one more step removed**:
+they live on the `m_projectile` prefab's own `Projectile` component
+(`m_damage`, `m_aoe`, `m_hitType`, `m_dodgeable`, `m_blockable`, etc.),
+which is itself asset data.
 
-## Blast radius if patched unfiltered
+**To settle the real numbers, extend the runtime dump** to, for each of
+the two `Radiator` instances, print: `m_rateMin`, `m_rateMax`,
+`m_velocity`, `m_offset`, `m_emitFrom` (name/null), and
+`m_projectile.name`; then run the same dump against
+`ZNetScene.instance.GetPrefab(radiator.m_projectile.name)` and print
+that prefab's `Projectile` component fields (`m_damage`, `m_aoe`,
+`m_hitType`, `m_hitMidFlight`, `m_dodgeable`, `m_blockable`,
+`m_ttl`, `m_gravity`, `m_drag`) — that fully resolves damage amount,
+type, and blast radius per hit.
 
-- `EffectArea`: shared by every vanilla "standing near X" hazard/buff
-  (fire warmth, `Burning` floor tiles, ash zones, etc.) — see its
-  `[Flags] enum Type { Heat, Fire, PlayerBase, Burning, Teleport,
-  NoMonsters, WarmCozyArea, PrivateProperty }`.
-- `Aoe`: shared by essentially all AOE damage in the game — enemy AOE
-  attacks, thrown/lobbed weapons, traps (`Trap.cs`), siege machines
-  (`SiegeMachine.cs`), shield generators, and the sprint self-damage
-  hook in `MovementDamage.cs`.
+## 4. Update path
 
-Both mean **any suppression must be scoped to the specific refinery
-instance**, never applied to the type globally.
+`OnEnable()` calls `StartCoroutine("UpdateLoop")` — a Unity coroutine
+(compiler-generated state machine `IEnumerator`), not `OnTriggerStay`,
+not a raw `FixedUpdate`/`Update` tick, and not `IMonoUpdater`. It reruns
+every time the `_enabled` subtree is toggled active (the refinery
+turning on), since `OnEnable` fires on each activation.
 
-## Second pass: ruling out a literal `Projectile`/`IProjectile` mechanism
+This is **not** a tiny-method-inlining risk: `OnEnable` and `Start` are
+Unity message methods dispatched through Unity's reflection-based
+message system, not called from a direct compiled call site the JIT
+could inline away — the same reasoning already established for
+`EffectArea.Awake`/`CustomFixedUpdate` in this repo's other notes. The
+coroutine body itself (`UpdateLoop`) is a poor Harmony target (a
+compiler-generated `MoveNext` state machine is awkward to patch
+reliably), but there's no need to touch it — see hook points below.
 
-A published mod exists that specifically targets this ("removes damaging
-projectiles from [the refinery] and [an Eitr-related item]" per its own
-listing page). **It ships no source repository** (no linked GitHub, no
-`website_url` in its Thunderstore package metadata) — nothing beyond the
-one-line description was available to read, so what follows is this
-repo's own decompilation, prompted by that description's wording.
+## 5. What else uses `Radiator`
 
-Its name implies an actual spawned `GameObject` carrying an `IProjectile`
-(`Projectile.cs`), not a trigger-volume aura. A second decompilation pass
-went looking for exactly that, specifically for anything that spawns a
-physically-simulated (gravity/velocity/raycast) child object the way a
-thrown/shot `Projectile` would, but isn't part of player combat:
+A full per-type decompile of `assembly_valheim.dll` (`ilspycmd -p`,
+~690 files) was grepped for `Radiator`: **the only file referencing the
+type is `Radiator.cs` itself.** No other compiled type constructs,
+casts to, or calls into `Radiator` — every other place it's attached to
+a prefab is pure Unity asset wiring, invisible to the decompiler, same
+limitation noted elsewhere in this repo's docs for prefab composition.
 
-- **`CinderSpawner`/`Cinder`** (own files) are the only such generic,
-  reusable "spit out a physically-simulated ember" building block in the
-  assembly (used by campfires/bonfires and Ashlands ambient fire spread —
-  gated by `CanSpawnCinder`'s `GlobalKeys.Fire`/`Heightmap.Biome.AshLands`
-  check). `Cinder` is a real flying object (gravity, wind drift, a
-  `Physics.Raycast` each `FixedUpdate`, matching the raymask that includes
-  `character`/`character_net`) — but its `OnHit` **never calls
-  `Damage(`, `ApplyDamage`, or constructs a `HitData`**. It only checks
-  `CanBurn()` (true only for `WearNTear.m_burnable`, `TreeBase`, or
-  `TreeLog` targets) to decide whether to instantiate a fire prefab at the
-  hit point; a `Character` collider fails every `CanBurn` branch, so a
-  `Cinder` that hits a player does nothing but play a hit VFX. **Ruled
-  out** as a direct damage source, confirmed by full decompilation.
-- `Turret.cs` (`Hoverable`/`Interactable`/`IPieceMarker`) is the
-  player-built Ashlands defense turret, unrelated to a passive structure
-  like the refinery. Ruled out by inspection of its header (ammo/aiming
-  fields, ownable/craftable piece surface).
-- No other type in `assembly_valheim.dll` implements `IProjectile` or
-  spawns a raycast/velocity-simulated child object outside player/creature
-  combat (`Attack.cs`) and the two ruled out above.
+So **the code confirms `Radiator` is a small, generic, reusable
+building block with no built-in restriction to Mistlands or to the
+refinery** — but which other prefabs carry one cannot be determined
+from the DLL. **To settle the blast radius, extend the runtime dump**
+to iterate `ZNetScene.instance.m_namedPrefabs` (or
+`GetPrefab`/`m_prefabs`), call
+`GetComponentsInChildren<Radiator>(true)` on each, and list every
+prefab that has one. That list is cheap to get and removes all
+guesswork about which other structures (furnaces, kilns, natural
+hazards) would be affected by an unfiltered patch.
 
-**Conclusion of the second pass:** nothing in the compiled code
-contradicts the original finding — Mechanisms A (`EffectArea`+
-`SE_Smoke`) and B (`Aoe`) below remain the only damage-capable code paths
-that exist in the assembly for a stationary hazard. If `eitrrefinery`
-truly carries a literal `Projectile` component (as the mod's own name
-claims), it is wired up entirely from serialized prefab data with no
-supporting C# on the refinery side — same limitation as before, and still
-only resolvable by an asset-level or runtime dump (see below).
+## 6. Candidate hook points, in order of preference
 
-## Ownership, generalized across every spawner-style component checked
+Goal: suppress only the refinery's two `Radiator` instances — not their
+spawned projectiles' cosmetic effects if any, and definitely not the
+steam/light/sound or the refinery's smelting function, none of which
+route through `Radiator` at all (confirmed above: `Smelter` has no
+damage code, and the only `EffectArea` on the prefab is the harmless
+`PlayerBase` marker).
 
-Every damage-*capable* or hazard-*spawning* component this repo has now
-decompiled that is parented under a structure's own `ZNetView` — `Aoe`
-(`m_nview = GetComponentInParent<ZNetView>()`), `CinderSpawner`
-(`m_nview = GetComponentInParent<ZNetView>()`) — gates its spawn/hit
-decision behind **that parent's ZDO ownership**, not the potential
-victim's. A `Projectile` instance itself owns a *separate* `ZNetView`
-(`m_nview = GetComponent<ZNetView>()`, not `GetComponentInParent`), but
-Unity/ZDO convention gives a freshly-`Instantiate`d networked object to
-the client that created it — and every spawn call site found (`Aoe.
-Initiate`, `CinderSpawner.SpawnCinder`) only runs after its own
-`m_nview.IsOwner()` check passes. So **if** the refinery spawns real
-`Projectile` objects, the spawning client is the refinery's ZDO owner,
-and that owner's client also then drives the projectile's flight/hit
-logic (`Projectile.FixedUpdate` is itself gated the same way:
-`if (!m_nview.IsOwner()) return;`). This matches Mechanism B's
-conclusion, not Mechanism A's: **the refinery's owner, not the victim,
-would be the one deciding whether/when the hit lands**, for any
-mechanism built the way every other environmental hazard in this
-assembly is built.
+1. **Prefix on `Radiator.OnEnable`, filtered by walking up to the
+   owning `Piece`/`ZNetView` and checking its prefab name is
+   `"eitrrefinery"`, returning `false` to skip `StartCoroutine`
+   entirely.** Cheapest, most targeted: the refinery simply never
+   starts firing projectiles from those two components. Doesn't touch
+   `Smelter`, `WearNTear`, or any VFX/SFX. Re-evaluates every time
+   `_enabled` toggles active, so it stays correct if the subtree is
+   toggled off and on. **Recommended**, pending the blast-radius dump
+   in point 5 to confirm no other in-use prefab also needs `Radiator`
+   left alone at the type level (this patch is already instance-
+   filtered, so it's safe regardless, but the dump confirms nothing was
+   missed).
+2. **Postfix on `Radiator.Start` that sets `this.enabled = false` for
+   the refinery's instances** — works only if `Start` still runs before
+   the *first* `OnEnable` a given session; per Unity's callback order
+   `OnEnable` fires before `Start` on initial activation, so this
+   **does not reliably block the first firing** and is not recommended
+   over option 1.
+3. **One-time destroy**: postfix on `Piece.Awake` (or wherever the
+   refinery's `ZNetView`/`Piece` first initializes) that finds and
+   `Object.Destroy`s the two `Radiator` components on `eitrrefinery`
+   instances at spawn time, before `_enabled` is ever toggled active.
+   Slightly more invasive (permanent, not togglable at runtime without
+   re-spawning the piece) but avoids any per-activation patch
+   surface entirely. Reasonable alternative to option 1 if the mod
+   wants this to be unconditional rather than config-gated.
+4. **Do not** patch `Projectile.OnHit`/`Projectile.DoAOE`/
+   `Character.Damage` generically and filter by projectile prefab name
+   or `HitData.HitType` — `Projectile` backs essentially all ranged
+   damage in the game (arrows, thrown weapons, enemy ranged attacks,
+   every other `Radiator`-driven hazard if any exist per point 5); an
+   unfiltered or loosely-filtered patch here has a much larger blast
+   radius than gating on `Radiator.OnEnable` by parent prefab name.
+
+## Ownership pattern, generalized
+
+Every spawner-style hazard component this repo has now decompiled that
+sits under a structure's own `ZNetView` — `Radiator`
+(`GetComponentInParent<ZNetView>()`), and by the same pattern documented
+elsewhere for `Aoe` and `CinderSpawner` — gates its spawn decision on
+**that parent structure's ZDO ownership**, never the potential victim's.
+A spawned `Projectile` then owns a *separate* `ZNetView`
+(`GetComponent<ZNetView>()`, not `GetComponentInParent`), but Unity/ZDO
+convention hands a freshly instantiated networked object to its creator
+— here, the refinery's owner — and that same client also drives the
+projectile's flight and hit resolution. This is a consistent vanilla
+idiom: **structure-owned hazards are owner-authoritative**, which is
+why point 2's conclusion (`FeatureScope.Synced`) follows directly from
+the code, not from inference.
 
 ## Things I could not verify from the assemblies
 
-1. Which of Mechanism A or B (or something else entirely) the
-   `eitrrefinery` prefab actually uses — this is prefab wiring, not in
-   `assembly_valheim.dll`. Needs an asset-level tool (AssetRipper/
-   AssetStudio against the `resources.assets`/bundle files) or runtime
-   inspection (e.g. dump `GetComponentsInChildren<Component>()` on the
-   live prefab via a debug mod).
-2. The exact status effect name/hash, `m_damage` values, damage type
-   (fire vs poison vs a Mistlands-specific type), interval, and radius
-   — all serialized asset fields, not compiled into the DLL.
-3. `Character.Damage(HitData)`'s exact RPC path for Mechanism B was not
-   decompiled this session (out of scope) — needed to confirm whether
-   an `Aoe`-driven hit is applied via RPC to the victim's owner or some
-   other path.
-4. Whether the refinery's hazard is presented as a `Mistlands`-only
-   status effect asset, and whether wearing an item (e.g. a mask) is
-   coded via `Character.m_tolerateSmoke`-style flag or an entirely
-   different asset-defined immunity — `m_tolerateSmoke` exists on
-   `Character` and gates `SE_Smoke.CanAdd`, but whether the refinery's
-   actual effect reuses `SE_Smoke` or is a distinct status effect
-   asset is unverified (see point 1).
-5. Whether `eitrrefinery.prefab` carries a literal `Projectile`
-   component anywhere in its hierarchy at all — a mod's public listing
-   (no source published) describes the hazard as "damaging projectiles",
-   but nothing in `assembly_valheim.dll` wires such a component to a
-   `Smelter`, and the one generic "spawn a simulated ember" building
-   block that exists (`CinderSpawner`/`Cinder`) is confirmed incapable of
-   damaging a `Character` at all. A runtime
-   `GetComponentsInChildren<Component>(true)` dump on the live
-   `eitrrefinery` instance — printing type name + `gameObject.name` for
-   every component, including inactive ones — is the cheapest way to
-   settle this: look for `Projectile`, `Aoe`, or `EffectArea` in the
-   list, and if `EffectArea`, read its `m_statusEffectHash`/
-   `m_isHeatType`/`m_playerOnly` field values directly off the instance.
+1. The real field values on the refinery's two live `Radiator`
+   instances (`m_rateMin`/`m_rateMax`/`m_velocity`/`m_offset`/
+   `m_emitFrom`/`m_projectile`) — asset data, not in the DLL. See the
+   dump extension proposed in section 3.
+2. The `m_projectile` prefab's own `Projectile` component fields
+   (`m_damage`, `m_aoe`, `m_hitType`, etc.) — the actual damage amount,
+   type, and hit radius. Asset data. See the dump extension proposed in
+   section 3.
+3. Every other prefab in the game that also carries a `Radiator`
+   component — pure Unity wiring, invisible to the decompiler. See the
+   dump extension proposed in section 5.

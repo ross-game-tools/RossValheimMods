@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.20.0
+
+- **Production / SafeRefinery:** the Eitr Refinery no longer spits the
+  damaging, knocking-back projectile that otherwise fires out of it while
+  it runs -- its steam, light, sound and smelting are unchanged. Applies to
+  whoever owns a given refinery, so everyone on a server needs it on for it
+  to be safe. A refinery already running when this is switched on keeps its
+  old behaviour until it is next turned off and back on, or the area is
+  reloaded.
+- **Crafting / CraftFromChests:** crafting from chests no longer occasionally
+  hands out free items on a server. A chest now counts towards a craft only
+  if that same craft can actually be charged for it -- before, a chest could
+  be readable but not writable, so its contents made a recipe look affordable
+  and then paid nothing towards it, and the game had already given you the
+  item by then. Payment takes charge of each chest at the moment it removes
+  from it, and takes the same quality the recipe was priced against, so a
+  better stack is never eaten for a craft that was costed on a plainer one.
+  Nothing extra is ever taken from your own pack to make the sums add up.
+- **World / NoWeathering:** rain no longer wears down or greys your
+  buildings -- the grey "weathered" look was always just health dropping
+  low enough to swap in the worn model, so keeping rain from chipping away
+  at health keeps wood looking new. Pieces still collapse if they lose
+  support, and still take damage from creatures and players; DeepNorth
+  snow and AshLands ash and lava are untouched too. Applies to whoever
+  owns the piece, so everyone on a server needs it for consistent results.
+
 ## 0.19.0
 
 - **Death / GraveMarker:** a marker sits over your grave while it's in view

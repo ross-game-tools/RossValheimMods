@@ -53,7 +53,8 @@ namespace RossQoL.Game.Framework
                 new InstantPortalsFeature()),
             new Category("Production", "All production tweaks.",
                 new AutoHarvestFeature(),
-                new AutoFeedFeature()),
+                new AutoFeedFeature(),
+                new SafeRefineryFeature()),
             new Category("Progression", "All boss progression tweaks.",
                 new TeleportUnlocksFeature(),
                 new ClearMistFeature(),
@@ -76,7 +77,8 @@ namespace RossQoL.Game.Framework
                 new FloatingItemsFeature(),
                 new FastSleepFeature(),
                 new AoeRepairFeature(),
-                new ComfortRangeFeature()),
+                new ComfortRangeFeature(),
+                new NoWeatheringFeature()),
         };
     }
 }

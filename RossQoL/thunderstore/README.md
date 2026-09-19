@@ -217,6 +217,7 @@ Server-controlled when connected.
 | `MinimumPerItem` | (empty) | Per-item totals overriding `MinimumLeftBehind`, e.g. `Wood:50, Barley:20`. |
 | `KilnFuel` | `Wood` | What a kiln may be fed, comma-separated. Empty allows anything it accepts. |
 | `MaxOutput` | (empty) | Stop feeding a producer once this many of what it makes sit in nearby containers, e.g. `Coal:200`. |
+| `SafeRefinery` | `true` | The Eitr Refinery no longer spits the damaging, knocking-back projectile that otherwise fires out of it while it runs. Its steam, light, sound and smelting are unchanged. Applies to whoever owns a given refinery. A refinery already running when this is switched on keeps its old behaviour until it is next turned off and back on, or the area is reloaded. |
 
 Output goes first into containers that already hold that item, then into
 the nearest container with room. Containers from storage mods count too:
@@ -348,6 +349,7 @@ Server-controlled when connected.
 | `ComfortRange` | `true` | Furniture counts toward comfort from further away. Server-controlled. |
 | `ComfortRadius` | `20` (metres) | How far from you furniture still counts toward comfort, 5 to 100. Vanilla is 10. |
 | `RepairRadius` | `15` (metres) | How far the hammer's repair reaches, 1 to 50. |
+| `NoWeathering` | `true` | Rain no longer wears down or greys your buildings. Pieces still collapse without support and still take damage from creatures and players. Server-controlled. |
 
 Items get vanilla's own floating behaviour, so they bob, splash and ride
 waves like wood, and float in tar too. Live fish are left alone, so

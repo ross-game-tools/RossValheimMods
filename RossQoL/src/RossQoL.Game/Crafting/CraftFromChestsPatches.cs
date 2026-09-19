@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using HarmonyLib;
+using RossQoL.Core.Crafting;
 using RossQoL.Game.Framework;
 using UnityEngine;
 
@@ -63,18 +65,32 @@ namespace RossQoL.Game.Crafting
         /// them as one pool would allow a craft vanilla refuses.
         /// </summary>
         public static int AvailableBestTier(
-            Player player, System.Collections.Generic.List<Container> boxes, Piece.Requirement requirement)
+            Player player, List<Container> boxes, Piece.Requirement requirement) =>
+            ChooseTier(player, boxes, requirement, need: 0).Available;
+
+        /// <summary>
+        /// Which quality tier this requirement is costed against, and what
+        /// that costing can call on. Counting a craft and charging for it both
+        /// come through here, so payment can only ever take the tier
+        /// affordability counted -- the alternative is charging a better stack
+        /// than the recipe was ever priced against, which loses the player
+        /// materials, or charging a tier that had nothing, which gives the
+        /// craft away.
+        /// </summary>
+        public static TierChoice ChooseTier(
+            Player player, List<Container> boxes, Piece.Requirement requirement, int need)
         {
-            string name = requirement.m_resItem.m_itemData.m_shared.m_name;
-            int best = 0;
+            var shared = requirement.m_resItem.m_itemData.m_shared;
+            int maxQuality = Mathf.Max(1, shared.m_maxQuality);
 
-            for (int quality = 1; quality <= requirement.m_resItem.m_itemData.m_shared.m_maxQuality; quality++)
-            {
-                int held = player.m_inventory.CountItems(name, quality) + ChestCrafting.Count(boxes, name, quality);
-                if (held > best) best = held;
-            }
+            // Indexed by quality, so index 2 is quality 2. Quality 0 is not a
+            // tier any item is at, and stays zero.
+            var heldByQuality = new int[maxQuality + 1];
+            for (int quality = 1; quality <= maxQuality; quality++)
+                heldByQuality[quality] =
+                    player.m_inventory.CountItems(shared.m_name, quality) + ChestCrafting.Count(boxes, shared.m_name, quality);
 
-            return best;
+            return CraftPayment.ChooseTier(heldByQuality, need);
         }
 
         /// <summary>
@@ -82,7 +98,7 @@ namespace RossQoL.Game.Crafting
         /// vanilla asks for any quality at all.
         /// </summary>
         public static int AvailableAnyQuality(
-            Player player, System.Collections.Generic.List<Container> boxes, Piece.Requirement requirement)
+            Player player, List<Container> boxes, Piece.Requirement requirement)
         {
             string name = requirement.m_resItem.m_itemData.m_shared.m_name;
             return player.m_inventory.CountItems(name) + ChestCrafting.Count(boxes, name, -1);
@@ -202,12 +218,37 @@ namespace RossQoL.Game.Crafting
     }
 
     /// <summary>
+    /// What one craft was costed against, taken down before vanilla spends
+    /// anything: the containers it may be charged to, what the pack held, and
+    /// the quality tier each requirement was priced at.
+    /// </summary>
+    internal sealed class CraftCharge
+    {
+        /// <summary>
+        /// A copy, not the shared list: the same set has to be charged that
+        /// was counted, and anything else asking for nearby containers in the
+        /// meantime would otherwise rewrite it under us.
+        /// </summary>
+        public readonly List<Container> Boxes = new List<Container>();
+
+        public int[] PackBefore;
+        public int[] Tier;
+    }
+
+    /// <summary>
     /// Paying for it. Vanilla takes what it can from the pack; the prefix
     /// records what was there, and the postfix works out what it actually
     /// took and charges the rest to the containers.
     ///
     /// Measuring rather than predicting means the pack is always spent first
     /// and a chest is never charged for something the pack already paid.
+    ///
+    /// The prefix also fixes the containers and the quality tier the craft is
+    /// costed against, because by the time the postfix runs vanilla has
+    /// already handed the player the crafted item: nothing here can refuse a
+    /// craft, only charge for it, so what it charges must be exactly what was
+    /// counted. A shortfall after all that is an error, not a warning -- the
+    /// player was given something for nothing.
     /// </summary>
     [HarmonyPatch(typeof(Player), nameof(Player.ConsumeResources))]
     internal static class ConsumeFromChestsPatch
@@ -215,35 +256,63 @@ namespace RossQoL.Game.Crafting
         private static bool Prepare() =>
             ValheimCompat.RequireMethod(typeof(Player), nameof(Player.ConsumeResources), CraftFromChestsFeature.FeatureName);
 
-        private static void Prefix(Player __instance, Piece.Requirement[] requirements, out int[] __state)
+        private static void Prefix(
+            Player __instance, Piece.Requirement[] requirements, int qualityLevel, int itemQuality, int multiplier,
+            out CraftCharge __state)
         {
             __state = null;
             if (!ChestCraftingRules.Active(__instance) || requirements == null) return;
 
-            var before = new int[requirements.Length];
-            for (int i = 0; i < requirements.Length; i++)
+            try
             {
-                var requirement = requirements[i];
-                before[i] = requirement?.m_resItem == null
-                    ? 0
-                    : __instance.m_inventory.CountItems(requirement.m_resItem.m_itemData.m_shared.m_name);
-            }
+                var charge = new CraftCharge
+                {
+                    PackBefore = new int[requirements.Length],
+                    Tier = new int[requirements.Length],
+                };
+                charge.Boxes.AddRange(ChestCrafting.Near(__instance.transform.position));
 
-            __state = before;
+                // No containers counted means this craft was vanilla's own
+                // from end to end. Nothing here has any business charging for
+                // it, out of a chest or out of the pack.
+                if (charge.Boxes.Count == 0) return;
+
+                for (int i = 0; i < requirements.Length; i++)
+                {
+                    var requirement = requirements[i];
+                    if (requirement?.m_resItem == null) continue;
+
+                    string name = requirement.m_resItem.m_itemData.m_shared.m_name;
+                    charge.PackBefore[i] = __instance.m_inventory.CountItems(name);
+
+                    // A caller that named a quality is charged that quality.
+                    // A caller that said "any" (-1) is charged the tier the
+                    // craft was actually priced at, so payment cannot eat a
+                    // better stack than affordability ever counted.
+                    int need = requirement.GetAmount(qualityLevel) * Math.Max(1, multiplier);
+                    charge.Tier[i] = itemQuality >= 1
+                        ? itemQuality
+                        : ChestCraftingRules.ChooseTier(__instance, charge.Boxes, requirement, need).Quality;
+                }
+
+                __state = charge;
+            }
+            catch (Exception ex)
+            {
+                __state = null;
+                RossQoLPlugin.Log.LogError($"CraftFromChests: leaving this craft's cost to vanilla: {ex}");
+            }
         }
 
         private static void Postfix(
-            Player __instance, Piece.Requirement[] requirements, int qualityLevel, int itemQuality, int multiplier,
-            int[] __state)
+            Player __instance, Piece.Requirement[] requirements, int qualityLevel, int multiplier,
+            CraftCharge __state)
         {
             if (__state == null || requirements == null) return;
 
             try
             {
-                var boxes = ChestCrafting.Near(__instance.transform.position);
-                if (boxes.Count == 0) return;
-
-                for (int i = 0; i < requirements.Length && i < __state.Length; i++)
+                for (int i = 0; i < requirements.Length && i < __state.PackBefore.Length; i++)
                 {
                     var requirement = requirements[i];
                     if (requirement?.m_resItem == null) continue;
@@ -253,14 +322,28 @@ namespace RossQoL.Game.Crafting
                     if (owed <= 0) continue;
 
                     string name = requirement.m_resItem.m_itemData.m_shared.m_name;
-                    int paidFromPack = __state[i] - __instance.m_inventory.CountItems(name);
-                    int shortfall = owed - paidFromPack;
+                    int tier = __state.Tier[i];
+                    int paidFromPack = __state.PackBefore[i] - __instance.m_inventory.CountItems(name);
+
+                    int owing = CraftPayment.Owing(owed, paidFromPack);
+                    if (owing <= 0) continue;
+
+                    int taken = tier >= 1 ? ChestCrafting.Take(__state.Boxes, name, owing, tier) : 0;
+
+                    int shortfall = CraftPayment.Shortfall(owed, paidFromPack, taken);
                     if (shortfall <= 0) continue;
 
-                    int taken = ChestCrafting.Take(boxes, name, shortfall, itemQuality);
-                    if (taken < shortfall)
-                        RossQoLPlugin.Log.LogWarning(
-                            $"CraftFromChests: only {taken} of {shortfall} {name} came out of nearby containers.");
+                    // Nothing further is taken. The craft cannot be undone by
+                    // this point, but charging the player's own pack to make
+                    // the sums add up would spend materials they never agreed
+                    // to spend, over a race they cannot see -- a worse cost
+                    // than the one it covers. The shortfall is reported and
+                    // left alone.
+                    RossQoLPlugin.Log.LogError(
+                        $"CraftFromChests: {CraftScope.Describe()} cost {owed} {name} (quality {tier}) but only "
+                        + $"{paidFromPack + taken} were paid -- {paidFromPack} from your pack, {taken} from "
+                        + $"{__state.Boxes.Count} nearby container(s). {shortfall} went unpaid; that craft was "
+                        + "cheaper than it should have been.");
                 }
             }
             catch (Exception ex)

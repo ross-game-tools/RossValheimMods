@@ -3,6 +3,9 @@
 Verified notes on vanilla Valheim internals, for writing patches against.
 One file per subsystem:
 
+- `containers.md` — how `Container` persists inventory to its ZDO,
+  whether a non-owner's write sticks, and what `ZNetView
+  .ClaimOwnership()` / `ZDO.SetOwner()` actually guarantee.
 - `death-and-respawn.md` — death/respawn flow, status effects, food,
   skill loss, HUD projection, per-character/per-world persistence.
 - `eitr-refinery.md` — what damages the player near a Mistlands Eitr
