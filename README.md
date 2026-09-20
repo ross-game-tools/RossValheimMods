@@ -5,8 +5,11 @@ buildable and independently packaged for Thunderstore.
 
 | Mod | What it does | State |
 |---|---|---|
-| [ItemDrawers](ItemDrawers/) | Wood, stone and black marble drawers that each hold a large quantity of one item and show it on the front. Clean-room rewrite; ships no art. | Implemented; Thunderstore packaging in place, icon.png outstanding |
-| [RossQoL](RossQoL/) | Quality-of-life tweaks, each switchable: tames follow you through portals, a Continue button, skipped intros. Requires Jotunn. | Implemented; in-game testing pending |
+| [ItemDrawers](ItemDrawers/) | Wood, stone and black marble drawers that each hold a large quantity of one item and show it on the front. Clean-room rewrite; ships no art. | Released on Thunderstore |
+| [RossQoL](RossQoL/) | Around fifty quality-of-life tweaks in fourteen categories, each independently switchable — crafting, death and recovery, tames, portals, production, interface and more. | Released on Thunderstore |
+
+Both require [Jotunn](https://valheim.thunderstore.io/package/ValheimModding/Jotunn/)
+and must be installed on the server and on every client.
 
 ## Layout
 
@@ -27,6 +30,14 @@ it from the others.
 Requires a .NET SDK (targets `netstandard2.1`) and a Valheim install.
 Valheim assemblies are referenced through
 `BepInEx.AssemblyPublicizer.MSBuild` and are never committed.
+
+```bash
+dotnet test ItemDrawers/ItemDrawers.sln -c Release
+bash ItemDrawers/deploy.sh      # to the r2modman 'dev' profile
+bash ItemDrawers/package.sh     # Thunderstore zip into builds/
+```
+
+Working on this repo as an agent? Start with [AGENTS.md](AGENTS.md).
 
 ## License
 

@@ -94,9 +94,9 @@ obvious error).
 
 ## Status
 
-Implemented and buildable. Thunderstore packaging (this README, the
-package manifest/README/changelog, `LICENSE`, `package.sh`) is in place.
-Outstanding before a Thunderstore release: `thunderstore/icon.png`
-(must be exactly 256x256, not something a text-only pass can produce),
-and a human should do a real in-game pass to confirm behavior — nothing
-here has been verified by actually launching Valheim.
+Released on Thunderstore and in use, including on a dedicated server with
+several players. Behaviour is verified in game, not only by the unit
+tests, and multiplayer paths — ownership handover, crafting from drawers,
+other mods pulling from them — have been exercised against real play.
+
+See `thunderstore/CHANGELOG.md` for what changed and when.
