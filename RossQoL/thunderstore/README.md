@@ -286,8 +286,8 @@ Server-controlled when connected.
 | `ClearMist` | `true` | Killing the Queen clears the mist from the Mistlands. |
 | `MiningPower` | `true` | Rock and ore in a biome whose boss is dead take more damage per swing. Trees are unaffected. |
 | `MiningMultiplier` | `2` | How much harder you hit that rock, 1 to 10. |
-| `SmeltingYield` | `true` | Ore from a biome whose boss is dead smelts into more bars for the same fuel. |
-| `SmeltingMultiplier` | `2` | How many bars one such ore yields, 1 to 10. |
+| `SmeltingYield` | `true` | Ore from a biome whose boss is dead smelts into more bars for the same fuel, and the Eitr Refinery yields more refined eitr once the Queen is dead. |
+| `SmeltingMultiplier` | `2` | How many bars one such ore, or how many refined eitr, you get, 1 to 10. |
 | `DungeonRespawn` | `true` | Dungeons whose own boss is dead come back as first found, `RespawnDays` after your last visit: burial chambers and troll caves (Elder), sunken crypts (Bonemass), frost caves (Moder), infested mines (Queen). Which boss a dungeon waits for is read from the dungeon's own type, not from the ground under its entrance, so a dungeon near a biome border still answers for itself; anything unrecognised is left alone. Rebuilt from the dungeon's own seed, so the layout is unchanged. Surface camps and villages are never touched. Server-controlled. |
 | `RespawnDays` | `24` (in-game days) | Days after your last visit before a dungeon is rebuilt, 1 to 1000. |
 | `ProtectPlayerBuilds` | `true` | A dungeon holding anything you built stops respawning, rather than being cleared out. A rebuild destroys everything inside, a portal or stash included. |

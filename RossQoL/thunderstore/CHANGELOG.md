@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.26.0
+
+- **Progression / SmeltingYield:** the Eitr Refinery now yields
+  `SmeltingMultiplier` refined eitr per batch instead of one, once the Queen
+  is dead, the same way ore from a beaten biome smelts into more bars. The
+  refinery is a smelter under the hood, so this is decided by what it
+  produces rather than what it eats -- neither the Sap nor the Soft tissue
+  going in matters. Metals are unchanged, and nothing happens before the
+  Queen is down.
+
 ## 0.25.0
 
 - **Interface / Notifications:** a skill line now shows what the game actually

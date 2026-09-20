@@ -284,3 +284,94 @@ the code, not from inference.
 3. Every other prefab in the game that also carries a `Radiator`
    component — pure Unity wiring, invisible to the decompiler. See the
    dump extension proposed in section 5.
+
+## The refinery is a `Smelter`: how it produces refined eitr
+
+**Read 2026-09-19, game version 1.0.14**, `Smelter.cs` decompiled in
+full with ilspycmd 8.2. The `eitrrefinery` prefab root carries a
+`Smelter` (section, top of this file), and that `Smelter` is what turns
+its inputs into refined eitr — there is no eitr-specific production
+component. Every relevant fact below is quoted decompiled code.
+
+A `Smelter` holds a list of conversions and a separate fuel item:
+
+```csharp
+[Serializable]
+public class ItemConversion
+{
+    public ItemDrop m_from;
+    public ItemDrop m_to;
+}
+
+public List<ItemConversion> m_conversion = new List<ItemConversion>();
+```
+
+Production ends in `Spawn`, which is handed the **input** conversion's
+prefab name (`ore`) and a count, looks the conversion up by that input
+name, and instantiates the conversion's **output** (`m_to`):
+
+```csharp
+private void Spawn(string ore, int stack)
+{
+    ItemConversion itemConversion = GetItemConversion(ore);
+    if (itemConversion != null && itemConversion.m_to != null)
+    {
+        m_produceEffects.Create(base.transform.position, base.transform.rotation);
+        ItemDrop component = UnityEngine.Object.Instantiate(
+            itemConversion.m_to.gameObject, m_outputPoint.position, m_outputPoint.rotation)
+            .GetComponent<ItemDrop>();
+        component.m_itemData.m_stack = stack;
+        ...
+    }
+}
+
+private ItemConversion GetItemConversion(string itemName)
+{
+    foreach (ItemConversion item in m_conversion)
+    {
+        if (item.m_from == null || item.m_from.gameObject.name == itemName)
+            return item;
+    }
+    ...
+}
+```
+
+So `ore` is `m_conversion[i].m_from.gameObject.name` (the material going
+in), matched by `gameObject.name`, and the produced item is
+`m_conversion[i].m_to`. `stack` is the number of output items in the
+batch; a Harmony prefix that multiplies `stack` before vanilla acts
+multiplies the batch, because the input was already consumed upstream
+(`RemoveOneOre`/`UpdateSmelter`) and only the instantiate loop is left.
+This is exactly what `RossQoL.Game.Progression.SmeltingYieldPatch` does.
+
+### Doubling refined eitr: gate on the refinery prefab, not the item names
+
+Metals are gated on `ore` (the input) against the boss table. Refined
+eitr is gated on the **owning prefab** instead: the patch walks
+`smelter.GetComponentInParent<ZNetView>()` and checks
+`Utils.GetPrefabName(nview.gameObject) == "eitrrefinery"` (the same way
+`SafeRefineryPatch` identifies the refinery), then requires the Queen
+key. If so, `stack` is multiplied.
+
+An earlier attempt gated on the produced item's name
+(`m_conversion[i].m_to.gameObject.name == "Eitr"`) and appeared not to
+double in-game. **The item-name gate was never actually disproven**: the
+observed non-doubling was because the world's `defeated_queen` global key
+was not set at the time (the Queen had not been killed in that save), so
+*any* correct implementation would have left the batch at vanilla size.
+Whether `"Eitr"` is the right `m_to.gameObject.name` remains unverified.
+
+The prefab-name approach is kept regardless because it avoids that
+question entirely: it depends on nothing but the `eitrrefinery` prefab
+name, which *is* confirmed (top of this file; `spawn eitrrefinery`
+autocompletes). It does not matter what the refinery eats (Sap fuel vs.
+Soft tissue ore, whichever `Spawn` receives as `ore`) or what its output
+prefab is called — only that the `Smelter` belongs to `eitrrefinery`.
+
+### Unverified from the assemblies (asset data)
+
+- The refined-eitr output item prefab's `gameObject.name` (the `"Eitr"`
+  guess above was never confirmed either way), and which of Sap / Soft
+  tissue is `m_fuelItem` vs. `m_conversion.m_from` (i.e. which name
+  `Spawn` receives as `ore`). The prefab-name gating depends on none of
+  these.

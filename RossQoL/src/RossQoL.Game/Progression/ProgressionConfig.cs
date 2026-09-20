@@ -44,8 +44,9 @@ namespace RossQoL.Game.Progression
         {
             SmeltingMultiplier = config.Bind(section, "SmeltingMultiplier", 2,
                 ConfigText.Description(
-                    "How many bars one ore yields once the boss of the biome it comes from is dead. 2 doubles "
-                    + "the output for the same ore and fuel.",
+                    "How many bars one ore yields once the boss of the biome it comes from is dead, and how "
+                    + "many refined eitr the Eitr Refinery yields once the Queen is dead. 2 doubles the output "
+                    + "for the same inputs.",
                     scope, requiresRestart: false, range: new AcceptableValueRange<int>(1, 10)));
         }
     }
