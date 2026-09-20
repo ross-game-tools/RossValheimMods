@@ -23,6 +23,7 @@ namespace RossPortals.Game.Portals
         public static void OnGameStarted()
         {
             PortalRegistry.Instance.Reset();
+            MapPins.Clear();
             PortalRpc.Register();
         }
 
@@ -55,6 +56,18 @@ namespace RossPortals.Game.Portals
             var stored = PortalRegistry.Instance.AddOrUpdate(record);
             WriteWithRetry(stored, attempts: 5);
             PortalRpc.BroadcastPortal(stored);
+
+            // Exactly one default at a time: setting this one clears the rest.
+            if (stored.IsDefault)
+            {
+                foreach (var other in PortalRegistry.Instance.GetList())
+                {
+                    if (other.Id == stored.Id || !other.IsDefault) continue;
+                    other.IsDefault = false;
+                    PortalZdo.Write(other);
+                    PortalRpc.BroadcastPortal(other);
+                }
+            }
 
             // Convenience back-link: if the destination has no destination of its
             // own yet, point it back here so a fresh pair links both ways. The
@@ -107,7 +120,9 @@ namespace RossPortals.Game.Portals
         public static void OnPortalPlaced(ZDOID id, Vector3 location)
         {
             ZDOMan.instance.ForceSendZDO(id);
-            PortalRpc.RequestAddOrUpdate(new PortalRecord(id) { Location = location });
+            // New portals point at the current default destination portal, if one is set.
+            var target = ResolveDefaultTarget(id);
+            PortalRpc.RequestAddOrUpdate(new PortalRecord(id) { Location = location, Target = target });
         }
 
         public static void OnPortalDestroyed(ZDOID id) => PortalRpc.RequestRemove(id);
@@ -139,13 +154,16 @@ namespace RossPortals.Game.Portals
 
         /// <summary>The panel's OK button: push the chosen name and destination
         /// to the server, but only if something actually changed.</summary>
-        public static void SubmitPortalConfig(PortalRecord portal, string newName, ZDOID newTarget)
+        public static void SubmitPortalConfig(PortalRecord portal, string newName, ZDOID newTarget, bool isDefault, bool showOnMap)
         {
             newName ??= string.Empty;
-            if (portal.Name == newName && portal.Target == newTarget) return;
+            if (portal.Name == newName && portal.Target == newTarget
+                && portal.IsDefault == isDefault && portal.ShowOnMap == showOnMap) return;
 
             portal.Name = newName;
             portal.Target = newTarget;
+            portal.IsDefault = isDefault;
+            portal.ShowOnMap = showOnMap;
             PortalRpc.RequestAddOrUpdate(portal);
         }
 
@@ -160,7 +178,19 @@ namespace RossPortals.Game.Portals
 
         public static void NotifyListChanged()
         {
-            if (!Env.IsHeadless) PortalConfigPanel.Instance?.OnRegistryChanged();
+            if (Env.IsHeadless) return;
+            PortalConfigPanel.Instance?.OnRegistryChanged();
+            MapPins.Refresh();
+        }
+
+        /// <summary>The current default destination portal's live ZDOID, or None.
+        /// Excludes a given portal so a new portal can't target itself.</summary>
+        public static ZDOID ResolveDefaultTarget(ZDOID excludeId)
+        {
+            foreach (var portal in PortalRegistry.Instance.GetList())
+                if (portal.IsDefault && portal.Id != excludeId)
+                    return portal.Id;
+            return ZDOID.None;
         }
 
         // A portal we don't have a record for yet (freshly placed, or the list

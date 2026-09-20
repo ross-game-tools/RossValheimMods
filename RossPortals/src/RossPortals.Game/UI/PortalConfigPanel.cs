@@ -32,6 +32,8 @@ namespace RossPortals.Game.UI
         private InputField _nameField;
         private InputField _searchField;
         private Text _destinationText;
+        private Toggle _defaultToggle;
+        private Toggle _showMapToggle;
         private RectTransform _content;
         private Font _font;
         private readonly Dictionary<SortMode, Text> _sortLabels = new Dictionary<SortMode, Text>();
@@ -62,6 +64,8 @@ namespace RossPortals.Game.UI
             _selectedKey = portal.HasTarget ? PortalKey.Of(portal.Target) : null;
             _nameField.text = portal.Name ?? string.Empty;
             _searchField.text = string.Empty;
+            _defaultToggle.isOn = portal.IsDefault;
+            _showMapToggle.isOn = portal.ShowOnMap;
 
             _panel.SetActive(true);
             GUIManager.BlockInput(true);
@@ -167,15 +171,43 @@ namespace RossPortals.Game.UI
             listLayout.padding = new RectOffset(6, 6, 6, 6);
 
             var ok = GUIManager.Instance.CreateButton("OK", _panel.transform, top, top,
-                new Vector2(150f, -566f), 130f, 40f);
+                new Vector2(225f, -566f), 130f, 40f);
             ok.GetComponent<Button>().onClick.AddListener(Submit);
 
             var cancel = GUIManager.Instance.CreateButton("Cancel", _panel.transform, top, top,
-                new Vector2(-150f, -566f), 130f, 40f);
+                new Vector2(81f, -566f), 130f, 40f);
             cancel.GetComponent<Button>().onClick.AddListener(Close);
+
+            // Two per-portal flags, bottom-left, side by side. Default starts off
+            // (only one portal is the default at a time); Show on map starts on.
+            _defaultToggle = CreateCheckbox("Default", -278f, -566f, 70f);
+            _showMapToggle = CreateCheckbox("Show on map", -150f, -566f, 130f);
 
             _built = true;
             return true;
+        }
+
+        private Toggle CreateCheckbox(string label, float x, float y, float labelWidth)
+        {
+            var top = new Vector2(0.5f, 1f);
+            var go = GUIManager.Instance.CreateToggle(_panel.transform, 24f, 24f);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = top;
+            rt.anchorMax = top;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = new Vector2(x, y);
+
+            // The toggle template ships its own label; blank it and draw our own,
+            // left-aligned just right of the box, so we control placement.
+            foreach (var t in go.GetComponentsInChildren<Text>()) t.text = string.Empty;
+
+            var text = GUIManager.Instance.CreateText(label, _panel.transform, top, top,
+                new Vector2(x + 18f + labelWidth / 2f, y), _font, 16, Color.white, true, Color.black, labelWidth, 24f, false)
+                .GetComponent<Text>();
+            text.alignment = TextAnchor.MiddleLeft;
+            text.raycastTarget = false; // never steal clicks from the next checkbox
+
+            return go.GetComponent<Toggle>();
         }
 
         private void CreateSortButton(SortMode mode, string token, float x, Font font)
@@ -326,7 +358,7 @@ namespace RossPortals.Game.UI
                 if (chosen != null) target = chosen.Id;
             }
 
-            PortalManager.SubmitPortalConfig(_portal, _nameField.text, target);
+            PortalManager.SubmitPortalConfig(_portal, _nameField.text, target, _defaultToggle.isOn, _showMapToggle.isOn);
             Close();
         }
 

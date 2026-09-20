@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- Mark one portal as the **default destination** — every new portal you place
+  points at it automatically.
+- **Portals on the map:** every portal is marked with the portal icon and its
+  name. Each portal can be toggled off the map individually.
+
 ## 0.1.0
 
 First release.

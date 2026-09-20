@@ -21,6 +21,12 @@ namespace RossPortals.Game.Portals
         public Vector3 Location;
         public ZDOID Target;
 
+        /// <summary>The one default destination portal; new portals point here.</summary>
+        public bool IsDefault;
+
+        /// <summary>Whether this portal is marked on the map. Defaults on.</summary>
+        public bool ShowOnMap = true;
+
         public PortalRecord(ZDOID id)
         {
             Id = id;
@@ -48,6 +54,8 @@ namespace RossPortals.Game.Portals
             pkg.Write(Name ?? string.Empty);
             pkg.Write(Location);
             pkg.Write(Target);
+            pkg.Write(IsDefault);
+            pkg.Write(ShowOnMap);
             return pkg;
         }
 
@@ -59,6 +67,8 @@ namespace RossPortals.Game.Portals
                 Name = pkg.ReadString(),
                 Location = pkg.ReadVector3(),
                 Target = pkg.ReadZDOID(),
+                IsDefault = pkg.ReadBool(),
+                ShowOnMap = pkg.ReadBool(),
             };
         }
     }

@@ -12,7 +12,7 @@ namespace RossPortals.Game
     {
         public const string Guid = "com.rossdwest.rossportals";
         public const string Name = "RossPortals";
-        public const string Version = "0.1.0";
+        public const string Version = "0.2.0";
 
         /// <summary>XPortal's plugin GUID. We replace it wholesale — both mods
         /// patch the same portal hover/interact path, so they cannot coexist.
@@ -37,6 +37,14 @@ namespace RossPortals.Game
 
         /// <summary>XPortal's previous-id key, used the same way during import.</summary>
         public const string LegacyKeyPrevious = "XPortal_PreviousId";
+
+        /// <summary>Marks the one default destination portal. New portals point
+        /// here; the server keeps exactly one set at a time.</summary>
+        public const string KeyDefault = Name + "_Default";
+
+        /// <summary>Whether this portal is marked on the map. Absent means
+        /// shown, so portals appear on the map by default.</summary>
+        public const string KeyShowOnMap = Name + "_ShowOnMap";
 
         // --- RPC names (server-authoritative portal-list sync) ---
 

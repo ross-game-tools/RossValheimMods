@@ -48,6 +48,9 @@ namespace RossPortals.Game.Portals
                 Name = GetName(zdo) ?? string.Empty,
                 Location = zdo.GetPosition(),
                 Target = GetTarget(zdo),
+                IsDefault = zdo.GetBool(ModInfo.KeyDefault, false),
+                // Absent means shown, so portals appear on the map by default.
+                ShowOnMap = zdo.GetBool(ModInfo.KeyShowOnMap, true),
             };
 
         /// <summary>Apply a chosen name and destination to the portal's ZDO.
@@ -61,6 +64,8 @@ namespace RossPortals.Game.Portals
             zdo.SetOwner(ZDOMan.GetSessionID());
             SetName(zdo, record.Name);
             zdo.Set(ModInfo.KeyPrevious, zdo.m_uid);
+            zdo.Set(ModInfo.KeyDefault, record.IsDefault);
+            zdo.Set(ModInfo.KeyShowOnMap, record.ShowOnMap);
             SetTarget(zdo, record.Target);
         }
 

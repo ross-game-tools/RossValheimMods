@@ -5,9 +5,9 @@ namespace RossPortals.Game.Portals
     /// <summary>
     /// The mod's only persisted setting: the folder separator used inside portal
     /// names. Client-side and personal — it changes how YOUR list is grouped,
-    /// nothing about the world. Sort order is deliberately NOT a config entry:
-    /// it has an on-screen control, and the repo's rule is one source of truth,
-    /// not a file value that drifts from the button next to it.
+    /// nothing about the world. Everything else (destination, default flag,
+    /// show-on-map flag) is a per-portal property stored in the portal's ZDO and
+    /// shared across the server, not a config value.
     /// </summary>
     internal static class PortalConfig
     {

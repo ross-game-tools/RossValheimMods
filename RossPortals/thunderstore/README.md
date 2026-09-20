@@ -18,6 +18,11 @@ RossPortals gives every portal a configuration panel with:
   straight to the closest one, or the one you just came from.
 - **No tag pairing.** Portals don't need matching tags or to point at each
   other. Choose a destination and go.
+- **Default destination.** Mark one portal as the default and every new portal
+  you place points at it automatically — no configuring each one.
+- **Portals on the map.** Every portal is marked on your map with the portal
+  icon and its name, so you can see your whole network at a glance. Toggle any
+  portal off the map individually.
 
 ## Switching from XPortal
 
