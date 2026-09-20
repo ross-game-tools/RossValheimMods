@@ -1,6 +1,6 @@
 {
   "name": "RossPortals",
-  "version_number": "0.2.0",
+  "version_number": "0.2.1",
   "website_url": "https://github.com/ross-game-tools/RossValheimMods",
   "description": "Pick a portal's destination from a searchable, foldered list, and mark every portal on the map. No tag pairing.",
   "dependencies": [

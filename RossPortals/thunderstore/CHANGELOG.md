@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- Tidier portal list: a folder's arrow no longer pushes its name out past the
+  portals inside it, and those portals now sit neatly indented under their
+  folder.
+
 ## 0.2.0
 
 - Mark one portal as the **default destination** — every new portal you place

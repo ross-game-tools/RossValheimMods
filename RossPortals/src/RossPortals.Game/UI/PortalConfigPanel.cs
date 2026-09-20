@@ -263,9 +263,10 @@ namespace RossPortals.Game.UI
             {
                 var arrow = row.Collapsed ? "\u25B6" : "\u25BC"; // ▶ / ▼
                 var path = row.GroupPath;
-                BuildRow($"{arrow}  {row.Label}", row.PortalCount.ToString(), row.Depth,
+                BuildRow(row.Label, row.PortalCount.ToString(), row.Depth,
                     isGroup: true, selected: false,
-                    () => { if (!_collapsed.Remove(path)) _collapsed.Add(path); Rebuild(); });
+                    () => { if (!_collapsed.Remove(path)) _collapsed.Add(path); Rebuild(); },
+                    arrow);
                 return;
             }
 
@@ -281,7 +282,7 @@ namespace RossPortals.Game.UI
         // left-aligned label and a right-aligned trailer (a portal's distance,
         // or a folder's count). No wood-button chrome -- that skin is for dialog
         // actions, not a list of dozens of entries.
-        private void BuildRow(string label, string trailer, int depth, bool isGroup, bool selected, UnityEngine.Events.UnityAction onClick)
+        private void BuildRow(string label, string trailer, int depth, bool isGroup, bool selected, UnityEngine.Events.UnityAction onClick, string arrow = null)
         {
             var row = new GameObject("row", typeof(RectTransform), typeof(Image), typeof(Button));
             row.transform.SetParent(_content, false);
@@ -302,12 +303,26 @@ namespace RossPortals.Game.UI
             var textColor = selected
                 ? new Color(1f, 0.86f, 0.4f)
                 : isGroup ? new Color(0.85f, 0.9f, 1f) : new Color(0.92f, 0.9f, 0.85f);
-            AddLabel(row.transform, label, TextAnchor.MiddleLeft, textColor, 12f + depth * 16f, 60f);
+            // Indentation has two independent parts. Each depth level steps in by
+            // DepthStep, so a folder's portals sit a clear notch to the right of
+            // the folder name. A folder's own name is nudged right of its
+            // disclosure triangle by the smaller ArrowGap; because ArrowGap <
+            // DepthStep, the contained portals still land further right than the
+            // header they belong to.
+            const float depthStep = 22f;
+            const float arrowGap = 14f;
+            var indent = 12f + depth * depthStep;
+            if (arrow != null)
+            {
+                AddLabel(row.transform, arrow, TextAnchor.MiddleLeft, textColor, indent, 60f, 11);
+                indent += arrowGap;
+            }
+            AddLabel(row.transform, label, TextAnchor.MiddleLeft, textColor, indent, 60f);
             if (!string.IsNullOrEmpty(trailer))
                 AddLabel(row.transform, trailer, TextAnchor.MiddleRight, new Color(0.65f, 0.65f, 0.62f), 8f, 10f);
         }
 
-        private void AddLabel(Transform parent, string text, TextAnchor anchor, Color color, float leftPad, float rightPad)
+        private void AddLabel(Transform parent, string text, TextAnchor anchor, Color color, float leftPad, float rightPad, int fontSize = 17)
         {
             var go = new GameObject("label", typeof(RectTransform), typeof(Text), typeof(Outline));
             go.transform.SetParent(parent, false);
@@ -320,7 +335,7 @@ namespace RossPortals.Game.UI
 
             var label = go.GetComponent<Text>();
             label.font = _font;
-            label.fontSize = 17;
+            label.fontSize = fontSize;
             label.color = color;
             label.alignment = anchor;
             label.horizontalOverflow = HorizontalWrapMode.Overflow; // clipped by the scroll viewport mask
