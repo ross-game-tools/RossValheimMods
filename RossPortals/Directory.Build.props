@@ -1,0 +1,34 @@
+<Project>
+  <!--
+    Local, machine-specific overrides. Copy Directory.Build.local.props.sample to
+    Directory.Build.local.props (gitignored) and edit it, or set VALHEIM_INSTALL /
+    JOTUNN_INSTALL as environment variables instead — either works.
+  -->
+  <Import Project="Directory.Build.local.props" Condition="Exists('Directory.Build.local.props')" />
+
+  <PropertyGroup>
+    <VALHEIM_INSTALL Condition="'$(VALHEIM_INSTALL)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Valheim</VALHEIM_INSTALL>
+    <!--
+      JotunnLib on nuget.org ships lib/net462 only — no netstandard2.0/2.1
+      asset, so a netstandard2.1 project cannot restore it as a PackageReference (it
+      is silently dropped, no compile error, no NU1701 warning). We reference the
+      Jotunn.dll that is already installed for the dev profile directly instead.
+    -->
+    <JOTUNN_INSTALL Condition="'$(JOTUNN_INSTALL)' == ''">C:\Users\ross\AppData\Roaming\r2modmanPlus-local\Valheim\profiles\dev\BepInEx\plugins\ValheimModding-Jotunn</JOTUNN_INSTALL>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!--
+      MSB3277 fires on every build of RossPortals.Game: Valheim ships its own
+      copies of System.Net.Http / System.IO.Compression inside assembly_valheim
+      and assembly_utils, at versions differing from the netstandard2.1 reference
+      assemblies we compile against. MSBuild reports the conflict and resolves it
+      correctly (the netstandard reference wins), and at RUNTIME neither copy is
+      ours — BepInEx loads this plugin into the game process and Unity supplies
+      those assemblies. Nothing to fix; downgraded to a message so a clean build
+      stays clean but it still shows in a detailed log if it ever matters.
+      MSBuildWarningsAsMessages is the MSBuild-warning equivalent of NoWarn.
+    -->
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB3277</MSBuildWarningsAsMessages>
+  </PropertyGroup>
+</Project>

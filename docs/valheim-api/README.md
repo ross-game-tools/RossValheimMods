@@ -57,6 +57,17 @@ One file per subsystem:
   (`Skills.Skill.Raise`/`Game.m_skillGainRate`), and why a stacking,
   update-in-place notification list has to suppress vanilla's path
   rather than take over its single display slot.
+- `portals.md` (read at 1.0.15) — everything a portal-interface mod
+  reaches by name: how `TeleportWorld` reads the vanilla *connection*
+  that `Teleport` is the only consumer of (so a mod that writes the
+  connection needs no teleport patch), how the tag/author live in
+  `ZDOVars.s_tag`/`s_tagauthor`, how the server enumerates portals
+  (`ZDOMan.GetPortalList`, real body, safe to call), how a routed RPC
+  reaches every peer (`ZRoutedRpc.InvokeRoutedRPC`, `Everybody = 0L`),
+  how placement/destruction are detected (`Piece.SetCreator` is the safe
+  hook; `WearNTear.OnPlaced` is an inlining hazard), and that
+  `Game.m_portalPrefab` does *not* exist — portal identity is
+  `Game.PortalPrefabHash`.
 
 ## Convention
 
