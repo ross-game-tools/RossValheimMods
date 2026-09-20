@@ -15,6 +15,7 @@ mod can be extracted later without untangling it from the others.
 |---|---|---|
 | `ItemDrawers/` | RossItemDrawers | Drawers that hold one item type in bulk. Uses Jotunn. |
 | `RossQoL/` | RossQoL | Many independently switchable quality-of-life features. Uses Jotunn. |
+| `RossPortals/` | RossPortals | Foldered, searchable, sortable portal destination picker; drop-in XPortal replacement. Uses Jotunn. |
 
 Each mod's own `README.md` covers what it does and how it is structured.
 This file covers how to work on them.
@@ -185,14 +186,14 @@ touching multiplayer, a dedicated server with two clients.
 
 1. The version lives in **two** places and `package.sh` refuses to build if
    they disagree: `thunderstore/manifest.json` (`version_number`) and the
-   plugin's `PluginVersion` constant (`DrawerPlugin.cs`,
-   `RossQoLPlugin.cs`).
+   plugin's version constant (`PluginVersion` in `DrawerPlugin.cs` and
+   `RossQoLPlugin.cs`; `Version` in RossPortals' `ModInfo.cs`).
 2. Add a `thunderstore/CHANGELOG.md` entry under the new version, written
    for players: what changed and what it means for them, not which method
    was patched.
 3. `bash <Mod>/package.sh` → a zip in the gitignored top-level `builds/`.
    Ross uploads it to Thunderstore manually.
-4. **Check the version is not already published** before choosing it. Both
+4. **Check the version is not already published** before choosing it. These
    mods release often and another session may have taken the next number.
 
 ## Git workflow
