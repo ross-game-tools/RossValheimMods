@@ -7,8 +7,9 @@ buildable and independently packaged for Thunderstore.
 |---|---|---|
 | [ItemDrawers](ItemDrawers/) | Wood, stone and black marble drawers that each hold a large quantity of one item and show it on the front. Clean-room rewrite; ships no art. | Released on Thunderstore |
 | [RossQoL](RossQoL/) | Around fifty quality-of-life tweaks in fourteen categories, each independently switchable — crafting, death and recovery, tames, portals, production, interface and more. | Released on Thunderstore |
+| [RossPortals](RossPortals/) | A searchable, foldered, sortable destination picker for portals: file portals into folders by naming them with a separator, choose a destination with no tag pairing, and see every portal on the map. Drop-in XPortal replacement. | Released on Thunderstore |
 
-Both require [Jotunn](https://valheim.thunderstore.io/package/ValheimModding/Jotunn/)
+All three require [Jotunn](https://valheim.thunderstore.io/package/ValheimModding/Jotunn/)
 and must be installed on the server and on every client.
 
 ## Layout
