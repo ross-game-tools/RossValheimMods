@@ -12,7 +12,7 @@ namespace RossPortals.Game
     {
         public const string Guid = "com.rossdwest.rossportals";
         public const string Name = "RossPortals";
-        public const string Version = "0.2.1";
+        public const string Version = "0.2.2";
 
         /// <summary>XPortal's plugin GUID. We replace it wholesale — both mods
         /// patch the same portal hover/interact path, so they cannot coexist.

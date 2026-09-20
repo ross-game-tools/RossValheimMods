@@ -46,6 +46,27 @@ namespace RossPortals.Game.UI
         private SortMode _sort = SortMode.Name;
         private readonly HashSet<string> _collapsed = new HashSet<string>();
 
+        // The destination-selectable rows of the current list (portals plus the
+        // "(no destination)" entry), kept so that choosing a destination only
+        // recolours the two affected rows in place. Rebuilding the whole list on
+        // every click destroyed and recreated every row, which flashed the list.
+        // Structural changes (search, sort, collapse, sync) still call Rebuild.
+        private readonly List<SelectableRow> _selectableRows = new List<SelectableRow>();
+
+        private readonly struct SelectableRow
+        {
+            public readonly Button Button;
+            public readonly Text Label;
+            public readonly string Key; // null for the "(no destination)" row
+
+            public SelectableRow(Button button, Text label, string key)
+            {
+                Button = button;
+                Label = label;
+                Key = key;
+            }
+        }
+
         public PortalConfigPanel() => Instance = this;
 
         public bool IsOpen => _panel != null && _panel.activeSelf;
@@ -149,7 +170,7 @@ namespace RossPortals.Game.UI
 
             var clear = GUIManager.Instance.CreateButton("Clear", _panel.transform, top, top,
                 new Vector2(210f, -198f), 110f, 30f);
-            clear.GetComponent<Button>().onClick.AddListener(() => { _selectedKey = null; Rebuild(); });
+            clear.GetComponent<Button>().onClick.AddListener(() => Select(null));
 
             var scroll = GUIManager.Instance.CreateScrollView(
                 _panel.transform, false, true, 12f, 6f, HandleColors(),
@@ -237,12 +258,13 @@ namespace RossPortals.Game.UI
             for (int i = _content.childCount - 1; i >= 0; i--)
                 Object.DestroyImmediate(_content.GetChild(i).gameObject);
 
+            _selectableRows.Clear();
             _destinationText.text = "Destination: " + SelectedName();
             foreach (var pair in _sortLabels)
                 pair.Value.color = pair.Key == _sort ? Color.yellow : Color.white;
 
             BuildRow("(no destination)", "", 0, isGroup: false, selected: _selectedKey == null,
-                () => { _selectedKey = null; Rebuild(); });
+                () => Select(null), selectable: true, key: null);
 
             var player = Player.m_localPlayer != null ? Player.m_localPlayer.transform.position : Vector3.zero;
             var rows = PortalListView.Build(
@@ -275,14 +297,14 @@ namespace RossPortals.Game.UI
             var key = row.PortalId;
             BuildRow(name, FormatDistance(row.Distance), row.Depth,
                 isGroup: false, selected: selected,
-                () => { _selectedKey = key; Rebuild(); });
+                () => Select(key), selectable: true, key: key);
         }
 
         // A lightweight list row: a flat, full-width clickable strip with a
         // left-aligned label and a right-aligned trailer (a portal's distance,
         // or a folder's count). No wood-button chrome -- that skin is for dialog
         // actions, not a list of dozens of entries.
-        private void BuildRow(string label, string trailer, int depth, bool isGroup, bool selected, UnityEngine.Events.UnityAction onClick, string arrow = null)
+        private void BuildRow(string label, string trailer, int depth, bool isGroup, bool selected, UnityEngine.Events.UnityAction onClick, string arrow = null, bool selectable = false, string key = null)
         {
             var row = new GameObject("row", typeof(RectTransform), typeof(Image), typeof(Button));
             row.transform.SetParent(_content, false);
@@ -300,9 +322,7 @@ namespace RossPortals.Game.UI
             element.preferredHeight = RowHeight;
             element.flexibleWidth = 1f;
 
-            var textColor = selected
-                ? new Color(1f, 0.86f, 0.4f)
-                : isGroup ? new Color(0.85f, 0.9f, 1f) : new Color(0.92f, 0.9f, 0.85f);
+            var textColor = RowTextColor(isGroup, selected);
             // Indentation has two independent parts. Each depth level steps in by
             // DepthStep, so a folder's portals sit a clear notch to the right of
             // the folder name. A folder's own name is nudged right of its
@@ -317,12 +337,16 @@ namespace RossPortals.Game.UI
                 AddLabel(row.transform, arrow, TextAnchor.MiddleLeft, textColor, indent, 60f, 11);
                 indent += arrowGap;
             }
-            AddLabel(row.transform, label, TextAnchor.MiddleLeft, textColor, indent, 60f);
+            var mainLabel = AddLabel(row.transform, label, TextAnchor.MiddleLeft, textColor, indent, 60f);
             if (!string.IsNullOrEmpty(trailer))
                 AddLabel(row.transform, trailer, TextAnchor.MiddleRight, new Color(0.65f, 0.65f, 0.62f), 8f, 10f);
+
+            // Only destination-selectable rows need in-place recolouring later.
+            if (selectable)
+                _selectableRows.Add(new SelectableRow(button, mainLabel, key));
         }
 
-        private void AddLabel(Transform parent, string text, TextAnchor anchor, Color color, float leftPad, float rightPad, int fontSize = 17)
+        private Text AddLabel(Transform parent, string text, TextAnchor anchor, Color color, float leftPad, float rightPad, int fontSize = 17)
         {
             var go = new GameObject("label", typeof(RectTransform), typeof(Text), typeof(Outline));
             go.transform.SetParent(parent, false);
@@ -343,6 +367,7 @@ namespace RossPortals.Game.UI
             label.text = text;
 
             go.GetComponent<Outline>().effectColor = new Color(0f, 0f, 0f, 0.6f);
+            return label;
         }
 
         private static ColorBlock RowColors(bool isGroup, bool selected)
@@ -361,6 +386,26 @@ namespace RossPortals.Game.UI
             colors.fadeDuration = 0.08f;
             return colors;
         }
+
+        // Choosing a destination changes only the two affected rows' tint and the
+        // header text -- no rows are added or removed -- so recolour in place
+        // rather than tearing the list down and rebuilding it, which flashed.
+        private void Select(string key)
+        {
+            _selectedKey = key;
+            _destinationText.text = "Destination: " + SelectedName();
+            foreach (var r in _selectableRows)
+            {
+                var selected = r.Key == _selectedKey;
+                r.Button.colors = RowColors(false, selected);
+                r.Label.color = RowTextColor(false, selected);
+            }
+        }
+
+        private static Color RowTextColor(bool isGroup, bool selected)
+            => selected
+                ? new Color(1f, 0.86f, 0.4f)
+                : isGroup ? new Color(0.85f, 0.9f, 1f) : new Color(0.92f, 0.9f, 0.85f);
 
         // --- Submit ---
 

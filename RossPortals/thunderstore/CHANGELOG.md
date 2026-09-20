@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- The portal list no longer flashes when you pick a destination.
+
 ## 0.2.1
 
 - Tidier portal list: a folder's arrow no longer pushes its name out past the
