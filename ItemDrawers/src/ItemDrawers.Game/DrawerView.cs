@@ -124,6 +124,29 @@ namespace ItemDrawers.Game
         }
 
         /// <summary>
+        /// Records the ZDO data revision this view was built from, on the
+        /// view and on Container.m_lastRevision together.
+        ///
+        /// Vanilla only ever sets that field in Container.Load and
+        /// Container.Save, whose bodies ContainerBridge skips for a drawer,
+        /// so it kept its constructor value of uint.MaxValue -- the game's
+        /// own "never loaded from the ZDO". Mods honour that as a safety
+        /// gate and skip such a container rather than risk writing an empty
+        /// inventory over real contents; Valheim Plus' CraftFromChest does,
+        /// in InventoryAssistant.FindNearbyChests, which is why it could not
+        /// use a drawer (issue #9).
+        ///
+        /// _loadedRevision already means exactly what the field means, so
+        /// the two move together: a view that really has not loaded still
+        /// reports uint.MaxValue, and is still right to be skipped.
+        /// </summary>
+        private void SetLoadedRevision(uint revision)
+        {
+            _loadedRevision = revision;
+            _drawer.m_lastRevision = revision;
+        }
+
+        /// <summary>
         /// Rebuilds the Inventory from ViewSlots when the ZDO's data revision
         /// changed since the last load/write and nothing local is pending.
         /// A drawer with no ViewSlots yet (every pre-1.0 drawer) is laid out
@@ -171,7 +194,7 @@ namespace ItemDrawers.Game
                 && current.Amount == _builtAmount
                 && current.ItemName == _builtItem)
             {
-                _loadedRevision = revision;
+                SetLoadedRevision(revision);
                 return false;
             }
 
@@ -201,7 +224,7 @@ namespace ItemDrawers.Game
                 _syncForeign = new Dictionary<string, int>();
             }
 
-            _loadedRevision = revision;
+            SetLoadedRevision(revision);
             return true;
         }
 
@@ -321,7 +344,7 @@ namespace ItemDrawers.Game
 
             _syncTotal = (int)live;
             _syncForeign = liveForeign;
-            _loadedRevision = zdo.DataRevision;
+            SetLoadedRevision(zdo.DataRevision);
         }
 
         /// <summary>
@@ -470,7 +493,7 @@ namespace ItemDrawers.Game
             _syncTotal = shown;
             _syncForeign = new Dictionary<string, int>();
             _dirty = false;
-            _loadedRevision = zdo.DataRevision;
+            SetLoadedRevision(zdo.DataRevision);
             _checkedRevision = zdo.DataRevision;
         }
 
