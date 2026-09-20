@@ -108,6 +108,14 @@ Everything we learn about the game's own code is therefore written down:
 Decompile with `ilspycmd -t <FullTypeName> <assembly.dll>`; the game
 assemblies are under `<VALHEIM_INSTALL>/valheim_Data/Managed/`.
 
+Jotunn is a dependency, not vanilla, so its API gotchas — the ones the official
+docs don't spell out — live in `docs/jotunn-ui.md` instead. Prefer the upstream
+documentation over re-deriving any of it:
+
+- Jotunn (API + tutorials): <https://valheim-modding.github.io/Jotunn/>
+- BepInEx: <https://docs.bepinex.dev/>
+- Valheim dedicated server args: <https://www.valheimgame.com/support/a-guide-to-dedicated-servers>
+
 ## Two recurring bug classes
 
 **Editor-set fields.** A prefab authored in the Unity Editor carries its
@@ -158,6 +166,16 @@ bash RossQoL/deploy.sh dev
 - **The dev profile carries Ross's published mods**, so compatibility with
   the real mod set is exercised. Use local builds only for the mod being
   worked on.
+- **Stop the target before deploying.** A running game or dedicated server holds
+  its plugin DLLs open, so the copy fails with a lock error. Client-only changes
+  (UI, local config) need only the client; server-authoritative changes (ZDO
+  writes, RPC handlers, one-owner logic) need the server redeployed too.
+- **r2modman's enabled/disabled signal is the `.old` suffix** it renames a
+  disabled mod's files to (matching `mods.yml`'s `enabled:`), NOT folder
+  presence — a disabled mod's folder still exists on disk.
+- **Changing the synced ZDO/RPC format breaks version parity.** Adding or
+  dropping a field in a sync package means every peer must run the same build:
+  bump the minor version (`NetworkCompatibility` is Minor) and redeploy all.
 
 Unit tests prove Core logic. They cannot prove a prefab registers, a patch
 applies, or a piece behaves — those need an in-game pass, and for anything
@@ -224,6 +242,10 @@ of why the code looks the way it does.
   through `FeatureRegistry` — see "Adding a feature" in its design spec.
 - **Do not name or detect a mod whose feature RossQoL reimplements.**
   Mentioning compatibility with a mod is fine.
+- **`<Mod>.Game` namespace shadows Valheim's `Game` type.** Inside any
+  `*.Game.*` namespace the bare name `Game` binds to the namespace, so
+  `typeof(Game)`, `nameof(Game.Start)` and `Game.instance` do not compile.
+  Qualify the game type as `global::Game`.
 
 ## Working with Ross
 

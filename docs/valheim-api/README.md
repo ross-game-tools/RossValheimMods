@@ -68,6 +68,14 @@ One file per subsystem:
   hook; `WearNTear.OnPlaced` is an inlining hazard), and that
   `Game.m_portalPrefab` does *not* exist — portal identity is
   `Game.PortalPrefabHash`.
+- `map-pins.md` (read at 1.0.15) — how a mod adds/removes its own
+  `Minimap` pins and controls their icon: `AddPin`/`RemovePin`, the
+  `PinType` enum gate, that the renderer draws `PinData.m_icon` (so you
+  can override a pin's sprite), that **`PinType.Icon4` is the portal
+  icon** (enum value 6), the `Splatform.dll` reference `AddPin` drags in,
+  and that pins live compressed in the player profile (only written on
+  save). Sibling `docs/jotunn-ui.md` covers the Jotunn `GUIManager`
+  gotchas the panel hit.
 
 ## Convention
 
