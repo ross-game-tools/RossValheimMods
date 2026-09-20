@@ -16,6 +16,10 @@ namespace ItemDrawers.Core
     /// the max stack size, slot 1 included -- is at most the drawer's
     /// remaining capacity. When no layout with at least two slots can meet
     /// that, fewer slots are used; a single slot is the last resort.
+    ///
+    /// A drawer that is assigned but empty is the one case with an empty
+    /// slot: it exposes a single one so an external deposit can place the
+    /// first item (see Compute). An unassigned drawer exposes no slots.
     /// </summary>
     public static class ViewLayout
     {
@@ -23,7 +27,19 @@ namespace ItemDrawers.Core
 
         public static int[] Compute(bool assigned, int amount, int capacity, int maxStackSize, int slotCount = DefaultSlotCount)
         {
-            if (!assigned || amount <= 0 || slotCount <= 0) return Array.Empty<int>();
+            if (!assigned || slotCount <= 0) return Array.Empty<int>();
+
+            // An assigned drawer with no stock still exposes a single empty
+            // slot. A mod depositing through the Container/Inventory API (a
+            // sap extractor's auto-harvest, say) needs somewhere to place the
+            // FIRST item; a 0x0 inventory (Array.Empty) has no slot, so vanilla
+            // AddItem/CanAddItem/FindEmptySlot refuse it -- which is exactly
+            // why an empty drawer would not accept sap while one already
+            // holding some (a real stack to merge into) did. The "no empty
+            // slot while there is stock" rule that refuses a wrong item cheaply
+            // does not apply when there is no stock; reconcile spills anything
+            // foreign back, and clamps a valid deposit to capacity.
+            if (amount <= 0) return new[] { 0 };
 
             int max = maxStackSize < 1 ? 1 : maxStackSize;
             long remaining = (long)capacity - amount;

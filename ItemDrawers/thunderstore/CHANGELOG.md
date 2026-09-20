@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.12
+
+- A drawer that was set to an item but held none of it would refuse the
+  first item pushed into it by another mod -- a sap extractor's automatic
+  harvest, for instance -- so an empty drawer never started filling, while
+  one that already held a few of the item kept working. Empty drawers now
+  accept that first item like any container does. Thanks to the report that
+  pinned it to empty sap drawers on a server.
+
 ## 1.0.11
 
 - Drawers now sit on the same collision layer as every other build piece.

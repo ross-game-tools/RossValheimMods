@@ -15,10 +15,21 @@ namespace ItemDrawers.Core.Tests
             Assert.Empty(ViewLayout.Compute(assigned: false, amount: 500, capacity: 1000, maxStackSize: 50));
         }
 
+        // An assigned drawer with no stock must still expose one empty slot,
+        // so a mod depositing through the Container/Inventory API (e.g. a
+        // sap extractor's auto-harvest) finds somewhere to place the FIRST
+        // item. With no slot at all -- Array.Empty, a 0x0 inventory -- vanilla
+        // AddItem/CanAddItem/FindEmptySlot refuse, which is why an empty
+        // drawer would not accept sap while one already holding some (a real
+        // stack to merge into) did. Room equals the max stack size, matching
+        // the room a one-item drawer exposes (M - 1); the reconcile clamps to
+        // capacity and folds the deposit in, republishing the full layout.
         [Fact]
-        public void Empty_drawer_has_no_slots()
+        public void Empty_assigned_drawer_exposes_one_empty_slot()
         {
-            Assert.Empty(ViewLayout.Compute(assigned: true, amount: 0, capacity: 1000, maxStackSize: 50));
+            var slots = ViewLayout.Compute(assigned: true, amount: 0, capacity: 1000, maxStackSize: 50);
+            Assert.Equal(new[] { 0 }, slots);
+            Assert.Equal(50, ViewLayout.Room(slots, 50));
         }
 
         // ---------- the spec's table, M = 50, C = 1000 ----------
