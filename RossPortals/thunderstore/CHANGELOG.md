@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.4
+
+- The portal panel now rebuilds itself cleanly after you log out to the menu
+  and back, closing off the crash from the previous version at its source.
+
 ## 0.2.3
 
 - Fixed a crash when opening a portal's panel after playing for a while.

@@ -67,7 +67,31 @@ namespace RossPortals.Game.UI
             }
         }
 
-        public PortalConfigPanel() => Instance = this;
+        public PortalConfigPanel()
+        {
+            Instance = this;
+            // Jotunn destroys CustomGUIFront -- and our panel parented under it --
+            // and raises this every time the Unity scene changes (logging out to
+            // the menu and back is the usual trigger), immediately after building
+            // fresh GUI roots. Verified in Jotunn 2.30.1: the create path calls
+            // InvokeOnCustomGUIAvailable() right after (re)creating CustomGUIFront.
+            // Reset here so the stale, now-destroyed widget tree can never reach an
+            // Open call; the panel rebuilds lazily on next use. EnsureBuilt keeps
+            // its own _panel-alive check as a backstop.
+            GUIManager.OnCustomGUIAvailable += OnGuiRecreated;
+        }
+
+        private void OnGuiRecreated()
+        {
+            // The old tree is already destroyed; drop every reference to it. Open
+            // per-panel state (_portal) goes too: a scene change closes any open
+            // panel. Collapse state is plain data and is deliberately kept.
+            _built = false;
+            _panel = null;
+            _portal = null;
+            _sortLabels.Clear();
+            _selectableRows.Clear();
+        }
 
         public bool IsOpen => _panel != null && _panel.activeSelf;
 
@@ -119,6 +143,7 @@ namespace RossPortals.Game.UI
 
         public void Dispose()
         {
+            GUIManager.OnCustomGUIAvailable -= OnGuiRecreated;
             if (_panel != null) Object.Destroy(_panel);
             _panel = null;
             _built = false;
