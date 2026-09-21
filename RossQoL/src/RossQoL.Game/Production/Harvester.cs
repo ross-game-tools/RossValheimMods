@@ -166,6 +166,13 @@ namespace RossQoL.Game.Production
             {
                 // Theft is stopped by the ward check at the producer, before anything is harvested.
                 if (!ContainerAccess.MayUse(container, playerId)) continue;
+
+                // A producer never fills a personal chest. Private privacy is
+                // owner-only (and Group is unused by vanilla), so MayUse would
+                // otherwise admit the harvesting player's OWN private chests --
+                // output belongs in shared, public storage, not a personal one.
+                if (container.m_privacy != Container.PrivacySetting.Public) continue;
+
                 if (!ContainerAccess.IsFresh(container)) continue;
 
                 var inventory = container.GetInventory();
@@ -186,7 +193,17 @@ namespace RossQoL.Game.Production
                 // server gives it to a nearby player within about 2 s, as for
                 // any chest. Another player owns it: leave it to them.
                 var nview = container.m_nview;
-                if (!ContainerOwnership.IsSettled(container, nview)) continue;
+                // A self-managing container -- a storage mod's Container
+                // subclass such as an item drawer -- persists a non-owner
+                // deposit safely through its own AddItem/Save protocol, so
+                // RossQoL's settle wait (there to stop two overlapping raw
+                // writes losing one on a VANILLA chest) does not apply. It is
+                // exactly what dropped a stocked drawer whenever the drawer's
+                // own flush had just re-claimed it, inside the 2s revision-
+                // settle window, sending output to a nearer normal chest.
+                // Mirrors IsFresh, which already trusts every subclass.
+                bool selfManaging = container.GetType() != typeof(Container);
+                if (!selfManaging && !ContainerOwnership.IsSettled(container, nview)) continue;
 
                 Candidates.Add(new DestinationCandidate(
                     Destinations.Count,

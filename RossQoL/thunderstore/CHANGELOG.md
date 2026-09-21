@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.26.1
+
+- **Production / AutoHarvest:** producers no longer drop their output into
+  personal chests. A beehive, sap collector, fermenter or windmill will fill
+  ordinary (public) chests and drawers nearby, but leaves your personal
+  chests to you.
+- **Production / AutoHarvest:** producers reliably put their output back into
+  an item drawer that already holds that item, instead of occasionally
+  passing it over for a nearer ordinary chest. The drawer was being skipped
+  in the moment right after it last took a deposit; it no longer is.
+- **Progression / TeleportUnlocks:** flametal ore and flametal can now be
+  carried through a portal once you have killed Fader, the Ashlands boss --
+  the same boss-gated rule the other metals already follow.
+
 ## 0.26.0
 
 - **Progression / SmeltingYield:** the Eitr Refinery now yields
