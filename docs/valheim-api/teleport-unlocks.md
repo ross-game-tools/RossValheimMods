@@ -49,3 +49,34 @@ change needed and were not individually matched to a display name or
 biome; re-run the same diagnostic pattern (or check `m_teleportable`
 directly) before adding further `TeleportUnlocks` entries rather than
 guessing from this list.
+
+## Ashlands: flametal (added 2026-09-20)
+
+The `TeleportUnlocks` rules gained the Ashlands' flametal, gated on the
+Ashlands boss **Fader** (global key `defeated_fader` -- a plain string,
+like `defeated_queen`; the `GlobalKeys` enum stops at Yagluth). Two
+prefabs, both refined-metal tier and both blocked:
+
+| Prefab | Display name | Freed by |
+|---|---|---|
+| `FlametalOreNew` | Flametal Ore | Fader |
+| `FlametalNew` | Flametal | Fader |
+
+The ingot is `FlametalNew`, **not** the legacy `Flametal` prefab -- the
+Ashlands rework added new prefabs and the old one is not the item players
+carry. Getting this wrong makes the unlock a silent no-op.
+
+**Source and its limits.** Unlike the three items above -- read with the
+live `TeleportDiagnostics` ObjectDB dump -- these were confirmed from the
+community databases (valheim.weirdgloop.org internal IDs, valheim.gaming
+.tools which lists both flametal items as "No Teleport", and the Global
+Keys wiki for `defeated_fader`), not a fresh live dump. Prefab names and
+the Fader key are solid; the `m_teleportable == false` flag is only as
+good as the database until confirmed in-game by actually carrying flametal
+through a portal before vs after killing Fader. That in-game check is the
+intended verification for this entry -- update this note once it is done.
+
+This also corrects the earlier claim (in `TeleportUnlocks.cs` and above)
+that "Ashlands has nothing blocked to free": that was an assumption, never
+verified -- the original dump matched only 3 of 28 blocked items and left
+~25 unmatched, and flametal was among the unexamined set.

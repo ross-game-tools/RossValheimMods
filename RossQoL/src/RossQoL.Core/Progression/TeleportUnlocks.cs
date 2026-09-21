@@ -18,9 +18,9 @@ namespace RossQoL.Core.Progression
     /// boss that ought to free it. Mountain ore and the Mountain's dragon
     /// eggs both wait for Moder; the Plains' black metal waits for
     /// Yagluth; the Mistlands' mechanical spring and Dvergr extractor
-    /// wait for the Queen. Ashlands has nothing blocked to free. Do not
-    /// assume a biome is exhaustively covered just because one of its
-    /// items is listed here -- add an item only once it has been
+    /// wait for the Queen; the Ashlands' flametal ore and ingots wait for
+    /// Fader. Do not assume a biome is exhaustively covered just because one
+    /// of its items is listed here -- add an item only once it has been
     /// confirmed blocked the same way.
     ///
     /// Names are prefab names, matched however they are spelled. An item that
@@ -36,6 +36,9 @@ namespace RossQoL.Core.Progression
 
         /// <summary>The Mistlands boss's key. Same value as DungeonBosses.Queen/WorldFrontier.Queen.</summary>
         public const string Queen = "defeated_queen";
+
+        /// <summary>The Ashlands boss's key. A plain string like the Queen's -- the GlobalKeys enum stops at Yagluth.</summary>
+        public const string Fader = "defeated_fader";
 
         private static readonly Dictionary<string, string> Unlocks =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -69,8 +72,11 @@ namespace RossQoL.Core.Progression
                 // itself kept its earlier working name.
                 { "DvergrNeedle", Queen },
 
-                // Ashlands is not listed: nothing it holds is teleport-blocked
-                // in the first place, so there is nothing to unlock.
+                // Ashlands: Fader. Both the ore (FlametalOreNew) and the
+                // smelted ingot (FlametalNew -- NOT the legacy "Flametal")
+                // are m_teleportable == false, confirmed from a live game.
+                { "FlametalOreNew", Fader },
+                { "FlametalNew", Fader },
             };
 
         /// <summary>The global key that frees an item, or null when nothing does.</summary>

@@ -49,7 +49,8 @@ namespace RossQoL.Core.Tests.Progression
         {
             var all = Killed(
                 TeleportUnlocks.Elder, TeleportUnlocks.Bonemass,
-                TeleportUnlocks.Moder, TeleportUnlocks.Yagluth, TeleportUnlocks.Queen);
+                TeleportUnlocks.Moder, TeleportUnlocks.Yagluth, TeleportUnlocks.Queen,
+                TeleportUnlocks.Fader);
 
             foreach (string item in TeleportUnlocks.KnownItems)
                 Assert.True(TeleportUnlocks.IsUnlocked(item, all), item + " should be unlocked");
@@ -84,11 +85,23 @@ namespace RossQoL.Core.Tests.Progression
         }
 
         [Fact]
-        public void Ashlands_materials_are_not_listed()
+        public void Flametal_ore_and_ingots_wait_for_fader()
         {
-            // Nothing it holds is teleport-blocked, so there is nothing to
-            // unlock and no guess about its boss key to get wrong.
-            Assert.Null(TeleportUnlocks.KeyFor("FlametalOre"));
+            // Ashlands flametal IS teleport-blocked (confirmed from a live
+            // game), unlike the earlier assumption that Ashlands held nothing
+            // blocked. Prefab names are the Ashlands versions: FlametalOreNew
+            // (ore) and FlametalNew (ingot), not the legacy "Flametal".
+            Assert.Equal(TeleportUnlocks.Fader, TeleportUnlocks.KeyFor("FlametalOreNew"));
+            Assert.Equal(TeleportUnlocks.Fader, TeleportUnlocks.KeyFor("FlametalNew"));
+
+            Assert.True(TeleportUnlocks.IsUnlocked("FlametalOreNew", Killed(TeleportUnlocks.Fader)));
+            Assert.True(TeleportUnlocks.IsUnlocked("FlametalNew", Killed(TeleportUnlocks.Fader)));
+
+            Assert.False(TeleportUnlocks.IsUnlocked("FlametalOreNew", Killed(TeleportUnlocks.Queen)));
+            Assert.False(TeleportUnlocks.IsUnlocked("FlametalNew", Killed()));
+
+            // The legacy "Flametal" prefab is not the Ashlands item and is not listed.
+            Assert.Null(TeleportUnlocks.KeyFor("Flametal"));
         }
 
         [Fact]

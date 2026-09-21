@@ -8,8 +8,8 @@ namespace RossQoL.Game.Progression
     /// <summary>
     /// Beating a biome's boss lets you carry that biome's metal through a
     /// portal: the Elder frees copper and tin, Bonemass frees iron, Moder
-    /// frees silver, Yagluth frees black metal. Those four are the whole
-    /// list, because those are the four biomes whose materials vanilla
+    /// frees silver, Yagluth frees black metal, and Fader frees the
+    /// Ashlands' flametal. Those are the biomes whose materials vanilla
     /// refuses to carry.
     ///
     /// Per biome, not cumulative. Killing a later boss says nothing about an
@@ -33,8 +33,8 @@ namespace RossQoL.Game.Progression
 
         public override string Description =>
             "Metal and ore may be carried through a portal once you have killed the boss of the biome it comes "
-            + "from: the Elder for copper and tin, Bonemass for iron, Moder for silver, Yagluth for black metal. "
-            + "Everything else vanilla refuses to teleport, it still refuses.";
+            + "from: the Elder for copper and tin, Bonemass for iron, Moder for silver, Yagluth for black metal, "
+            + "Fader for flametal. Everything else vanilla refuses to teleport, it still refuses.";
 
         public override IEnumerable<Type> PatchClasses => new[] { typeof(TeleportUnlocksPatch) };
 
