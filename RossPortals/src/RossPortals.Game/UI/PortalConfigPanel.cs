@@ -46,6 +46,14 @@ namespace RossPortals.Game.UI
         private SortMode _sort = SortMode.Name;
         private readonly HashSet<string> _collapsed = new HashSet<string>();
 
+        // The Core rows the scroll view currently shows. A resync frequently
+        // re-delivers a list we already have in full, and each arrival triggers
+        // a Rebuild; comparing against this lets an unchanged list skip the
+        // teardown-and-recreate that otherwise flashes the whole list. Null
+        // forces the next Rebuild to build (Open resets it so a fresh open,
+        // which may show a different portal's selection, always rebuilds once).
+        private List<DisplayRow> _lastRows;
+
         // The destination-selectable rows of the current list (portals plus the
         // "(no destination)" entry), kept so that choosing a destination only
         // recolours the two affected rows in place. Rebuilding the whole list on
@@ -91,6 +99,7 @@ namespace RossPortals.Game.UI
             _portal = null;
             _sortLabels.Clear();
             _selectableRows.Clear();
+            _lastRows = null;
         }
 
         public bool IsOpen => _panel != null && _panel.activeSelf;
@@ -114,6 +123,7 @@ namespace RossPortals.Game.UI
 
             _panel.SetActive(true);
             GUIManager.BlockInput(true);
+            _lastRows = null; // a fresh open always rebuilds once (selection may differ)
             Rebuild();
 
             // Focus only lands a frame after the field is enabled.
@@ -295,6 +305,25 @@ namespace RossPortals.Game.UI
         {
             if (!_built || _portal == null) return;
 
+            var player = Player.m_localPlayer != null ? Player.m_localPlayer.transform.position : Vector3.zero;
+            var rows = PortalListView.Build(
+                PortalRegistry.Instance.BuildEntries(_portal.Id),
+                PortalConfig.Separator,
+                _searchField.text,
+                _sort,
+                new Vec3(player.x, player.y, player.z),
+                PortalManager.RecentKeys,
+                _collapsed);
+
+            // A resync usually re-delivers the identical list (we already had
+            // every portal), and each arrival lands here. Tearing the whole
+            // scroll view down and recreating identical rows is what flashes,
+            // and the longer the list the more obvious it is. Only rebuild the
+            // GameObjects when the projected rows actually differ.
+            if (_lastRows != null && _content.childCount > 0 && RowsEqual(_lastRows, rows))
+                return;
+            _lastRows = new List<DisplayRow>(rows);
+
             for (int i = _content.childCount - 1; i >= 0; i--)
                 Object.DestroyImmediate(_content.GetChild(i).gameObject);
 
@@ -306,17 +335,25 @@ namespace RossPortals.Game.UI
             BuildRow("(no destination)", "", 0, isGroup: false, selected: _selectedKey == null,
                 () => Select(null), selectable: true, key: null);
 
-            var player = Player.m_localPlayer != null ? Player.m_localPlayer.transform.position : Vector3.zero;
-            var rows = PortalListView.Build(
-                PortalRegistry.Instance.BuildEntries(_portal.Id),
-                PortalConfig.Separator,
-                _searchField.text,
-                _sort,
-                new Vec3(player.x, player.y, player.z),
-                PortalManager.RecentKeys,
-                _collapsed);
-
             foreach (var row in rows) AddRow(row);
+        }
+
+        // Visual equality of two projected row lists: only the fields the panel
+        // actually draws. Distance is compared through FormatDistance so sub-
+        // display-precision jitter never forces a needless rebuild.
+        private static bool RowsEqual(IReadOnlyList<DisplayRow> a, IReadOnlyList<DisplayRow> b)
+        {
+            if (a.Count != b.Count) return false;
+            for (int i = 0; i < a.Count; i++)
+            {
+                DisplayRow x = a[i], y = b[i];
+                if (x.Kind != y.Kind || x.Depth != y.Depth || x.Label != y.Label
+                    || x.GroupPath != y.GroupPath || x.Collapsed != y.Collapsed
+                    || x.PortalCount != y.PortalCount || x.PortalId != y.PortalId
+                    || FormatDistance(x.Distance) != FormatDistance(y.Distance))
+                    return false;
+            }
+            return true;
         }
 
         private void AddRow(DisplayRow row)
@@ -350,11 +387,24 @@ namespace RossPortals.Game.UI
             row.transform.SetParent(_content, false);
 
             var bg = row.GetComponent<Image>();
-            bg.color = Color.white; // the Button tints this per interaction state
+            bg.color = Color.white; // Button drives the visible tint via the CanvasRenderer
             var button = row.GetComponent<Button>();
             button.targetGraphic = bg;
             button.transition = Selectable.Transition.ColorTint;
-            button.colors = RowColors(isGroup, selected);
+            var colors = RowColors(isGroup, selected);
+            button.colors = colors;
+            // A Button created alongside its GameObject runs its enable-time colour
+            // transition before targetGraphic and colors are assigned, so it never
+            // tints the graphic: the CanvasRenderer sits at Unity's default opaque
+            // white until the first hover, and building the whole list at once
+            // flashes the list white for a frame. Re-running the enable transition
+            // now that everything is set makes Unity apply the resting ColorTint
+            // instantly through its own path (which handles alpha correctly), and
+            // the direct SetColor is a synchronous backstop should that transition
+            // ever be deferred a frame.
+            button.enabled = false;
+            button.enabled = true;
+            bg.canvasRenderer.SetColor(colors.normalColor);
             button.onClick.AddListener(onClick);
 
             var element = row.AddComponent<LayoutElement>();

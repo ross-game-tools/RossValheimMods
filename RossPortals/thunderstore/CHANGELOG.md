@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.5
+
+- Opening a portal onto a long list of destinations no longer flashes the list
+  repeatedly while it syncs, nor flashes white for a frame as it first appears.
+
 ## 0.2.4
 
 - The portal panel now rebuilds itself cleanly after you log out to the menu
