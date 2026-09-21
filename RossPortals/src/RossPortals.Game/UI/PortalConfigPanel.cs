@@ -129,12 +129,27 @@ namespace RossPortals.Game.UI
 
         private bool EnsureBuilt()
         {
-            if (_built) return true;
+            // `_panel != null` uses Unity's overloaded operator: a destroyed
+            // GameObject reports as null even though the managed reference
+            // lingers. Jotunn tears down CustomGUIFront -- and everything
+            // parented under it, including our panel -- on some scene/menu
+            // transitions, so a previously-built panel can already be dead here.
+            // Returning true then would SetActive a destroyed object, which NREs
+            // inside the SetActive binding; rebuild instead.
+            if (_built && _panel != null) return true;
             if (GUIManager.Instance == null || GUIManager.CustomGUIFront == null)
             {
                 RossPortalsPlugin.Log.LogWarning("GUI not ready; cannot open the portal panel yet.");
                 return false;
             }
+
+            // Reached with _built still true only when the old tree was torn
+            // down: drop the dead widget references before rebuilding so nothing
+            // keeps a destroyed object. Collapse state (_collapsed) is real user
+            // state and is deliberately preserved.
+            _built = false;
+            _sortLabels.Clear();
+            _selectableRows.Clear();
 
             var font = GUIManager.Instance.AveriaSerifBold;
             _font = font;

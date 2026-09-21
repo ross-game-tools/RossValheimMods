@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3
+
+- Fixed a crash when opening a portal's panel after playing for a while.
+
 ## 0.2.2
 
 - The portal list no longer flashes when you pick a destination.
