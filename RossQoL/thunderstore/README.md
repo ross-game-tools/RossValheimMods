@@ -152,6 +152,7 @@ Server-controlled when connected.
 | `MeadBaseStackSize` | `20` | How many bases fit in one slot, 1 to 100. |
 | `WisplightCarry` | `true` | A wisplight in your inventory works exactly as if equipped -- wisp, light and mist -- without using the utility slot. |
 | `RecallSummons` | `true` | The Dead Raiser's secondary attack calls every skeleton it raised, and that is still following you, back to your side. Plays the staff's own cast animation and sound, with a brief cast time before your skeletons arrive. Costs no eitr, stamina or health. |
+| `SpiritCallerVariety` | `true` | The Spirit Caller summons a creature you don't already have out before repeating one. Once all four are out it summons whichever kind has the most badly wounded creature (by percentage of health), and picks at random when they are all equally healthy. |
 | `RecallCooldownSeconds` | `8` (seconds) | How long between uses of the recall attack, 0 to 60. `0` allows it every time. |
 | `RecallCastSeconds` | `0.5` (seconds) | How long the recall takes to complete once the cast animation and sound start, 0 to 3. `0` makes it instant. |
 

@@ -435,3 +435,31 @@ from a live instance:
 - **`s_colorRedBlueZeroAlpha`.** The tint constant used for the on-cooldown
   icon color is a static in `Hud`; its exact RGBA was not quoted here.
   Read it if pixel-exact color matching is needed.
+
+## When vanilla lets the power key fire (read 1.0.15)
+
+From `ilspycmd -t Player`. `Player.Update` reads the key only inside
+`bool flag2 = TakeInput(); ... if (flag2) { ... }`, and there only as
+
+```csharp
+if (!Hud.InRadial() && !Hud.IsPieceSelectionVisible() && (ZInput.GetButtonDown("GP") || ...))
+    StartGuardianPower();
+```
+
+`Player.TakeInput()` (`protected override`, reachable through the
+publicized assembly):
+
+```csharp
+bool result = (!Chat.instance || !Chat.instance.HasFocus()) && !Console.IsVisible() && !TextInput.IsVisible()
+    && !StoreGui.IsVisible() && !InventoryGui.IsVisible() && !Menu.IsVisible()
+    && (!TextViewer.instance || !TextViewer.instance.IsVisible()) && !Minimap.IsOpen()
+    && !GameCamera.InFreeFly() && !PlayerCustomizaton.IsBarberGuiVisible()
+    && !Hud.instance.m_buildUi.SearchFieldFocused;
+if (IsDead() || InCutscene() || IsTeleporting()) result = false;
+```
+
+A raw `ZInput.GetKeyDown` read from a `Player.Update` postfix has none of
+this, which is how RossQoL's second-power key fired while typing in chat
+(fixed in 0.30.0). `TakeInput` knows only vanilla's own text boxes; a mod's
+focused `TMP_InputField` is not covered, so check
+`EventSystem.current.currentSelectedGameObject` for a focused field too.

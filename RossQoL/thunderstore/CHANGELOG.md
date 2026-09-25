@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.30.0
+
+- **Items / SpiritCallerVariety:** the Spirit Caller no longer keeps
+  summoning the same creature over and over. Each cast brings out a kind you
+  don't have yet, so four casts get you all four. With all four out, it
+  summons whichever kind has the most badly wounded creature, replacing or
+  reinforcing the one that needs it; when they're all equally healthy it
+  picks at random as before.
+- **Combat / MultiplePowers:** fixed -- typing the second-power key (`H` by
+  default) into chat, a sign, the console or any other text box no longer
+  fires your second power. It now also stays quiet while the inventory, map,
+  menu or build menu is open, exactly like the vanilla power key.
+
 ## 0.29.0
 
 - **Production / NoIdleOvenFuel:** ovens only spend fuel while they have

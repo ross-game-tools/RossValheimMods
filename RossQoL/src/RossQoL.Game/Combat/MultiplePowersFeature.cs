@@ -81,6 +81,9 @@ namespace RossQoL.Game.Combat
             new CompatMember("Localization", "instance", "localizing the power name and HUD text"),
             new CompatMember("Localization", "Localize", "localizing the power name and HUD text"),
             new CompatMember("ZInput", "GetKeyDown", "reading the second power's fire key"),
+            new CompatMember("Player", "TakeInput", "holding the second power's key off while chat, a text box or a menu has the keyboard, as vanilla does its own"),
+            new CompatMember("Hud", "InRadial", "holding the second power's key off while the radial menu is open, as vanilla does its own"),
+            new CompatMember("Hud", "IsPieceSelectionVisible", "holding the second power's key off while the build menu is open, as vanilla does its own"),
             new CompatMember("ZInput", "GetKey", "reading the assign modifier held at a stone"),
         };
 

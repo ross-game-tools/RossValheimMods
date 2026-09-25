@@ -1214,3 +1214,39 @@ id (`StaffSkeleton`, `StaffSpiritCaller`). All three rules live in and are
 tested from `RossQoL.Core.Items.SummonKinds`; the Game-side `SummonedMinion`
 recogniser and the three `RecallSummons` patches call into it, so the Dead
 Raiser and Spirit Caller cannot drift apart.
+
+## How a multi-creature staff picks its creature (read 1.0.15)
+
+Read while making the Spirit Caller favour creatures you do not have out
+(`Items/SpiritCallerVariety`), from `ilspycmd -t SpawnAbility`.
+
+The pick is one line inside the `Spawn()` coroutine (`SpawnAbility.cs:192`
+in this dump), per creature raised:
+
+```csharp
+int toSpawn = UnityEngine.Random.Range(m_minToSpawn, m_maxToSpawn);   // int overload: max exclusive
+...
+GameObject prefab = m_spawnPrefab[UnityEngine.Random.Range(0, m_spawnPrefab.Length)];
+if (m_maxSpawned > 0 && SpawnSystem.GetNrOfInstances(prefab, targetPosition, 0f) >= m_maxSpawned)
+{
+    if (m_owner is Player player) player.Message(MessageHud.MessageType.Center, m_maxSummonReached);
+    continue;
+}
+```
+
+- Uniform, memoryless — nothing looks at what is already out.
+- `m_maxSpawned` is a **second, per-prefab** limit, separate from
+  `Tameable.UnsummonMaxInstances`. `GetNrOfInstances` with range `0` counts
+  every loaded `BaseAI` whose object name is `prefab.name + "(Clone)"` —
+  **anyone's**, not just the caster's. Its value on the Spirit Caller's
+  projectile is serialized asset data (field default `3`), not verified.
+- `Setup(owner, …)` sets `m_owner`/`m_weapon` then `StartCoroutine("Spawn")`.
+  Unity runs a coroutine synchronously to its first `yield`; with
+  `m_initialSpawnDelay == 0` and a non-pathfinding target type there is no
+  yield before the pick, so **the prefab is chosen inside `Setup`** — a
+  postfix is too late, a prefix is not.
+- `Setup` is only ever reached via `GetComponent<IProjectile>()?.Setup(...)`
+  from `Attack` (interface dispatch), so it cannot be inlined past a patch.
+- The projectile is instantiated per cast and destroyed at the end of
+  `Spawn()` (unless `m_spawnOnAwake`), so assigning a new `m_spawnPrefab`
+  array on it affects that one cast only.
