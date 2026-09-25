@@ -6,15 +6,21 @@ using UnityEngine;
 namespace RossQoL.Game.Production
 {
     /// <summary>
-    /// Ovens burn fuel in CookingStation.UpdateFuel. Only the fuel is fed:
-    /// what to cook is a choice, and an oven filled with whatever was nearest
-    /// is worse than an empty one.
+    /// Ovens -- and the Deep North Frost Foundry -- take their fuel from nearby
+    /// containers. Patched on CookingStation.UpdateCooking, NOT UpdateFuel:
+    /// UpdateCooking is the 1 Hz InvokeRepeating tick that always runs, whereas
+    /// it only calls UpdateFuel once the station already holds fuel
+    /// (GetFuel() > 0). Hooking UpdateFuel could therefore never fill an EMPTY
+    /// station -- exactly what a Frost Foundry starts as -- so it was fed only
+    /// if a player primed it by hand first. Only the fuel is fed: what to cook
+    /// is a choice, and a station filled with whatever was nearest is worse
+    /// than an empty one.
     /// </summary>
-    [HarmonyPatch(typeof(CookingStation), "UpdateFuel")]
+    [HarmonyPatch(typeof(CookingStation), "UpdateCooking")]
     internal static class CookingStationFeedPatch
     {
         private static bool Prepare() =>
-            ValheimCompat.RequireMethod(typeof(CookingStation), "UpdateFuel", AutoFeedFeature.FeatureName);
+            ValheimCompat.RequireMethod(typeof(CookingStation), "UpdateCooking", AutoFeedFeature.FeatureName);
 
         private static void Postfix(CookingStation __instance)
         {

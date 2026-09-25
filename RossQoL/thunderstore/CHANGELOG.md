@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.27.1
+
+- **Production / AutoFeed:** MaxOutput now caps any producer's output, not
+  only kilns and windmills. A Deep North Frigid Kiln stops making FrozenFuel
+  once you have the amount you set (e.g. `FrozenFuel:100`); smelted metals
+  stay uncapped unless you list them yourself.
+- **Production / AutoFeed:** ovens -- and the Deep North Frost Foundry -- now
+  take their fuel from nearby containers even when completely empty. They were
+  only topped up once they already held some fuel, so an empty one never
+  started filling on its own.
+
 ## 0.27.0
 
 - **Combat / MultiplePowers:** a second guardian-power slot. Hold Shift (the

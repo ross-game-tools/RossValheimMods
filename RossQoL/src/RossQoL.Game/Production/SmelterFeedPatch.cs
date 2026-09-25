@@ -73,10 +73,12 @@ namespace RossQoL.Game.Production
                 // that to what the player is willing to spend on charcoal.
                 if (kind.LimitFuel && !FeedRules.Allowed(KilnFuels(), conversion.m_from.gameObject.name)) continue;
 
-                // Ore into metal is never capped: a cap there would leave ore
-                // sitting in chests, which is not what a cap is for.
-                if (!kind.Smelts
-                    && FeedRules.AtCap(
+                // Stop feeding a producer once its output has reached the cap
+                // the player set for that item in MaxOutput. Only items listed
+                // there are capped, so ore-into-metal keeps running unless the
+                // player explicitly capped that metal (which then leaves its ore
+                // in the chests, as they asked) -- the charcoal kiln's coal, say.
+                if (FeedRules.AtCap(
                         ContainerSource.Caps(),
                         conversion.m_to.gameObject.name,
                         ContainerSource.CountNearby(origin, conversion.m_to.m_itemData.m_shared.m_name)))
@@ -98,8 +100,44 @@ namespace RossQoL.Game.Production
 
             if (smelter.m_maxFuel - Mathf.CeilToInt(smelter.GetFuel()) <= 0) return;
 
+            // A producer whose output is made from fuel rather than ore -- the
+            // Deep North frigid kiln burns Ice into FrozenFuel with no ore at all
+            // (maxOre == 0) -- is capped here instead of in FeedOre, which bails
+            // on maxOre == 0 before its own cap check ever runs. Stop its fuel
+            // once every one of its outputs has hit MaxOutput.
+            if (AllOutputsAtCap(smelter, smelter.transform.position)) return;
+
             if (ContainerSource.Take(smelter.transform.position, smelter.m_fuelItem, 1, out _) > 0)
                 smelter.m_nview.InvokeRPC("RPC_AddFuel");
+        }
+
+        /// <summary>
+        /// True when the producer has outputs and every one has reached the cap
+        /// the player set in MaxOutput -- nothing left worth making, so its fuel
+        /// should stop. An output with no cap entry means the producer can still
+        /// make something, so it is never idle then.
+        /// </summary>
+        private static bool AllOutputsAtCap(Smelter smelter, Vector3 origin)
+        {
+            var conversions = smelter.m_conversion;
+            if (conversions == null || conversions.Count == 0) return false;
+
+            var caps = ContainerSource.Caps();
+            if (caps.Count == 0) return false;
+
+            bool any = false;
+            foreach (var conversion in conversions)
+            {
+                if (conversion?.m_to == null) continue;
+                any = true;
+
+                string output = conversion.m_to.gameObject.name;
+                if (!caps.ContainsKey(output)) return false;   // uncapped -> still worth making
+                if (!FeedRules.AtCap(caps, output,
+                        ContainerSource.CountNearby(origin, conversion.m_to.m_itemData.m_shared.m_name)))
+                    return false;
+            }
+            return any;
         }
 
         private static string _kilnFuelText;
@@ -119,18 +157,14 @@ namespace RossQoL.Game.Production
 
     internal readonly struct SmelterKind
     {
-        public SmelterKind(ConfigEntry<bool> enabled, bool smelts, bool limitFuel)
+        public SmelterKind(ConfigEntry<bool> enabled, bool limitFuel)
         {
             Enabled = enabled;
-            Smelts = smelts;
             LimitFuel = limitFuel;
         }
 
         /// <summary>The setting that turns this kind of station on and off.</summary>
         public ConfigEntry<bool> Enabled { get; }
-
-        /// <summary>True for the stations that turn ore into metal, which are never output-capped.</summary>
-        public bool Smelts { get; }
 
         /// <summary>True for the kiln, whose input the KilnFuel setting narrows.</summary>
         public bool LimitFuel { get; }
@@ -146,19 +180,19 @@ namespace RossQoL.Game.Production
         public static SmelterKind Of(Smelter smelter)
         {
             if (smelter.m_windmill != null)
-                return new SmelterKind(AutoFeedConfig.FeedWindmills, smelts: false, limitFuel: false);
+                return new SmelterKind(AutoFeedConfig.FeedWindmills, limitFuel: false);
 
             string name = smelter.name;
             if (name.IndexOf("charcoal_kiln", StringComparison.OrdinalIgnoreCase) >= 0)
-                return new SmelterKind(AutoFeedConfig.FeedKilns, smelts: false, limitFuel: true);
+                return new SmelterKind(AutoFeedConfig.FeedKilns, limitFuel: true);
 
             if (name.IndexOf("spinningwheel", StringComparison.OrdinalIgnoreCase) >= 0)
-                return new SmelterKind(AutoFeedConfig.FeedSpinningWheels, smelts: false, limitFuel: false);
+                return new SmelterKind(AutoFeedConfig.FeedSpinningWheels, limitFuel: false);
 
             if (name.IndexOf("blastfurnace", StringComparison.OrdinalIgnoreCase) >= 0)
-                return new SmelterKind(AutoFeedConfig.FeedBlastFurnaces, smelts: true, limitFuel: false);
+                return new SmelterKind(AutoFeedConfig.FeedBlastFurnaces, limitFuel: false);
 
-            return new SmelterKind(AutoFeedConfig.FeedSmelters, smelts: true, limitFuel: false);
+            return new SmelterKind(AutoFeedConfig.FeedSmelters, limitFuel: false);
         }
     }
 }

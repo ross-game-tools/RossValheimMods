@@ -68,7 +68,7 @@ namespace RossQoL.Game.Production
             new CompatMember("Smelter", "m_windmill", "telling a windmill from the other smelters"),
             new CompatMember("Smelter", "GetQueueSize", "how much ore is already queued"),
             new CompatMember("Smelter", "GetFuel", "how much fuel is already in"),
-            new CompatMember("CookingStation", "UpdateFuel", "the moment an oven is fed"),
+            new CompatMember("CookingStation", "UpdateCooking", "the oven tick where its fuel is topped up, even from empty"),
             new CompatMember("CookingStation", "m_useFuel", "ovens that burn nothing are left alone"),
             new CompatMember("CookingStation", "m_fuelItem", "what an oven burns"),
             new CompatMember("CookingStation", "m_maxFuel", "how much fuel an oven still has room for"),

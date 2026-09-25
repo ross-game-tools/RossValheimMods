@@ -98,8 +98,9 @@ namespace RossQoL.Game.Production
             MaxOutput = config.Bind(section, "MaxOutput", "",
                 ConfigText.Description(
                     "Stop feeding a producer once this many of what it makes are in nearby containers. "
-                    + "Prefab names with a number, comma-separated, e.g. \"Coal:200, BarleyFlour:500\". "
-                    + "Smelted metals are never capped, so ore is always processed.",
+                    + "Prefab names with a number, comma-separated, e.g. \"Coal:200, FrozenFuel:100\". "
+                    + "Only items listed here are capped; capping a smelted metal leaves its ore "
+                    + "unprocessed in your chests.",
                     scope, requiresRestart: false));
         }
     }
