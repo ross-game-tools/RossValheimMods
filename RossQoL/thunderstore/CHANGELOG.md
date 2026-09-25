@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.29.0
+
+- **Production / NoIdleOvenFuel:** ovens only spend fuel while they have
+  something to cook. A fuelled oven left idle keeps its fuel instead of
+  slowly burning it away, so AutoFeed no longer refills an idle oven from
+  your chests for nothing. Cooking is unchanged.
+- **Combat / ButcherSummons:** fixed -- the feature was announced in 0.28.0
+  but never actually took effect (its patch matched nothing and was skipped),
+  so the butcher knife still passed through summons. It now cuts them down as
+  intended.
+
 ## 0.28.0
 
 - **Combat / ButcherSummons:** the butcher knife now kills your summons --

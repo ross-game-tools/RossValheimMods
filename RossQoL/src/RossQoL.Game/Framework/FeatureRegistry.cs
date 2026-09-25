@@ -58,6 +58,7 @@ namespace RossQoL.Game.Framework
             new Category("Production", "All production tweaks.",
                 new AutoHarvestFeature(),
                 new AutoFeedFeature(),
+                new NoIdleOvenFuelFeature(),
                 new SafeRefineryFeature()),
             new Category("Progression", "All boss progression tweaks.",
                 new TeleportUnlocksFeature(),
