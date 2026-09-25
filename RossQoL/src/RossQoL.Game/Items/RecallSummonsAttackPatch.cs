@@ -23,8 +23,6 @@ namespace RossQoL.Game.Items
     [HarmonyPatch(typeof(Humanoid), nameof(Humanoid.StartAttack))]
     internal static class RecallSummonsAttackPatch
     {
-        private const string StaffPrefabName = "StaffSkeleton";
-
         /// <summary>
         /// When the recall last fired, in <see cref="Time.time"/>. One
         /// process-wide timer rather than per-player: this mod only ever
@@ -47,7 +45,7 @@ namespace RossQoL.Game.Items
 
                 var weapon = player.GetCurrentWeapon();
                 if (weapon == null || weapon.m_dropPrefab == null) return true;
-                if (!string.Equals(weapon.m_dropPrefab.name, StaffPrefabName, StringComparison.Ordinal)) return true;
+                if (!SummonKinds.IsRecallStaff(weapon.m_dropPrefab.name)) return true;
 
                 // From here this IS the Dead Raiser's secondary attack, and
                 // it is always handled here rather than by vanilla's own

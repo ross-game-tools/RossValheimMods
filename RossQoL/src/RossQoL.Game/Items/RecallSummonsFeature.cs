@@ -8,10 +8,10 @@ using UnityEngine;
 namespace RossQoL.Game.Items
 {
     /// <summary>
-    /// The Dead Raiser's secondary attack calls every skeleton it raised
-    /// back to your side, instead of doing nothing -- vanilla ships the
-    /// staff with a blank secondary attack, which is why middle-click has
-    /// never done anything with it.
+    /// The Dead Raiser's and Spirit Caller's secondary attack calls every
+    /// creature they summoned back to your side, instead of doing nothing --
+    /// vanilla ships both staves with a blank secondary attack, which is why
+    /// middle-click has never done anything with them.
     ///
     /// Two independent pieces make this work: <see cref="RecallSummonsItemPatch"/>
     /// gives the staff a real (but harmless) secondary attack so vanilla's
@@ -37,11 +37,11 @@ namespace RossQoL.Game.Items
         public override FeatureScope Scope => FeatureScope.Synced;
 
         public override string Description =>
-            "The Dead Raiser's secondary attack calls every skeleton it raised, and that is still following "
-            + "you, back to your side -- spread out around you rather than piled on top of each other. Plays "
-            + "the staff's own cast animation and sound and takes a brief moment to complete, set by "
-            + "RecallCastSeconds. Costs no eitr, stamina or health, and is on a cooldown set by "
-            + "RecallCooldownSeconds.";
+            "The Dead Raiser's and Spirit Caller's secondary attack calls every creature they summoned, and "
+            + "that is still following you, back to your side -- spread out around you rather than piled on top "
+            + "of each other. Plays the staff's own cast animation and sound and takes a brief moment to "
+            + "complete, set by RecallCastSeconds. Costs no eitr, stamina or health, and is on a cooldown set "
+            + "by RecallCooldownSeconds.";
 
         public override IEnumerable<Type> PatchClasses => new[]
         {
@@ -52,8 +52,8 @@ namespace RossQoL.Game.Items
         {
             new CompatMember("ObjectDB", "Awake", "the moment item definitions are ready to change"),
             new CompatMember("ObjectDB", "CopyOtherDB", "item definitions replaced when a world loads"),
-            new CompatMember("ObjectDB", "m_items", "finding the Dead Raiser"),
-            new CompatMember("ItemDrop+ItemData", "m_dropPrefab", "identifying the Dead Raiser by prefab"),
+            new CompatMember("ObjectDB", "m_items", "finding the recall staves"),
+            new CompatMember("ItemDrop+ItemData", "m_dropPrefab", "identifying a recall staff by prefab"),
             new CompatMember("ItemDrop+ItemData+SharedData", "m_attack", "the primary attack to base the secondary on, and whose start effect the cast sound reuses"),
             new CompatMember("ItemDrop+ItemData+SharedData", "m_secondaryAttack", "the blank secondary attack to fill in"),
             new CompatMember("Attack", "m_startEffect", "the staff's own cast sound and visual, played on the middle-click"),

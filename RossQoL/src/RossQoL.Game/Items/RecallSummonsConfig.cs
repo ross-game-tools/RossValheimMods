@@ -16,7 +16,7 @@ namespace RossQoL.Game.Items
         {
             RecallCooldownSeconds = config.Bind(section, "RecallCooldownSeconds", 8f,
                 ConfigText.Description(
-                    "How many seconds must pass between uses of the Dead Raiser's recall attack. "
+                    "How many seconds must pass between uses of the recall attack. "
                     + "Set to 0 to allow it every time.",
                     scope, requiresRestart: false, range: new AcceptableValueRange<float>(0f, 60f)));
 

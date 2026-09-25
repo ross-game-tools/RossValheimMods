@@ -1,4 +1,4 @@
-# Summons (Dead Raiser / skeleton-raising staffs)
+# Summons (Dead Raiser & Spirit Caller summon staffs)
 
 What this covers: what a "summon" (e.g. the skeletons raised by a
 staff) actually is in vanilla, whether it already follows its
@@ -1175,3 +1175,42 @@ player's own height, refuse a candidate whose floor is under the terrain
 surface when the player's own position is not, and treat "no floor found"
 as unusable so the search falls back to the player's own position. See
 `dungeons.md` §7 for why the interior-only version was not enough.
+
+## Spirit Caller staff (`StaffSpiritCaller`) — runtime-verified, 1.0.15
+
+The Deep North blood-magic staff is the same kind of thing as the Dead
+Raiser, confirmed by a throwaway runtime diagnostic (a Harmony patch on
+`ObjectDB.Awake` that logged the live `ItemDrop`/`Attack` fields and each
+summoned prefab's components — none of these are in the DLL; they are
+Unity-serialized asset data). Read from a running 1.0.15 client, dev
+profile:
+
+- **Item id `StaffSpiritCaller`** is present in `ObjectDB.m_items`, found by
+  the same `m_dropPrefab.name` match used for `StaffSkeleton`.
+- Its `SharedData.m_attack.m_attackAnimation` (primary) is `staff_summon`,
+  the **same** animation the Dead Raiser uses — so filling the blank
+  secondary with a clone of the primary and replaying `staff_summon` works
+  identically for both staffs.
+- Its `SharedData.m_secondaryAttack.m_attackAnimation` is `""` — the same
+  blank-secondary "this item has no secondary attack" state
+  (`ItemDrop.ItemData.HaveSecondaryAttack`) that `RecallSummonsItemPatch`
+  fills for the Dead Raiser.
+- The primary attack's `m_attackProjectile` is `staff_SpiritCaller_spawn`
+  (a projectile carrying `SpawnAbility`, exactly like the skeleton path).
+- The spawn is **random**: over repeated casts it produced
+  `Bjorn_spiritcaller`, `Moose_spiritcaller`, `Wolf_spiritcaller` and
+  `Boar_spiritcaller`. Each is a full `Character`-family creature with
+  `Tameable` (`tameable = true`), `commandable = false` (same as the
+  skeleton — the spawn-time `Command` still runs regardless, see the portal
+  section above), following its summoner by `ZDOVars.s_follow` = player
+  name like any summon.
+
+**Recognition rule (RossQoL).** Because the creature is chosen at random
+from a set that could grow, RossQoL matches these summons by the shared
+prefab suffix **`_spiritcaller`** (case-insensitive, after stripping Unity's
+`(Clone)`), not an explicit four-name list. Skeletons stay matched by their
+exact prefab `Skeleton_Friendly`. The staffs themselves are matched by exact
+id (`StaffSkeleton`, `StaffSpiritCaller`). All three rules live in and are
+tested from `RossQoL.Core.Items.SummonKinds`; the Game-side `SummonedMinion`
+recogniser and the three `RecallSummons` patches call into it, so the Dead
+Raiser and Spirit Caller cannot drift apart.

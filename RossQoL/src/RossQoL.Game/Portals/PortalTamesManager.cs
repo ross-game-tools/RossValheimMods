@@ -98,7 +98,7 @@ namespace RossQoL.Game.Portals
                     // A raised skeleton cannot be trusted to report itself as
                     // tamed -- vanilla can drop that write entirely -- so it is
                     // recognised by prefab instead. See TameCandidate.IsSummon.
-                    isSummon: SummonedSkeleton.Is(character)));
+                    isSummon: SummonedMinion.Is(character)));
                 views.Add(view);
             }
 

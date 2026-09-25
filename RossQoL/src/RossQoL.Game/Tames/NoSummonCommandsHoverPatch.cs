@@ -44,7 +44,7 @@ namespace RossQoL.Game.Tames
                 // would put a name on something the game is not describing.
                 if (string.IsNullOrEmpty(__result)) return;
 
-                if (!SummonedSkeleton.Is(__instance.gameObject)) return;
+                if (!SummonedMinion.Is(__instance.gameObject)) return;
                 if (!__instance.IsTamed()) return;
 
                 string text = __instance.GetName();

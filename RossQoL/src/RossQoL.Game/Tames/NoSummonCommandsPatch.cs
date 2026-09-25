@@ -43,7 +43,7 @@ namespace RossQoL.Game.Tames
             try
             {
                 if (__instance == null) return true;
-                if (!SummonedSkeleton.Is(__instance.gameObject)) return true;
+                if (!SummonedMinion.Is(__instance.gameObject)) return true;
 
                 __result = false;
                 return false;

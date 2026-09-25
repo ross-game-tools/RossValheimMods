@@ -24,7 +24,8 @@ namespace RossQoL.Game.Framework
         public static IReadOnlyList<Category> Create() => new[]
         {
             new Category("Combat", "All combat and creature tweaks.",
-                new InstantLootFeature()),
+                new InstantLootFeature(),
+                new MultiplePowersFeature()),
             new Category("Crafting", "All crafting station tweaks.",
                 new CraftingSearchFeature(),
                 new MultiCraftFeature(),

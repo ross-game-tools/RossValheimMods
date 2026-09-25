@@ -2,16 +2,18 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
+using RossQoL.Core.Items;
 using RossQoL.Game.Framework;
 
 namespace RossQoL.Game.Items
 {
     /// <summary>
-    /// Gives the Dead Raiser staff (<c>StaffSkeleton</c>) a real secondary
-    /// attack. Vanilla ships it with <c>m_secondaryAttack.m_attackAnimation
+    /// Gives each recall staff -- the Dead Raiser (<c>StaffSkeleton</c>) and
+    /// the Spirit Caller (<c>StaffSpiritCaller</c>) -- a real secondary
+    /// attack. Vanilla ships both with <c>m_secondaryAttack.m_attackAnimation
     /// == ""</c>, which is vanilla's own way of saying "this item has no
     /// secondary attack" (<c>ItemDrop.ItemData.HaveSecondaryAttack</c>) --
-    /// so today, middle-click with this staff does nothing at all.
+    /// so today, middle-click with either staff does nothing at all.
     ///
     /// This does not decide what the recall DOES -- see
     /// <see cref="RecallSummonsAttackPatch"/>, which intercepts the input
@@ -30,8 +32,6 @@ namespace RossQoL.Game.Items
     [HarmonyPatch]
     internal static class RecallSummonsItemPatch
     {
-        private const string StaffPrefabName = "StaffSkeleton";
-
         /// <summary>
         /// The staff's own primary attack animation. Reused rather than
         /// inventing a new one, because it is known to exist for this staff
@@ -74,11 +74,11 @@ namespace RossQoL.Game.Items
             foreach (var prefab in db.m_items)
             {
                 if (prefab == null) continue;
-                if (!string.Equals(prefab.name, StaffPrefabName, StringComparison.Ordinal)) continue;
+                if (!SummonKinds.IsRecallStaff(prefab.name)) continue;
 
                 var drop = prefab.GetComponent<ItemDrop>();
                 var shared = drop != null ? drop.m_itemData?.m_shared : null;
-                if (shared == null) return;
+                if (shared == null) continue;
 
                 // Idempotent: a blank m_attackAnimation is vanilla's marker
                 // for "no secondary attack", so once this has been filled in
@@ -89,7 +89,7 @@ namespace RossQoL.Game.Items
                 if (shared.m_secondaryAttack != null
                     && !string.IsNullOrEmpty(shared.m_secondaryAttack.m_attackAnimation))
                 {
-                    return;
+                    continue;
                 }
 
                 // The empty Attack object vanilla ships is not a usable one
@@ -113,8 +113,8 @@ namespace RossQoL.Game.Items
 
                 shared.m_secondaryAttack = recall;
 
-                RossQoLPlugin.Log.LogInfo("RecallSummons: the Dead Raiser now has a working secondary attack.");
-                return;
+                RossQoLPlugin.Log.LogInfo($"RecallSummons: {prefab.name} now has a working secondary attack.");
+                continue;
             }
         }
     }

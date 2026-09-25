@@ -6,12 +6,13 @@ using RossQoL.Game.Framework;
 namespace RossQoL.Game.Tames
 {
     /// <summary>
-    /// A raised skeleton cannot be petted or told to stay, so it always
-    /// follows its summoner.
+    /// A summoned creature -- a raised skeleton or one of the Spirit Caller's
+    /// spirits -- cannot be petted or told to stay, so it always follows its
+    /// summoner.
     ///
     /// Why that matters: vanilla's summon cap (Tameable.UnsummonMaxInstances)
     /// counts only creatures whose ZDO follow string matches the summoner's
-    /// name, and telling one to stay clears that string. A skeleton left
+    /// name, and telling one to stay clears that string. A summon left
     /// standing somewhere therefore stops being counted, and the next cast
     /// raises another one over the cap. Removing the interaction closes that
     /// without touching the cap itself.
@@ -33,8 +34,9 @@ namespace RossQoL.Game.Tames
         public override FeatureScope Scope => FeatureScope.Synced;
 
         public override string Description =>
-            "Raised skeletons cannot be petted or told to stay, so they always follow you and always count "
-            + "against how many you may have at once. Tamed creatures are unaffected.";
+            "Summoned creatures -- raised skeletons and the Spirit Caller's spirits -- cannot be petted or "
+            + "told to stay, so they always follow you and always count against how many you may have at once. "
+            + "Tamed creatures are unaffected.";
 
         public override IEnumerable<Type> PatchClasses =>
             new[] { typeof(NoSummonCommandsPatch), typeof(NoSummonCommandsHoverPatch) };

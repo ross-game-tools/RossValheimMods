@@ -25,8 +25,6 @@ namespace RossQoL.Game.Items
     {
         public static RecallCastRunner Instance { get; private set; }
 
-        private const string StaffPrefabName = "StaffSkeleton";
-
         private bool _pending;
         private float _startedAt;
         private float _castSeconds;
@@ -138,7 +136,7 @@ namespace RossQoL.Game.Items
 
             var weapon = player.GetCurrentWeapon();
             if (weapon == null || weapon.m_dropPrefab == null) return false;
-            if (!string.Equals(weapon.m_dropPrefab.name, StaffPrefabName, StringComparison.Ordinal)) return false;
+            if (!SummonKinds.IsRecallStaff(weapon.m_dropPrefab.name)) return false;
 
             return true;
         }

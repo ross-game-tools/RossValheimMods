@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.27.0
+
+- **Combat / MultiplePowers:** a second guardian-power slot. Hold Shift (the
+  assign modifier) while using a guardian stone to set that power as your
+  second power; it fires on its own key (default `H`) with its own cooldown.
+  Using a stone normally still sets your first power, which fires on the
+  vanilla guardian-power key. Both keys are configurable.
+- **Items / RecallSummons:** the Spirit Caller staff now recalls its spirits
+  the same way the Dead Raiser recalls its skeletons -- its middle-click
+  calls every creature it summoned, and that is still following you, back to
+  your side.
+- **Tames / NoSummonCommands:** the Spirit Caller's spirits, like raised
+  skeletons, can no longer be petted or told to stay, so they always follow
+  you and always count against how many summons you may have at once.
+
 ## 0.26.1
 
 - **Production / AutoHarvest:** producers no longer drop their output into

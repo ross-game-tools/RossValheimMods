@@ -76,6 +76,23 @@ One file per subsystem:
   and that pins live compressed in the player profile (only written on
   save). Sibling `docs/jotunn-ui.md` covers the Jotunn `GUIManager`
   gotchas the panel hit.
+- `guardian-powers.md` (read at 1.0.15) — the boss/guardian-power
+  pipeline every "Multiple Boss Powers" patch reaches: the `ItemStand`
+  method that writes a power onto the player
+  (`DelayedPowerActivation`, `Invoke`d by name, calls
+  `localPlayer.SetGuardianPower(...)` with the `GP_*` `base.name`
+  switch as the de-facto guard), how a power fires
+  (`Player.ActivateGuardianPower` applies `m_guardianSE` to every player
+  in 10 m via `SEMan.AddStatusEffect(int nameHash, …, short variant=-1)`
+  and `Character.GetSEMan`, grants `m_adrenalineGuardianPower` — a
+  **private** field, reflection needed — through `Player.AddAdrenaline`,
+  then arms `m_guardianPowerCooldown = m_guardianSE.m_cooldown`), that the
+  cooldown ticks in `Player.FixedUpdate` via `UpdateGuardianPower(dt)`
+  (**not** `Player.Update`, correcting the spec), how the SE is resolved
+  (`ObjectDB.GetStatusEffect`, `StatusEffect.NameHash`/`m_cooldown`), and
+  how the HUD shows the single slot (`Hud.m_gpRoot` + `m_gpIcon`/`m_gpName`/
+  `m_gpCooldown` — a **text** cooldown, **no fill image** — written by
+  `Hud.UpdateGuardianPower(Player)`).
 
 ## Convention
 

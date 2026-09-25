@@ -75,7 +75,7 @@ namespace RossQoL.Game.Items
             foreach (var character in characters)
             {
                 if (character == null) continue;
-                if (!SummonedSkeleton.Is(character)) continue;
+                if (!SummonedMinion.Is(character)) continue;
 
                 var view = character.GetComponent<ZNetView>();
                 if (view == null || !view.IsValid()) continue;
