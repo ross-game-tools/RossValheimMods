@@ -25,7 +25,8 @@ namespace RossQoL.Game.Framework
         {
             new Category("Combat", "All combat and creature tweaks.",
                 new InstantLootFeature(),
-                new MultiplePowersFeature()),
+                new MultiplePowersFeature(),
+                new ButcherSummonsFeature()),
             new Category("Crafting", "All crafting station tweaks.",
                 new CraftingSearchFeature(),
                 new MultiCraftFeature(),

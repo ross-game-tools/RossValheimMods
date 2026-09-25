@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.28.0
+
+- **Combat / ButcherSummons:** the butcher knife now kills your summons --
+  raised skeletons and the Spirit Caller's creatures -- the same way it
+  butchers a tamed animal, a quick way to clear them. A normal butcher knife
+  swings straight through a summon.
+
 ## 0.27.1
 
 - **Production / AutoFeed:** MaxOutput now caps any producer's output, not
