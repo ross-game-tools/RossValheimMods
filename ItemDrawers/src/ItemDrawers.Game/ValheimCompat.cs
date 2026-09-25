@@ -40,6 +40,9 @@ namespace ItemDrawers.Game
                 "patched to return the drawer's container view (DrawerView)"),
             ("Container", "Save", "patched to write the drawer's view to ViewSlots instead of vanilla's items field"),
             ("Container", "Load", "patched to reload the drawer's view from ViewSlots"),
+            ("Container", "m_lastRevision",
+                "the drawer view keeps it at the ZDO revision it loaded, so container mods do not read a "
+                + "drawer as never loaded"),
             ("Inventory", "m_inventory", "the drawer view writes its slots directly, bypassing AddItem"),
             ("Inventory", "m_width", "the drawer view resizes its grid to exactly its slot count"),
             ("Inventory", "m_height", "the drawer view resizes its grid to exactly its slot count"),
