@@ -20,7 +20,7 @@ namespace ItemDrawers.Game
     {
         public const string PluginGuid = "com.rossdwest.itemdrawers";
         public const string PluginName = "ItemDrawers";
-        public const string PluginVersion = "1.0.12";
+        public const string PluginVersion = "1.0.13";
 
         internal static ManualLogSource Log;
         private Harmony _harmony;

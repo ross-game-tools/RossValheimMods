@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.13
+
+- Taking items out of a drawer no longer duplicates them when you play with a
+  mod that adds extra storage -- a worn backpack, or extra inventory slots.
+  The drawer would put the item into the backpack but, not seeing it land in
+  your main inventory, drop a second copy on the ground as well. Drawers now
+  trust wherever the item actually went and only drop what genuinely had
+  nowhere to go. Thanks to the AdventureBackpacks report that pinned it down.
+- Dedicated server logs no longer warn that the drawer shader is missing its
+  texture and triplanar properties. A headless server has no graphics device,
+  so those properties genuinely are not there, but it never draws a drawer
+  anyway -- the warning was harmless noise. Clients are unaffected and drawers
+  look exactly the same in game.
+
 ## 1.0.12
 
 - A drawer that was set to an item but held none of it would refuse the

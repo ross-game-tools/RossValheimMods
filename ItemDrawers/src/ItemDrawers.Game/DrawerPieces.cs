@@ -417,6 +417,19 @@ namespace ItemDrawers.Game
             // weather correctly in-game. So a drawer weathers like vanilla
             // furniture by virtue of using Custom/Piece at all -- nothing
             // below has to reproduce it.
+            // On a headless dedicated server (-batchmode -nographics,
+            // SystemInfo.graphicsDeviceType == Null) Unity brings Valheim's
+            // shaders up as property-less placeholders: Custom/Piece still
+            // exists by name, but HasProperty(...) is false for every property
+            // and shaderKeywords is empty. That is expected and harmless there
+            // -- the server renders nothing -- so the "missing property"
+            // warnings below are gated on an actual graphics device rather than
+            // crying anomaly at every dedicated-server start. Clients have a
+            // real device and see the fully-populated shader, which is why
+            // drawers texture correctly in-game.
+            bool graphicsAvailable =
+                SystemInfo.graphicsDeviceType != UnityEngine.Rendering.GraphicsDeviceType.Null;
+
             bool triplanarEnabled = tierMaterial.HasProperty("_TriplanarScale");
             bool triplanarLocalPos = false;
             if (triplanarEnabled)
@@ -460,12 +473,15 @@ namespace ItemDrawers.Game
                         + "surfaces sample the normal map differently.");
                 }
             }
-            else
+            else if (graphicsAvailable)
             {
-                // A donor shader with no _TriplanarScale is a real anomaly
-                // (every known donor ships it), not routine status -- stays
-                // a warning of its own rather than folding into the
-                // one-line summary below, where it could get lost.
+                // A donor shader with no _TriplanarScale, on a machine that
+                // actually has a graphics device, is a real anomaly (every
+                // known donor ships it) -- stays a warning of its own rather
+                // than folding into the one-line summary below, where it could
+                // get lost. A headless server legitimately has no shader
+                // properties at all (see graphicsAvailable above); that is
+                // reported in the summary line, not warned about.
                 DrawerPlugin.Log.LogWarning(
                     $"{tier}: shader has no _TriplanarScale; leaving UV mapping in place.");
             }
@@ -483,7 +499,8 @@ namespace ItemDrawers.Game
                 tierMaterial.EnableKeyword("_NORMALMAP");
             }
 
-            string textureStatus = hasMainTex && hasBumpMap ? "albedo+normal"
+            string textureStatus = !graphicsAvailable ? "n/a (headless server: no graphics device, so the shader exposes no properties)"
+                : hasMainTex && hasBumpMap ? "albedo+normal"
                 : hasMainTex ? "albedo only (shader has no _BumpMap)"
                 : "NONE (shader has neither _MainTex nor _BumpMap)";
 

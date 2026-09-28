@@ -107,30 +107,47 @@ namespace ItemDrawers.Game
             item?.m_dropPrefab != null ? item.m_dropPrefab.name : null;
 
         /// <summary>
-        /// Gives items to a player, spilling to the ground whatever didn't
-        /// actually land in the inventory. Never silently deletes: a drawer
-        /// that eats your iron is worse than one that drops it at your feet.
+        /// Gives items to a player, spilling to the ground only what the
+        /// inventory itself reported it could not take. Never silently
+        /// deletes: a drawer that eats your iron is worse than one that
+        /// drops it at your feet.
         ///
-        /// This does NOT ask CanAddItem to predict whether AddItem will
-        /// succeed -- they are different functions with different rules and
-        /// are not guaranteed to agree, in more ways than one. Matching
-        /// AddItem's own m_worldLevel stamp on a CanAddItem probe (an
-        /// earlier version of this method did exactly that) still leaves a
-        /// second, independent asymmetry: CanAddItem counts headroom with
-        /// FindFreeStackSpace, which ignores m_quality, while AddItem merges
-        /// with FindFreeStackItem, which requires it. Two partial stacks of
-        /// the same item at different quality, no empty slot: CanAddItem
-        /// counts both and says yes; AddItem can only merge into the
-        /// matching-quality stack, finds no second target, and fails --
-        /// reopening the same merge-then-fail spill-the-whole-chunk hole a
-        /// prediction-based check can never fully close.
+        /// The amount to spill comes from AddItem's OWN return value, never
+        /// from re-counting player.GetInventory() afterwards. That is the
+        /// whole fix for issue #12: mods that extend player storage
+        /// (AdventureBackpacks, AzuExtendedPlayerInventory, shudnal's
+        /// ExtraSlots) patch Inventory.AddItem and route the item into a worn
+        /// backpack or a dedicated slot -- somewhere player.GetInventory()
+        /// .m_inventory never lists it. The previous version measured only
+        /// that main list before and after the call, saw no increase, and
+        /// spilled a second copy on the ground even though the item HAD been
+        /// accepted -- duplicating every withdrawal made with such a mod
+        /// installed.
         ///
-        /// Instead this measures the real outcome: count this item's total
-        /// in the inventory before calling AddItem, call it, count again,
-        /// and spill only the shortfall between the chunk offered and what
-        /// the count actually went up by. This is correct regardless of how
-        /// AddItem's internal matching rules work or ever change, because it
-        /// never has to replicate them.
+        /// Vanilla Inventory.AddItem(ItemData) (buildid 25253764,
+        /// assembly_valheim.dll) already reports exactly what is needed: it
+        /// merges into FindFreeStackItem stacks, drops any remainder into a
+        /// FindEmptySlot, and
+        ///
+        ///   if (gridPos.x >= 0) { m_inventory.Add(item); }   // remainder placed
+        ///   else                { flag = false; }            // no room for it
+        ///   return flag;
+        ///
+        /// so it returns true when the whole stack landed and false with the
+        /// unplaced count left on item.m_stack when it did not. A storage-
+        /// extending mod's patch on that same method is the one authority on
+        /// whether the item was accepted, wherever it chose to put it, so
+        /// trusting the return is correct regardless of destination and needs
+        /// no knowledge of any specific mod. The ItemData is built here rather
+        /// than via AddItem(GameObject, int) -- which builds one internally
+        /// and discards it -- purely so the false-case remainder is readable;
+        /// the field setup mirrors that overload exactly, so merge matching
+        /// (keyed on m_shared.m_name, m_quality and m_worldLevel) is identical.
+        ///
+        /// The spill amount itself goes through DrawerState.RefundShortfall,
+        /// the same clamped "removed minus accepted" boundary the deposit-
+        /// refund path uses, so the give side is covered by the same Core
+        /// arithmetic tests and can never spill a negative or an over-count.
         /// </summary>
         public static void GiveToPlayer(Player player, string itemName, int amount)
         {
@@ -144,38 +161,17 @@ namespace ItemDrawers.Game
 
             foreach (var chunk in ChunkSplitter.Chunks(amount, stackSize))
             {
-                int before = CountMatching(inventory, itemName);
-                inventory.AddItem(prefab, chunk);
-                int added = CountMatching(inventory, itemName) - before;
+                // global::Game: inside a *.Game namespace the bare name Game
+                // binds to the namespace, not the game type.
+                var item = drop.m_itemData.Clone();
+                item.m_dropPrefab = prefab;
+                item.m_stack = chunk;                 // chunk <= stackSize already
+                item.m_worldLevel = (byte)global::Game.m_worldLevel;
 
-                int shortfall = chunk - added;
+                int accepted = inventory.AddItem(item) ? chunk : chunk - item.m_stack;
+                int shortfall = DrawerState.RefundShortfall(chunk, accepted);
                 if (shortfall > 0) SpillOneStack(prefab, spillPos, shortfall);
             }
-        }
-
-        /// <summary>
-        /// Total stack count of a prefab-identified item across an
-        /// inventory. Not Inventory.CountItems(string, ...): that matches
-        /// against m_shared.m_name (a localization token), the same trap
-        /// RemoveItem(string, ...) has -- this instead uses PrefabNameOf,
-        /// the one consistent identity rule, on every stack.
-        ///
-        /// This assumes prefab name and m_shared.m_name are in 1:1
-        /// correspondence, which every vanilla item satisfies but nothing
-        /// enforces. AddItem's own merge target (FindFreeStackItem) keys on
-        /// m_shared.m_name, not prefab name; if two distinct stackable
-        /// item prefabs ever shared one display-name token (realistically
-        /// only via another mod adding such an item), AddItem could merge
-        /// into a stack this count does not recognise as the same item,
-        /// undercounting `added` in GiveToPlayer above and over-spilling
-        /// the difference. Not reachable with any vanilla item today.
-        /// </summary>
-        private static int CountMatching(Inventory inventory, string itemName)
-        {
-            int total = 0;
-            foreach (var item in inventory.GetAllItems())
-                if (PrefabNameOf(item) == itemName) total += item.m_stack;
-            return total;
         }
 
         /// <summary>
