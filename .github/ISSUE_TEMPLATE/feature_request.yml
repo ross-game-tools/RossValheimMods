@@ -1,0 +1,30 @@
+name: Feature request
+description: Suggest an idea or improvement for one of the Ross Valheim mods
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: mod
+    attributes:
+      label: Which mod?
+      options:
+        - RossItemDrawers
+        - RossQoL
+        - RossPortals
+        - New / cross-mod idea
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the idea, and what problem does it solve?
+      description: Describe the improvement and why it would help.
+    validations:
+      required: true
+  - type: textarea
+    id: how
+    attributes:
+      label: How would it work?
+      description: How you picture it behaving in-game. Optional.
+    validations:
+      required: false
