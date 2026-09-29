@@ -49,6 +49,7 @@ namespace RossPortals.Game.Portals
             PortalRegistry.Instance.ApplyPortalZdos(portals);
             RossPortalsPlugin.Log.LogInfo($"Portal sync ({reason}): server sees {portals.Count} portal(s); broadcasting.");
             PortalRpc.BroadcastResync(PortalRegistry.Instance.Pack(), reason);
+            NotifyListChanged();
         }
 
         public static void ServerAddOrUpdate(PortalRecord record)
@@ -56,6 +57,7 @@ namespace RossPortals.Game.Portals
             var stored = PortalRegistry.Instance.AddOrUpdate(record);
             WriteWithRetry(stored, attempts: 5);
             PortalRpc.BroadcastPortal(stored);
+            NotifyListChanged();
 
             // Exactly one default at a time: setting this one clears the rest.
             if (stored.IsDefault)
@@ -95,6 +97,7 @@ namespace RossPortals.Game.Portals
             }
 
             PortalRpc.BroadcastResync(PortalRegistry.Instance.Pack(), "portal removed");
+            NotifyListChanged();
         }
 
         // A just-placed portal's ZDO can reach the server a frame or two after
@@ -176,6 +179,11 @@ namespace RossPortals.Game.Portals
             if (_recent.Count > RecentCap) _recent.RemoveRange(RecentCap, _recent.Count - RecentCap);
         }
 
+        /// <summary>The registry changed: refresh the panel and the map pins.
+        /// Called by the client receivers and by every server-side change,
+        /// because the RPC receivers skip the server -- so in single player, or
+        /// for the host of a listen server, the server's own calls are the only
+        /// thing that tells the local map about a portal.</summary>
         public static void NotifyListChanged()
         {
             if (Env.IsHeadless) return;

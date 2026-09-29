@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.6
+
+- Portals now show on the map in single player and for the host of a
+  multiplayer game. Previously only players on a dedicated server saw them.
+
 ## 0.2.5
 
 - Opening a portal onto a long list of destinations no longer flashes the list
