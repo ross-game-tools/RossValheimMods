@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.14
+
+- Valheim Plus' Craft From Chest can now use items stored in drawers, both
+  at crafting stations and when building with the hammer.
+  Valheim Plus ignores any container it thinks hasn't finished loading its
+  contents yet, and drawers never told it they had, so it passed them over
+  every time. Thanks to Klippo for the fix and drsib for the report.
+
 ## 1.0.13
 
 - Taking items out of a drawer no longer duplicates them when you play with a
