@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.15
+
+- The first world load of a session is faster: building the sheet of item
+  icons that drawer labels use took around 0.4 seconds and now takes about
+  35 milliseconds. Icons look the same. Thanks to Morgott for
+  measuring it.
+
 ## 1.0.14
 
 - Valheim Plus' Craft From Chest can now use items stored in drawers, both

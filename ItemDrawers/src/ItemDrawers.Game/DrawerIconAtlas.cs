@@ -66,6 +66,7 @@ namespace ItemDrawers.Game
                 return;
             }
 
+            var clock = System.Diagnostics.Stopwatch.StartNew();
             var sizes = new List<IconSize>();
             var sprites = new Dictionary<string, Sprite>();
             var variantFallbacks = new List<string>();
@@ -153,9 +154,6 @@ namespace ItemDrawers.Game
                 filterMode = FilterMode.Bilinear
             };
 
-            var clear = new Color32[_layout.Width * _layout.Height];
-            _texture.SetPixels32(clear);
-
             // AtlasLayout.TryGetUv is a pure rectangle allocator: it returns
             // v = rect.Y / Height, uninverted -- it has no opinion about
             // "top" or "bottom". Two independent facts settle how the pixel
@@ -165,14 +163,10 @@ namespace ItemDrawers.Game
             // already agree with the packer's raw Y, so each icon is blitted
             // at exactly (rect.X, rect.Y) with no flip. Flipping here would
             // silently mirror every icon vertically relative to the UVs
-            // DrawerRenderer reads later.
-            foreach (var pair in _layout.Rects)
-            {
-                if (!sprites.TryGetValue(pair.Key, out var sprite)) continue;
-                if (!TryReadSprite(sprite, out var pixels, out int w, out int h)) continue;
-
-                _texture.SetPixels32(pair.Value.X, pair.Value.Y, w, h, pixels);
-            }
+            // DrawerRenderer reads later. The GPU path keeps the same
+            // convention: CopyTexture and ReadPixels both address texels
+            // from the bottom row, as SetPixels32 does.
+            int sheets = CanCopyOnGpu() ? CopyIconsOnGpu(sprites) : CopyIconsPerSprite(sprites);
 
             _texture.Apply(updateMipmaps: true, makeNoLongerReadable: true);
 
@@ -233,7 +227,8 @@ namespace ItemDrawers.Game
             // diagnosed (see TryReadSprite's docstring for the bug itself,
             // now fixed) -- removed now that it's confirmed fixed.
             DrawerPlugin.Log.LogInfo(
-                $"Icon atlas built: {_layout.Rects.Count} icons in {_layout.Width}x{_layout.Height}, "
+                $"Icon atlas built: {_layout.Rects.Count} icons from {sheets} source sheet(s) in "
+                + $"{_layout.Width}x{_layout.Height}, {clock.ElapsedMilliseconds} ms, "
                 + $"material shader = {shaderSource}");
 
             // One line, only when it applies. These items would previously
@@ -298,6 +293,119 @@ namespace ItemDrawers.Game
 
             source = null;
             return null;
+        }
+
+        /// <summary>
+        /// CopyTexture between two RenderTextures needs only Basic support,
+        /// which every desktop graphics API Valheim runs on has; the
+        /// per-sprite path remains for a device that reports none.
+        /// </summary>
+        private static bool CanCopyOnGpu() =>
+            (SystemInfo.copyTextureSupport & UnityEngine.Rendering.CopyTextureSupport.Basic) != 0;
+
+        /// <summary>
+        /// Assembles the atlas on the GPU and reads it back once (issue #15).
+        /// Item icons are packed into a few shared sheets, so each distinct
+        /// sheet is blitted once into a RenderTexture, every icon on it is
+        /// copied into an atlas-sized RenderTexture with CopyTexture, and a
+        /// single ReadPixels brings the finished atlas into _texture. The
+        /// per-sprite path did a whole-sheet blit and a GPU-to-CPU readback
+        /// for every icon -- a few hundred pipeline stalls, about 400 ms of
+        /// the first world load.
+        ///
+        /// Both RenderTextures use the same format and
+        /// RenderTextureReadWrite.Default as TryReadSprite, so the colour
+        /// encoding (see the dark-icon note there) is unchanged, and icons
+        /// are still read from sprite.textureRect. Returns the number of
+        /// source sheets, for the build log.
+        /// </summary>
+        private static int CopyIconsOnGpu(Dictionary<string, Sprite> sprites)
+        {
+            var bySheet = new Dictionary<Texture, List<KeyValuePair<Sprite, AtlasRect>>>();
+            foreach (var pair in _layout.Rects)
+            {
+                if (!sprites.TryGetValue(pair.Key, out var sprite)) continue;
+                if (!bySheet.TryGetValue(sprite.texture, out var icons))
+                    bySheet[sprite.texture] = icons = new List<KeyValuePair<Sprite, AtlasRect>>();
+                icons.Add(new KeyValuePair<Sprite, AtlasRect>(sprite, pair.Value));
+            }
+
+            var previous = RenderTexture.active;
+            var atlas = RenderTexture.GetTemporary(_layout.Width, _layout.Height, 0,
+                RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default);
+
+            try
+            {
+                // A temporary RenderTexture's contents are undefined; the
+                // gaps between icons must read back transparent.
+                RenderTexture.active = atlas;
+                GL.Clear(false, true, Color.clear);
+
+                foreach (var sheet in bySheet)
+                    CopySheet(sheet.Key, sheet.Value, atlas);
+
+                RenderTexture.active = atlas;
+                _texture.ReadPixels(new Rect(0, 0, _layout.Width, _layout.Height), 0, 0, false);
+            }
+            finally
+            {
+                RenderTexture.active = previous;
+                RenderTexture.ReleaseTemporary(atlas);
+            }
+
+            return bySheet.Count;
+        }
+
+        private static void CopySheet(Texture sheet, List<KeyValuePair<Sprite, AtlasRect>> icons, RenderTexture atlas)
+        {
+            var rt = RenderTexture.GetTemporary(sheet.width, sheet.height, 0,
+                RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default);
+
+            try
+            {
+                Graphics.Blit(sheet, rt);
+
+                foreach (var icon in icons)
+                {
+                    Rect texRect = icon.Key.textureRect;
+                    int x = Mathf.RoundToInt(texRect.x);
+                    int y = Mathf.RoundToInt(texRect.y);
+                    var dest = icon.Value;
+                    if (x < 0 || y < 0 || x + dest.Width > sheet.width || y + dest.Height > sheet.height) continue;
+
+                    Graphics.CopyTexture(rt, 0, 0, x, y, dest.Width, dest.Height, atlas, 0, 0, dest.X, dest.Y);
+                }
+            }
+            catch (System.Exception e)
+            {
+                DrawerPlugin.Log.LogWarning($"Could not copy icons from '{sheet.name}' into the atlas: {e.Message}");
+            }
+            finally
+            {
+                RenderTexture.ReleaseTemporary(rt);
+            }
+        }
+
+        /// <summary>
+        /// The original path: a whole-sheet blit and readback per icon.
+        /// Used only when the device cannot CopyTexture. Returns the number
+        /// of source sheets, for the build log.
+        /// </summary>
+        private static int CopyIconsPerSprite(Dictionary<string, Sprite> sprites)
+        {
+            _texture.SetPixels32(new Color32[_layout.Width * _layout.Height]);
+
+            var sheets = new HashSet<Texture>();
+            foreach (var pair in _layout.Rects)
+            {
+                if (!sprites.TryGetValue(pair.Key, out var sprite)) continue;
+                sheets.Add(sprite.texture);
+                if (!TryReadSprite(sprite, out var pixels, out int w, out int h)) continue;
+
+                _texture.SetPixels32(pair.Value.X, pair.Value.Y, w, h, pixels);
+            }
+
+            return sheets.Count;
         }
 
         /// <summary>
