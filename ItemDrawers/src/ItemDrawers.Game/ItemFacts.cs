@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using ItemDrawers.Core;
 using UnityEngine;
 
@@ -25,8 +26,66 @@ namespace ItemDrawers.Game
 
         public static int MaxStackSize(string itemName)
         {
-            var drop = Drop(itemName);
-            return drop == null ? 1 : drop.m_itemData.m_shared.m_maxStackSize;
+            var template = Template(itemName);
+            return template == null ? 1 : template.m_shared.m_maxStackSize;
+        }
+
+        private static readonly Dictionary<string, ItemDrop.ItemData> Templates =
+            new Dictionary<string, ItemDrop.ItemData>();
+        private static ObjectDB _templatesFor;
+
+        /// <summary>
+        /// The ItemData every item this mod hands out is cloned from: one
+        /// made the way vanilla makes items, not a clone of the ObjectDB
+        /// prefab's (issue #16).
+        ///
+        /// Vanilla Inventory.AddItem(string, ...) instantiates the prefab
+        /// (with ZNetView.m_forceDisableInit) and takes the instance's
+        /// m_itemData. Instantiate deep-copies the serialized SharedData,
+        /// and ItemDrop.Awake keeps that copy outside the editor, so mods
+        /// that change items in an ItemDrop.Awake prefix -- Valheim Plus's
+        /// stack multiplier, weight reduction and noTeleportPrevention --
+        /// change the instance and never the prefab, which never wakes. A
+        /// clone of the prefab's data therefore carried vanilla values: a
+        /// 50-stack beside the player's own 300-stacks of the same item.
+        ///
+        /// Built lazily, one per item per ObjectDB (a world load), so it
+        /// sees settings a server syncs after connecting. ItemData.Clone is
+        /// a MemberwiseClone, so every clone shares this template's m_shared;
+        /// nothing here writes to it.
+        /// </summary>
+        public static ItemDrop.ItemData Template(string itemName)
+        {
+            if (!ReferenceEquals(_templatesFor, ObjectDB.instance))
+            {
+                Templates.Clear();
+                _templatesFor = ObjectDB.instance;
+            }
+
+            if (string.IsNullOrEmpty(itemName)) return null;
+            if (Templates.TryGetValue(itemName, out var cached)) return cached;
+
+            var prefab = Prefab(itemName);
+            if (prefab == null || prefab.GetComponent<ItemDrop>() == null) return null;
+
+            GameObject instance;
+            ZNetView.m_forceDisableInit = true;
+            try
+            {
+                instance = Object.Instantiate(prefab);
+            }
+            finally
+            {
+                ZNetView.m_forceDisableInit = false;
+            }
+
+            var drop = instance.GetComponent<ItemDrop>();
+            var template = drop.m_itemData.Clone();
+            template.m_dropPrefab = prefab;
+            Object.Destroy(instance);
+
+            Templates[itemName] = template;
+            return template;
         }
 
         public static string LocalizedName(string itemName)
@@ -151,11 +210,11 @@ namespace ItemDrawers.Game
         /// </summary>
         public static void GiveToPlayer(Player player, string itemName, int amount)
         {
-            var drop = Drop(itemName);
-            if (drop == null || amount <= 0) return;
+            var template = Template(itemName);
+            if (template == null || amount <= 0) return;
 
-            var prefab = drop.gameObject;
-            int stackSize = drop.m_itemData.m_shared.m_maxStackSize;
+            var prefab = template.m_dropPrefab;
+            int stackSize = template.m_shared.m_maxStackSize;
             var inventory = player.GetInventory();
             var spillPos = player.transform.position + player.transform.forward + Vector3.up;
 
@@ -163,8 +222,7 @@ namespace ItemDrawers.Game
             {
                 // global::Game: inside a *.Game namespace the bare name Game
                 // binds to the namespace, not the game type.
-                var item = drop.m_itemData.Clone();
-                item.m_dropPrefab = prefab;
+                var item = template.Clone();
                 item.m_stack = chunk;                 // chunk <= stackSize already
                 item.m_worldLevel = (byte)global::Game.m_worldLevel;
 

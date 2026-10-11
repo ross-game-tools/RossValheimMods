@@ -39,6 +39,10 @@ One file per subsystem:
   `Character.InInterior` is the wrong way to ask whether a terrain sample
   means anything where you are standing (`Character.UnderWorldCheck` vs
   `ZoneSystem.GetGroundHeight`/`GetSolidHeight`/`IsBlocked`).
+- `item-instances.md` (read at 1.0.17) — every item instance owns its own
+  `SharedData` copy; vanilla makes inventory items by instantiating the
+  prefab, so mods that patch `ItemDrop.Awake` (Valheim Plus stack size,
+  weight, teleport) never touch the ObjectDB prefab's data.
 - `dropped-items.md` (read at 1.0.15) — `ItemDrop`'s auto-destroy clock
   (`TimedDestruction`, owner-only, every 10s via `SlowUpdate`), the
   permanent `IsInsideBase()` exemption that leaves base litter

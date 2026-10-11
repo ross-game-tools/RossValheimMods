@@ -662,8 +662,8 @@ namespace ItemDrawers.Game
                 return 0;
             }
 
-            var drop = slots.Length > 0 ? ItemFacts.Drop(itemName) : null;
-            _unresolved = slots.Length > 0 && drop == null;
+            var template = slots.Length > 0 ? ItemFacts.Template(itemName) : null;
+            _unresolved = slots.Length > 0 && template == null;
 
             int cells = _unresolved ? 0 : slots.Length;
             int width = cells == SlotCount ? 4 : cells;
@@ -681,9 +681,8 @@ namespace ItemDrawers.Game
                 for (int i = 0; i < cells; i++)
                 {
                     if (slots[i] <= 0) continue;
-                    var data = drop.m_itemData.Clone();
+                    var data = template.Clone();
                     data.m_stack = slots[i];
-                    data.m_dropPrefab = drop.gameObject;
                     // CountItems/HaveItem/RemoveItem(string, ...) filter on
                     // m_worldLevel >= Game.m_worldLevel.
                     data.m_worldLevel = global::Game.m_worldLevel;

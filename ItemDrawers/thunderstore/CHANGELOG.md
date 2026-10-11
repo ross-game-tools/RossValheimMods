@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.16
+
+- Items taken out of a drawer now follow mods that change items, such as
+  Valheim Plus's bigger stack sizes. Before, a withdrawn stack used the
+  vanilla stack size, so you could end up with a 50/50 stack sitting next to
+  your own 300-stacks of the same item, and "take a stack" only gave 50.
+  The same fix applies Valheim Plus's item weight and teleport settings to
+  withdrawn items. Stacks already in your inventory sort themselves out the
+  next time you load in.
+
 ## 1.0.15
 
 - The first world load of a session is faster: building the sheet of item
