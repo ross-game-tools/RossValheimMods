@@ -39,6 +39,11 @@ One file per subsystem:
   `Character.InInterior` is the wrong way to ask whether a terrain sample
   means anything where you are standing (`Character.UnderWorldCheck` vs
   `ZoneSystem.GetGroundHeight`/`GetSolidHeight`/`IsBlocked`).
+- `inventory-transfers.md` (read at 1.0.17) — every vanilla path an item
+  takes out of a container: into another inventory always through one of
+  three `Inventory.AddItem` overloads, onto the ground through
+  `ItemDrop.DropItem` (which clones the source item's `SharedData`), and
+  why `Inventory.Load` silently cuts an oversized stack.
 - `item-instances.md` (read at 1.0.17) — every item instance owns its own
   `SharedData` copy; vanilla makes inventory items by instantiating the
   prefab, so mods that patch `ItemDrop.Awake` (Valheim Plus stack size,

@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0
+
+- Other mods now see a drawer as one stack of everything it holds, instead
+  of its contents split into up to eight smaller stacks. Mods that list
+  every stack they find -- like EpicLoot's sacrifice tab -- showed a drawer
+  of seven trophies as seven separate rows; now it is one. When you open a
+  drawer, its stack shows the drawer's capacity as its limit (for example
+  57/2000), and other mods can still fill it right up to that capacity.
+- Every player on a server needs the same 1.1 version, since it changes
+  what drawers share with each other.
+
 ## 1.0.16
 
 - Items taken out of a drawer now follow mods that change items, such as

@@ -116,7 +116,7 @@ namespace ItemDrawers.Core.Tests
         public void A_freshly_rebuilt_view_reconciles_to_no_change()
         {
             var after = Wood(520);
-            int baseline = ViewLayout.Compute(true, after.Amount, 1000, 50).Sum();
+            int baseline = ViewLayout.Compute(true, after.Amount).Sum();
 
             Assert.Equal(520, baseline);
 

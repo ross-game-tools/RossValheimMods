@@ -1,85 +1,49 @@
 using System;
-using System.Collections.Generic;
 
 namespace ItemDrawers.Core
 {
     /// <summary>
-    /// How many of a drawer's items each slot of its container view holds.
-    /// Pure: no game, no side effects.
+    /// How a drawer's container view is laid out. Pure: no game, no side
+    /// effects.
+    ///
+    /// An assigned drawer shows its whole stock as ONE stack whose max stack
+    /// size is the drawer's capacity (StackLimit), so the deposit room
+    /// vanilla AddItem finds -- the stack's max minus its count -- is exactly
+    /// the drawer's remaining capacity, and container-reading mods see one
+    /// entry per drawer (issue #17). Before 1.1.0 the view spread the stock
+    /// over up to eight item-max stacks to fake that room, which mods that
+    /// list every stack (EpicLoot's sacrifice tab) showed as one row each.
     ///
     /// The view never has an empty slot while the drawer has stock, so a
     /// wrong item or a non-stackable is refused by vanilla AddItem with no
-    /// special code. Slot 1 (index 0) holds everything not shown elsewhere
-    /// and may exceed the max stack size; the other slots start at one item
-    /// each and are raised evenly, never above the max stack size, until the
-    /// deposit room vanilla would see -- the free space of EVERY slot below
-    /// the max stack size, slot 1 included -- is at most the drawer's
-    /// remaining capacity. When no layout with at least two slots can meet
-    /// that, fewer slots are used; a single slot is the last resort.
-    ///
-    /// A drawer that is assigned but empty is the one case with an empty
-    /// slot: it exposes a single one so an external deposit can place the
-    /// first item (see Compute). An unassigned drawer exposes no slots.
+    /// special code. An assigned but empty drawer exposes a single empty slot
+    /// so an external deposit can place the first item. An unassigned drawer
+    /// exposes no slots.
     /// </summary>
     public static class ViewLayout
     {
-        public const int DefaultSlotCount = 8;
+        /// <summary>
+        /// The most slots any version has written to ViewSlots (the pre-1.1.0
+        /// spread layout). Decoding still accepts that many, so a drawer last
+        /// published by an older version loads before it is republished.
+        /// </summary>
+        public const int LegacySlotCount = 8;
 
-        public static int[] Compute(bool assigned, int amount, int capacity, int maxStackSize, int slotCount = DefaultSlotCount)
+        public static int[] Compute(bool assigned, int amount)
         {
-            if (!assigned || slotCount <= 0) return Array.Empty<int>();
-
-            // An assigned drawer with no stock still exposes a single empty
-            // slot. A mod depositing through the Container/Inventory API (a
-            // sap extractor's auto-harvest, say) needs somewhere to place the
-            // FIRST item; a 0x0 inventory (Array.Empty) has no slot, so vanilla
-            // AddItem/CanAddItem/FindEmptySlot refuse it -- which is exactly
-            // why an empty drawer would not accept sap while one already
-            // holding some (a real stack to merge into) did. The "no empty
-            // slot while there is stock" rule that refuses a wrong item cheaply
-            // does not apply when there is no stock; reconcile spills anything
-            // foreign back, and clamps a valid deposit to capacity.
-            if (amount <= 0) return new[] { 0 };
-
-            int max = maxStackSize < 1 ? 1 : maxStackSize;
-            long remaining = (long)capacity - amount;
-            long allowedRoom = remaining < 0 ? 0 : remaining;
-            int largest = amount < slotCount ? amount : slotCount;
-
-            for (int n = largest; n >= 2; n--)
-            {
-                int[] slots = Distribute(amount, max, n, allowedRoom);
-                if (slots != null && Room(slots, max) <= allowedRoom) return slots;
-            }
-
-            return new[] { amount };
+            if (!assigned) return Array.Empty<int>();
+            return new[] { amount < 0 ? 0 : amount };
         }
 
-        /// <summary>Deposit room vanilla AddItem would find: Σ max(0, M − count) over every slot.</summary>
-        public static long Room(IReadOnlyList<int> slots, int maxStackSize)
+        /// <summary>
+        /// The max stack size the view's stack carries: the drawer's capacity,
+        /// or the amount itself when a lowered capacity left the drawer over
+        /// it, so the room is never negative. At least 1.
+        /// </summary>
+        public static int StackLimit(int capacity, int amount)
         {
-            int max = maxStackSize < 1 ? 1 : maxStackSize;
-            long room = 0;
-            for (int i = 0; i < slots.Count; i++)
-                if (slots[i] < max) room += max - slots[i];
-            return room;
-        }
-
-        private static int[] Distribute(int amount, int max, int n, long allowedRoom)
-        {
-            int others = n - 1;
-            long needed = (long)others * max - allowedRoom;
-            long total = needed > others ? needed : others;
-            if (total > amount - 1) return null;
-
-            int baseCount = (int)(total / others);
-            int extra = (int)(total % others);
-
-            var slots = new int[n];
-            slots[0] = amount - (int)total;
-            for (int i = 1; i < n; i++)
-                slots[i] = baseCount + (i - 1 < extra ? 1 : 0);
-            return slots;
+            int limit = Math.Max(capacity, amount);
+            return limit < 1 ? 1 : limit;
         }
     }
 }
