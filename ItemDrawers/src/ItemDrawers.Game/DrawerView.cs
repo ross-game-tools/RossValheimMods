@@ -7,9 +7,8 @@ namespace ItemDrawers.Game
 {
     /// <summary>
     /// What Container.GetInventory returns for a drawer: a small real
-    /// Inventory laid out by ViewLayout -- one stack whose max stack size is
-    /// the drawer's capacity -- so every container-aware mod can read, take
-    /// from and store into a drawer with the ordinary API.
+    /// Inventory laid out by ViewLayout, so every container-aware mod can
+    /// read, take from and store into a drawer with the ordinary API.
     ///
     /// The drawer's Prefab + Amount stay the source of truth. Changes made
     /// through this Inventory mark it dirty; at the end of the frame
@@ -29,7 +28,7 @@ namespace ItemDrawers.Game
     ///
     /// ViewSlots is ItemDrawers' own format, never vanilla item bytes:
     /// Inventory.Load caps each stack at its max stack size, which would
-    /// truncate the view's stack and read as a huge withdrawal.
+    /// truncate slot 1 and read as a huge withdrawal.
     ///
     /// The Inventory is never mutated from inside its own m_onChanged
     /// handler; rebuilds happen from GetInventory/Load calls or the owner's
@@ -37,10 +36,7 @@ namespace ItemDrawers.Game
     /// </summary>
     internal sealed class DrawerView
     {
-        // Most slots a stored layout can have: older versions spread the
-        // stock over up to eight, and such a layout must still decode until
-        // the owner republishes it (NeedsReconcile).
-        internal const int SlotCount = ViewLayout.LegacySlotCount;
+        internal const int SlotCount = ViewLayout.DefaultSlotCount;
         internal const int FormatVersion = 1;
         internal const int NoBaseline = -1;
 
@@ -74,13 +70,6 @@ namespace ItemDrawers.Game
         // WriteDeltaToZdo does NOT read this to build what it writes -- it
         // re-decodes the ZDO fresh at write time instead.
         private readonly List<KeyValuePair<string, int>> _carriedForeign = new List<KeyValuePair<string, int>>();
-
-        // This view's own copy of its item's SharedData, whose max stack size
-        // is the drawer's capacity (ViewLayout, ViewSharedData), and the real
-        // SharedData it was copied from; a new item or a new template makes
-        // a new copy.
-        private ItemDrop.ItemData.SharedData _shared;
-        private ItemDrop.ItemData.SharedData _sharedSource;
 
         private bool _applying;
         private bool _dirty;
@@ -121,14 +110,10 @@ namespace ItemDrawers.Game
             _drawer = drawer;
             _nview = nview;
             _inventory = new Inventory("drawer", null, 0, 1);
-            ViewSharedData.RegisterView(_inventory, this);
             _inventory.m_onChanged = (Action)Delegate.Combine(_inventory.m_onChanged, new Action(OnInventoryChanged));
         }
 
         internal Inventory Inventory => _inventory;
-
-        /// <summary>The SharedData copy this view's stack carries; null until it shows one.</summary>
-        internal ItemDrop.ItemData.SharedData OwnShared => _shared;
 
         internal bool IsDirty => _dirty;
 
@@ -385,14 +370,12 @@ namespace ItemDrawers.Game
             if (_checkedClean && SameBytes(bytes, _checkedBytes) && baseline == _checkedBaseline && amount == _checkedAmount)
                 return false;
 
-            // More than one slot is a layout an older version published;
-            // reconciling republishes it as the single stack.
             bool needs = !TryDecode(bytes, out var slots, out var foreign)
-                         || slots.Length > 1
                          || baseline == NoBaseline
                          || foreign.Count > 0
                          || Sum(slots) != baseline
-                         || baseline != amount;
+                         || baseline != amount
+                         || IsSingleStackFrom110(slots);
 
             _checkedClean = !needs;
             _checkedBytes = bytes;
@@ -658,25 +641,16 @@ namespace ItemDrawers.Game
             DrawerManager.Instance?.MarkViewDirty(_drawer);
         }
 
-        private int[] LayoutFor(DrawerSnapshot state) => ViewLayout.Compute(state.IsAssigned, state.Amount);
+        private int[] LayoutFor(DrawerSnapshot state) =>
+            ViewLayout.Compute(state.IsAssigned, state.Amount, _drawer.Capacity, ItemFacts.MaxStackSize(state.ItemName), SlotCount);
 
-        /// <summary>
-        /// The SharedData every stack this view shows carries: a copy of the
-        /// template's, with its max stack size set to the drawer's capacity
-        /// so vanilla AddItem merges deposits into the one stack up to
-        /// exactly what the drawer has left (ViewLayout.StackLimit).
-        /// </summary>
-        private ItemDrop.ItemData.SharedData SharedFor(ItemDrop.ItemData template, int total)
-        {
-            if (!ReferenceEquals(_sharedSource, template.m_shared))
-            {
-                _shared = ViewSharedData.CopyOf(template.m_shared);
-                _sharedSource = template.m_shared;
-            }
-
-            _shared.m_maxStackSize = ViewLayout.StackLimit(_drawer.Capacity, total);
-            return _shared;
-        }
+        // 1.1.0 published every drawer as one slot holding everything. That
+        // reads as clean (the sum matches), but a slot above the max stack
+        // size shows no deposit room to mods that measure room per stack
+        // (AzuAutoStore, issue #18). Republish when today's layout would use
+        // more than one slot; a layout that really is one slot never loops.
+        private bool IsSingleStackFrom110(int[] slots) =>
+            slots.Length == 1 && LayoutFor(_drawer.Snapshot).Length > 1;
 
         /// <summary>
         /// Replaces the Inventory's contents and dimensions with the given
@@ -697,14 +671,6 @@ namespace ItemDrawers.Game
                 return 0;
             }
 
-            // A layout an older version stored spreads the stock over several
-            // slots. Shown as stacks that each carry the capacity limit, it
-            // would offer several times the drawer's real room until the
-            // owner republishes it, so show it as the one stack it now is.
-            // Reconcile works on sums, so nothing else notices.
-            if (slots.Length > 1)
-                slots = new[] { (int)Math.Min(Sum(slots), MaxEntryValue) };
-
             var template = slots.Length > 0 ? ItemFacts.Template(itemName) : null;
             _unresolved = slots.Length > 0 && template == null;
 
@@ -720,16 +686,11 @@ namespace ItemDrawers.Game
                 InventoryAccess.Width(_inventory) = width;
                 InventoryAccess.Height(_inventory) = height;
 
-                long shownTotal = 0;
-                for (int i = 0; i < cells; i++) shownTotal += Math.Max(0, slots[i]);
-                var shared = cells > 0 ? SharedFor(template, (int)Math.Min(shownTotal, MaxEntryValue)) : null;
-
                 int total = 0;
                 for (int i = 0; i < cells; i++)
                 {
                     if (slots[i] <= 0) continue;
                     var data = template.Clone();
-                    data.m_shared = shared;
                     data.m_stack = slots[i];
                     // CountItems/HaveItem/RemoveItem(string, ...) filter on
                     // m_worldLevel >= Game.m_worldLevel.

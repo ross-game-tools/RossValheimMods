@@ -7,16 +7,12 @@ using UnityEngine;
 namespace ItemDrawers.Game
 {
     /// <summary>
-    /// Splits any item whose stack exceeds its REAL max stack size as it
-    /// enters a real inventory. A drawer's view shows its whole stock as one
-    /// stack carrying a SharedData copy whose max is the drawer's capacity
-    /// (ViewSharedData); take-all and move mods copy that ItemData whole, and
-    /// without this a player or chest would hold an oversized stack that
-    /// Inventory.Load truncates on the next load. Every size here is the
-    /// item's real max (ViewSharedData.RealMaxStack), never the copy's; the
-    /// stacks placed still carry the copy until Inventory.Changed, which
-    /// every path here ends with, swaps it back. Generic on purpose: the
-    /// item's origin does not matter.
+    /// Splits any item whose stack exceeds its max stack size as it enters
+    /// a real inventory. A drawer's view shows slot 1 as one oversized
+    /// stack so other mods can see the whole count; take-all and move mods
+    /// copy that ItemData whole, and without this a player or chest would
+    /// hold an oversized stack that Inventory.Load truncates on the next
+    /// load. Generic on purpose: the item's origin does not matter.
     ///
     /// Each prefix returns true (vanilla runs untouched) unless the incoming
     /// amount is above the max stack size. When it takes over it tops up
@@ -52,8 +48,8 @@ namespace ItemDrawers.Game
         private static bool IsOversized(Inventory inventory, ItemDrop.ItemData item, int moving) =>
             InventoryAccess.Available
             && inventory != null && item != null && item.m_shared != null
-            && ViewSharedData.RealMaxStack(item) > 1
-            && moving > ViewSharedData.RealMaxStack(item)
+            && item.m_shared.m_maxStackSize > 1
+            && moving > item.m_shared.m_maxStackSize
             && !InventoryAccess.IsTemporary(inventory);
 
         [HarmonyPatch(typeof(Inventory), nameof(Inventory.AddItem), new[] { typeof(ItemDrop.ItemData) })]
@@ -109,12 +105,6 @@ namespace ItemDrawers.Game
                 __result = AddSplitToSlot(__instance, item, moving, new Vector2i(x, y));
                 return false;
             }
-
-            // The one vanilla add that calls Changed only with a local
-            // player, so on a dedicated server ViewSharedData's Changed
-            // prefix never sees it. Heal here instead, whichever path ran
-            // (HarmonyX runs postfixes after a false-returning prefix too).
-            private static void Postfix(Inventory __instance) => ViewSharedData.Heal(__instance);
         }
 
         /// <summary>
@@ -175,8 +165,8 @@ namespace ItemDrawers.Game
                     && item.m_stack == amount;
                 if (!wouldSwap) return true; // matching stack: AddItemToSlotPatch handles it losslessly
 
-                bool draggedOversized = item.m_stack > ViewSharedData.RealMaxStack(item);
-                bool targetOversized = itemAt.m_shared != null && itemAt.m_stack > ViewSharedData.RealMaxStack(itemAt);
+                bool draggedOversized = item.m_stack > item.m_shared.m_maxStackSize;
+                bool targetOversized = itemAt.m_shared != null && itemAt.m_stack > itemAt.m_shared.m_maxStackSize;
                 if (!draggedOversized && !targetOversized) return true; // neither side oversized: ordinary swap
 
                 __result = false;
@@ -193,7 +183,7 @@ namespace ItemDrawers.Game
             var partials = FindPartialStacks(items, item, out var freeSpace);
             int incoming = item.m_stack;
 
-            var plan = StackSplit.Plan(freeSpace, inventory.GetEmptySlots(), incoming, ViewSharedData.RealMaxStack(item), firstStackToTarget: false);
+            var plan = StackSplit.Plan(freeSpace, inventory.GetEmptySlots(), incoming, item.m_shared.m_maxStackSize, firstStackToTarget: false);
             int moved = ApplyTopUps(partials, plan.TopUps, item, markCheatedOnTopUp);
 
             bool topFirst = InventoryAccess.TopFirst(inventory, item);
@@ -234,7 +224,7 @@ namespace ItemDrawers.Game
             var items = InventoryAccess.Items(inventory);
             var partials = FindPartialStacks(items, item, out var freeSpace);
 
-            var plan = StackSplit.Plan(freeSpace, inventory.GetEmptySlots(), moving, ViewSharedData.RealMaxStack(item), firstStackToTarget: true);
+            var plan = StackSplit.Plan(freeSpace, inventory.GetEmptySlots(), moving, item.m_shared.m_maxStackSize, firstStackToTarget: true);
             int moved = ApplyTopUps(partials, plan.TopUps, item, markCheated: false);
 
             bool topFirst = InventoryAccess.TopFirst(inventory, item);

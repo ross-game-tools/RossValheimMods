@@ -396,6 +396,12 @@ namespace ItemDrawers.Game
                     var snapshot = candidate.Snapshot;
                     if (!snapshot.IsAssigned || snapshot.ItemName != itemName) continue;
 
+                    // A full drawer takes nothing, and the scan order is
+                    // fixed: stopping at one meant a drop next to a wall of
+                    // matching drawers was never picked up while the first
+                    // one found was full, however many others were empty.
+                    if (snapshot.Amount >= candidate.Capacity) continue;
+
                     target = candidate;
                     break;
                 }

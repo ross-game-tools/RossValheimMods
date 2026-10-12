@@ -3,7 +3,8 @@
 Every vanilla path that takes an `ItemDrop.ItemData` out of a container
 and puts it somewhere else, from the decompiled `assembly_valheim.dll`.
 Use this when an item in a container carries state that must not follow
-it out (ItemDrawers' single-stack view, issue #17).
+it out (ItemDrawers 1.1.0's single-stack view, issue #17, reverted in
+1.2.0 because mods assume no stack exceeds the item's max -- issue #18).
 
 ## Into another inventory: always one of three `AddItem` overloads
 

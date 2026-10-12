@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.0
+
+- Goes back to how 1.0.16 showed drawers to other mods, because the 1.1.0
+  change stopped AzuAutoStore from storing into drawers. Many mods work out
+  how much more a container can take by assuming no stack is bigger than
+  the item's normal stack size, and 1.1.0's one big stack broke that.
+  EpicLoot's sacrifice tab again lists a drawer as several rows.
+- Items dropped near a row of drawers for the same item are picked up again
+  when the first of those drawers is full. Before, the pickup only ever
+  tried that one drawer, so a pile could sit next to empty drawers forever.
+- Every player on a server needs 1.2, so 1.1.0 and 1.2.0 never share a
+  world.
+
 ## 1.1.0
 
 - Other mods now see a drawer as one stack of everything it holds, instead

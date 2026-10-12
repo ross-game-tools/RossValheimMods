@@ -121,7 +121,7 @@ namespace ItemDrawers.Game
 
                     long me = ZDOMan.GetSessionID();
                     args.Context.AddString($"my session id : {me}");
-                    args.Context.AddString("name  zdoAmount  owner  isOwner  viewCount  stacks  limit");
+                    args.Context.AddString("name  zdoAmount  owner  isOwner  viewCount");
 
                     int shown = 0, pending = 0;
                     foreach (var d in DrawerComponent.All)
@@ -139,20 +139,15 @@ namespace ItemDrawers.Game
                         // Through GetInventory, deliberately: that is the
                         // exact call other mods make.
                         var inv = d.GetInventory();
-                        int viewCount = 0, stacks = 0, limit = 0;
+                        int viewCount = 0;
                         if (inv != null)
                             foreach (var item in inv.GetAllItems())
-                            {
                                 viewCount += item.m_stack;
-                                stacks++;
-                                if (item.m_shared != null) limit = item.m_shared.m_maxStackSize;
-                            }
 
                         string ownerDesc = owner == 0L ? "0 (nobody)" : owner == me ? $"{owner} (me)" : owner.ToString();
                         args.Context.AddString(
                             $"{(snap.IsAssigned ? snap.ItemName : "<empty>")}  {snap.Amount}  {ownerDesc}  {isOwner}  "
-                            + (unresolved ? $"{viewCount} (item unresolved on this client)" : viewCount.ToString())
-                            + $"  {stacks}  {limit}");
+                            + (unresolved ? $"{viewCount} (item unresolved on this client)" : viewCount.ToString()));
 
                         // A view this client cannot lay out shows nothing by
                         // design; that is not a pending change.
